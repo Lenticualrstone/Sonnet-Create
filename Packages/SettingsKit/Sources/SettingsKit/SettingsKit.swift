@@ -1,0 +1,156 @@
+import AppCore
+import DesignSystem
+import Foundation
+import Observation
+
+/// 앱 전역 설정 (UserDefaults에 JSON으로 저장).
+public struct AppSettings: Codable, Sendable, Equatable {
+    // 기본
+    public var language: AppLanguage = .korean
+    public var workspacePath: String = NSString("~/Documents/SonnetCreate").expandingTildeInPath
+    public var autosave: Bool = true
+    public var backupOnQuit: Bool = true
+    public var authorName: String = ""
+    /// 아카이브에서 항목을 여는 클릭 방식 (true = 싱글 클릭)
+    public var openOnSingleClick: Bool = true
+
+    // 테마
+    /// 인터페이스 스타일 — 기본은 Sonnet (본톤 + 적갈 액센트)
+    public var interfaceTheme: InterfaceTheme = .sonnet
+    public var themeMode: ThemeMode = .system
+    public var accent: AccentChoice = .system
+    /// 베타: Liquid Glass를 끄고 평면 표면 사용 (Sonnet 룩 기본)
+    public var disableLiquidGlass: Bool = true
+    /// Wavy Dot Field 배경 효과 (기본 꺼짐)
+    public var backgroundEffectEnabled: Bool = false
+    /// 전체 UI 크기 배율
+    public var uiScale: Double = 1.0
+    /// 탭 스타일 — "chrome"(기본) | "capsule"
+    public var tabStyleRaw: String = "chrome"
+    /// 베타: Touch Bar 지원
+    public var touchBarEnabled: Bool = false
+    /// 시나리오 캐릭터 인스펙터를 오른쪽에 배치
+    public var scenarioInspectorOnRight: Bool = false
+    public var quality: RenderQuality = .standard
+    public var backgroundSpeed: Double = 0.6
+    public var backgroundDensity: Double = 34
+    public var backgroundBlurOthers: Double = 14
+    public var backgroundDotSize: Double = 1.0
+    /// 시점 각도 — 1.0 정면, 낮을수록 기울어짐
+    public var backgroundPitch: Double = 1.0
+    /// 도트 색: false = 테마 추종, true = 강조색
+    public var backgroundUseAccent: Bool = false
+
+    // 텍스트
+    /// 기본 글꼴 팩 — 기본은 Pretendard
+    public var fontFamily: FontFamily = .pretendard
+    public var fontScale: Double = 1.0
+    public var lineSpacingScale: Double = 1.0
+    /// 블록 간 간격 (pt) — 페이지·시나리오 에디터
+    public var blockSpacing: Double = 7
+
+    // 베타 (AI)
+    public var aiProviderRaw: String = "offline"
+    public var aiContextScope: AIContextScope = .document
+
+    public init() {}
+
+    /// 설정 필드가 추가돼도 기존 저장분을 잃지 않도록 전 필드 decodeIfPresent.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = AppSettings()
+        language = try c.decodeIfPresent(AppLanguage.self, forKey: .language) ?? d.language
+        workspacePath = try c.decodeIfPresent(String.self, forKey: .workspacePath) ?? d.workspacePath
+        autosave = try c.decodeIfPresent(Bool.self, forKey: .autosave) ?? d.autosave
+        backupOnQuit = try c.decodeIfPresent(Bool.self, forKey: .backupOnQuit) ?? d.backupOnQuit
+        authorName = try c.decodeIfPresent(String.self, forKey: .authorName) ?? d.authorName
+        openOnSingleClick = try c.decodeIfPresent(Bool.self, forKey: .openOnSingleClick) ?? d.openOnSingleClick
+        interfaceTheme = try c.decodeIfPresent(InterfaceTheme.self, forKey: .interfaceTheme) ?? d.interfaceTheme
+        themeMode = try c.decodeIfPresent(ThemeMode.self, forKey: .themeMode) ?? d.themeMode
+        accent = try c.decodeIfPresent(AccentChoice.self, forKey: .accent) ?? d.accent
+        disableLiquidGlass = try c.decodeIfPresent(Bool.self, forKey: .disableLiquidGlass) ?? d.disableLiquidGlass
+        backgroundEffectEnabled = try c.decodeIfPresent(Bool.self, forKey: .backgroundEffectEnabled) ?? d.backgroundEffectEnabled
+        uiScale = try c.decodeIfPresent(Double.self, forKey: .uiScale) ?? d.uiScale
+        tabStyleRaw = try c.decodeIfPresent(String.self, forKey: .tabStyleRaw) ?? d.tabStyleRaw
+        touchBarEnabled = try c.decodeIfPresent(Bool.self, forKey: .touchBarEnabled) ?? d.touchBarEnabled
+        scenarioInspectorOnRight = try c.decodeIfPresent(Bool.self, forKey: .scenarioInspectorOnRight) ?? d.scenarioInspectorOnRight
+        quality = try c.decodeIfPresent(RenderQuality.self, forKey: .quality) ?? d.quality
+        backgroundSpeed = try c.decodeIfPresent(Double.self, forKey: .backgroundSpeed) ?? d.backgroundSpeed
+        backgroundDensity = try c.decodeIfPresent(Double.self, forKey: .backgroundDensity) ?? d.backgroundDensity
+        backgroundBlurOthers = try c.decodeIfPresent(Double.self, forKey: .backgroundBlurOthers) ?? d.backgroundBlurOthers
+        backgroundDotSize = try c.decodeIfPresent(Double.self, forKey: .backgroundDotSize) ?? d.backgroundDotSize
+        backgroundPitch = try c.decodeIfPresent(Double.self, forKey: .backgroundPitch) ?? d.backgroundPitch
+        backgroundUseAccent = try c.decodeIfPresent(Bool.self, forKey: .backgroundUseAccent) ?? d.backgroundUseAccent
+        fontFamily = try c.decodeIfPresent(FontFamily.self, forKey: .fontFamily) ?? d.fontFamily
+        fontScale = try c.decodeIfPresent(Double.self, forKey: .fontScale) ?? d.fontScale
+        lineSpacingScale = try c.decodeIfPresent(Double.self, forKey: .lineSpacingScale) ?? d.lineSpacingScale
+        blockSpacing = try c.decodeIfPresent(Double.self, forKey: .blockSpacing) ?? d.blockSpacing
+        aiProviderRaw = try c.decodeIfPresent(String.self, forKey: .aiProviderRaw) ?? d.aiProviderRaw
+        aiContextScope = try c.decodeIfPresent(AIContextScope.self, forKey: .aiContextScope) ?? d.aiContextScope
+    }
+}
+
+/// 설정 상태·저장. 편집은 draft에 쌓이고 '저장' 버튼으로 반영된다.
+@MainActor
+@Observable
+public final class SettingsStore {
+    public private(set) var applied: AppSettings
+    public var draft: AppSettings
+
+    /// API 키는 UserDefaults가 아닌 Keychain으로 — 앱이 주입
+    public var draftAPIKey: String = ""
+    public var persistAPIKey: ((String) -> Void)?
+    public var loadAPIKey: (() -> String)?
+
+    /// 저장 직후 앱이 반영 작업(테마/워크스페이스 전환 등)을 하도록 호출
+    public var onApply: ((AppSettings) -> Void)?
+
+    private static let defaultsKey = "app-settings-v1"
+
+    public init() {
+        var loaded = Self.load()
+        // 1회성 마이그레이션: chrome-tabs 재설계에 맞춰 기존 capsule 기본값을 chrome으로
+        let migrationKey = "migrated-chrome-tabs-v1"
+        if !UserDefaults.standard.bool(forKey: migrationKey) {
+            if loaded.tabStyleRaw == "capsule" { loaded.tabStyleRaw = "chrome" }
+            UserDefaults.standard.set(true, forKey: migrationKey)
+            Self.persist(loaded)
+        }
+        applied = loaded
+        draft = loaded
+    }
+
+    public var hasChanges: Bool {
+        draft != applied || draftAPIKey != (loadAPIKey?() ?? "")
+    }
+
+    public func refreshAPIKeyDraft() {
+        draftAPIKey = loadAPIKey?() ?? ""
+    }
+
+    /// '저장' 버튼 — draft를 적용/영속화.
+    public func save() {
+        applied = draft
+        Self.persist(applied)
+        persistAPIKey?(draftAPIKey)
+        onApply?(applied)
+    }
+
+    public func revert() {
+        draft = applied
+        refreshAPIKeyDraft()
+    }
+
+    private static func load() -> AppSettings {
+        guard let data = UserDefaults.standard.data(forKey: defaultsKey),
+              let settings = try? JSONDecoder().decode(AppSettings.self, from: data)
+        else { return AppSettings() }
+        return settings
+    }
+
+    private static func persist(_ settings: AppSettings) {
+        if let data = try? JSONEncoder().encode(settings) {
+            UserDefaults.standard.set(data, forKey: defaultsKey)
+        }
+    }
+}

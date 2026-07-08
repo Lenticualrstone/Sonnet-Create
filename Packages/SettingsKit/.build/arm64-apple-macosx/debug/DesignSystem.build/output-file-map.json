@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/DesignSystem.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.dia"
+  }
+}

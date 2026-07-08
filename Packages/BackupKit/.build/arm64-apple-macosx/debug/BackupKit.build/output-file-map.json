@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKit.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/Sources/BackupKit/BackupKit.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKit.build/BackupKit.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKit.build/BackupKit.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKit.build/BackupKit~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKit.build/BackupKit.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKit.build/BackupKit.dia"
+  }
+}

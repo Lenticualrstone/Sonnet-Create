@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitPackageTests.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitPackageTests.build/runner.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitPackageTests.build/runner.dia"
+  }
+}

@@ -1,0 +1,818 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.xctest/Contents/MacOS/SecurityKitPackageTests",
+      "packagePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit",
+      "productName" : "SecurityKitPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.AppCore-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/sources",
+      "importPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/AppCore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Quality.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "AppCore",
+      "moduleOutputPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/AppCore.swiftmodule",
+      "objects" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/AppCore.swift.o",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.swift.o",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/Quality.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/include/AppCore-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "appcore"
+      ],
+      "outputFileMapPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/AppCore.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/Quality.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/AppCore.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/AppCore.swift",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Quality.swift"
+      ],
+      "tempsPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.SecurityKit-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/sources",
+      "importPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Sources/SecurityKit/SecurityKit.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/AppCore.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "SecurityKit",
+      "moduleOutputPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKit.swiftmodule",
+      "objects" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/include/SecurityKit-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "securitykit"
+      ],
+      "outputFileMapPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKit.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Sources/SecurityKit/SecurityKit.swift"
+      ],
+      "tempsPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.SecurityKitPackageTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/sources",
+      "importPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKitTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "SecurityKitPackageTests",
+      "moduleOutputPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKitPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/include/SecurityKitPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "securitykit"
+      ],
+      "outputFileMapPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKitPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.SecurityKitTests-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/sources",
+      "importPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Tests/SecurityKitTests/SecurityKitTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKit.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "SecurityKitTests",
+      "moduleOutputPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKitTests.swiftmodule",
+      "objects" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx26.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j8",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "securitykit"
+      ],
+      "outputFileMapPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules/SecurityKitTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Tests/SecurityKitTests/SecurityKitTests.swift"
+      ],
+      "tempsPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "AppCore" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AppCore",
+      "-package-name",
+      "appcore",
+      "-c",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/AppCore.swift",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Quality.swift",
+      "-I",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/include/AppCore-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "appcore",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "SecurityKit" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "SecurityKit",
+      "-package-name",
+      "securitykit",
+      "-c",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Sources/SecurityKit/SecurityKit.swift",
+      "-I",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/include/SecurityKit-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "securitykit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "SecurityKitPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "SecurityKitPackageTests",
+      "-package-name",
+      "securitykit",
+      "-c",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/include/SecurityKitPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "securitykit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "SecurityKitTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "SecurityKitTests",
+      "-package-name",
+      "securitykit",
+      "-c",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Tests/SecurityKitTests/SecurityKitTests.swift",
+      "-I",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx26.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j8",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "securitykit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "AppCore" : [
+
+    ],
+    "SecurityKit" : [
+      "AppCore"
+    ],
+    "SecurityKitPackageTests" : [
+      "SecurityKitTests",
+      "SecurityKit",
+      "AppCore"
+    ],
+    "SecurityKitTests" : [
+      "SecurityKit",
+      "AppCore"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/AppCore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Quality.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/sources"
+    },
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Sources/SecurityKit/SecurityKit.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/sources"
+    },
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/sources"
+    },
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/AppCore.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/AppCore.build/Quality.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Tests/SecurityKitTests/SecurityKitTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/sources"
+    },
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

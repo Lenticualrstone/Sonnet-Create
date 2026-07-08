@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Workspace
+   version = "1.0">
+   <FileRef
+      location = "group:App/SonnetCreate.xcodeproj">
+   </FileRef>
+   <Group
+      location = "container:"
+      name = "Packages">
+      <FileRef
+         location = "group:Packages/AppCore">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/DesignSystem">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/PersistenceKit">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/RenderingKit">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/DocumentKit">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/FileManagerKit">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/AIAgentKit">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/ScenarioEditor">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/MindMapEditor">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/MarkdownEditor">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/SettingsKit">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/BackupKit">
+      </FileRef>
+      <FileRef
+         location = "group:Packages/SecurityKit">
+      </FileRef>
+   </Group>
+</Workspace>

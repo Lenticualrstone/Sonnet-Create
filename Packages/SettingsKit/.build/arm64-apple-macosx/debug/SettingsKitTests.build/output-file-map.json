@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitTests.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/Tests/SettingsKitTests/SettingsKitTests.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitTests.build/SettingsKitTests.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitTests.build/SettingsKitTests.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitTests.build/SettingsKitTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitTests.build/SettingsKitTests.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/SettingsKitTests.build/SettingsKitTests.dia"
+  }
+}

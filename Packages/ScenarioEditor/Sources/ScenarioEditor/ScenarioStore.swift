@@ -1,0 +1,341 @@
+import AIAgentKit
+import AppCore
+import DocumentKit
+import Foundation
+import Observation
+
+/// 프로젝트 캐릭터 페이지에서 캐스트로 가져올 수 있는 항목.
+public struct ImportableCharacter: Identifiable, Sendable {
+    public let id: UUID   // 캐릭터 페이지 문서 UUID
+    public let name: String
+    public let role: String
+    public let symbolName: String
+    public let accentHex: String
+
+    public init(id: UUID, name: String, role: String, symbolName: String, accentHex: String) {
+        self.id = id
+        self.name = name
+        self.role = role
+        self.symbolName = symbolName
+        self.accentHex = accentHex
+    }
+}
+
+/// 채팅형 시나리오 에디터의 상태/로직.
+@MainActor
+@Observable
+public final class ScenarioStore {
+    public enum ComposerMode: Sendable {
+        case line, instruction
+    }
+
+    // MARK: 문서 상태
+
+    public private(set) var content: ScenarioContent
+    /// 내용이 바뀔 때마다 호출 (세션이 dirty 표시/자동저장에 사용)
+    public var onContentChanged: ((ScenarioContent) -> Void)?
+
+    // MARK: 입력기 상태
+
+    public var composerMode: ComposerMode = .line
+    public var composerText: String = ""
+    public var selectedSpeakerIDs: Set<UUID> = []
+    /// 빈 입력 전송 시도 시 Error State Shake 트리거
+    public var shakeTrigger: CGFloat = 0
+    /// '내용 수정' 중인 블록 (입력란으로 이동 후 원위치 복귀)
+    public private(set) var editingBlockID: UUID?
+
+    // MARK: 분기
+
+    /// 현재 보고 있는 분기 (nil = 본편)
+    public var activeBranchID: UUID?
+
+    /// 프로젝트 캐릭터 페이지 목록 (앱이 주입)
+    public var characterCatalog: (() -> [ImportableCharacter])?
+
+    // MARK: 검색/undo
+
+    public var searchQuery: String = ""
+    private var undoStack: [ScenarioContent] = []
+    private var redoStack: [ScenarioContent] = []
+    public var canUndo: Bool { !undoStack.isEmpty }
+    public var canRedo: Bool { !redoStack.isEmpty }
+
+    // MARK: AI 제안
+
+    public var pendingSuggestions: [ScenarioBlock] = []
+    public var isGenerating: Bool = false
+    public var aiEnabled: Bool = false
+    /// 앱이 주입하는 자동 작성 파이프라인
+    public var autoWriter: (@MainActor (ScenarioContent) async throws -> [AISuggestedBlock])?
+
+    public init(content: ScenarioContent) {
+        self.content = content
+    }
+
+    // MARK: 변형 헬퍼
+
+    private func mutate(_ transform: (inout ScenarioContent) -> Void) {
+        undoStack.append(content)
+        if undoStack.count > 100 { undoStack.removeFirst() }
+        redoStack.removeAll()
+        transform(&content)
+        onContentChanged?(content)
+    }
+
+    public func undo() {
+        guard let previous = undoStack.popLast() else { return }
+        redoStack.append(content)
+        content = previous
+        onContentChanged?(content)
+    }
+
+    public func redo() {
+        guard let next = redoStack.popLast() else { return }
+        undoStack.append(content)
+        content = next
+        onContentChanged?(content)
+    }
+
+    // MARK: 분기 접근자
+
+    public var activeBranch: ScenarioBranch? {
+        activeBranchID.flatMap { id in content.branches.first { $0.id == id } }
+    }
+
+    /// 현재 편집 중인 블록 시퀀스 (본편 또는 활성 분기)
+    public var activeBlocks: [ScenarioBlock] {
+        activeBranch?.blocks ?? content.blocks
+    }
+
+    /// 분기 모드에서 상단에 흐리게 보여줄 분기점 직전 본편 블록들 (최대 2개)
+    public var branchContextBlocks: [ScenarioBlock] {
+        guard let branch = activeBranch,
+              let parentID = branch.parentBlockID,
+              let idx = content.blocks.firstIndex(where: { $0.id == parentID })
+        else { return [] }
+        let start = max(0, idx - 1)
+        return Array(content.blocks[start...idx])
+    }
+
+    /// 활성 시퀀스에 대한 변형 (본편/분기 자동 라우팅)
+    private func withActiveBlocks(_ transform: (inout [ScenarioBlock]) -> Void) {
+        mutate { c in
+            if let branchID = activeBranchID,
+               let idx = c.branches.firstIndex(where: { $0.id == branchID }) {
+                transform(&c.branches[idx].blocks)
+            } else {
+                transform(&c.blocks)
+            }
+        }
+    }
+
+    public func switchBranch(_ id: UUID?) {
+        activeBranchID = id
+        cancelEditing()
+    }
+
+    /// 본편의 특정 블록에서 분기 생성 후 그 분기로 전환.
+    @discardableResult
+    public func createBranch(after block: ScenarioBlock?, name: String) -> ScenarioBranch {
+        let branch = ScenarioBranch(name: name, parentBlockID: block?.id)
+        mutate { $0.branches.append(branch) }
+        activeBranchID = branch.id
+        return branch
+    }
+
+    public func renameBranch(_ id: UUID, to name: String) {
+        mutate { c in
+            guard let idx = c.branches.firstIndex(where: { $0.id == id }) else { return }
+            c.branches[idx].name = name
+        }
+    }
+
+    public func deleteBranch(_ id: UUID) {
+        mutate { $0.branches.removeAll { $0.id == id } }
+        if activeBranchID == id { activeBranchID = nil }
+    }
+
+    /// AI 이어쓰기용 유효 흐름: 분기면 분기점까지의 본편 + 분기 블록.
+    public var effectiveFlowForAI: [ScenarioBlock] {
+        guard let branch = activeBranch else { return content.blocks }
+        var flow: [ScenarioBlock] = []
+        if let parentID = branch.parentBlockID,
+           let idx = content.blocks.firstIndex(where: { $0.id == parentID }) {
+            flow.append(contentsOf: content.blocks[...idx])
+        }
+        flow.append(contentsOf: branch.blocks)
+        return flow
+    }
+
+    // MARK: 블록
+
+    public var visibleBlocks: [ScenarioBlock] {
+        guard !searchQuery.isEmpty else { return activeBlocks }
+        return activeBlocks.filter { $0.text.localizedCaseInsensitiveContains(searchQuery) }
+    }
+
+    /// 입력기 제출. 빈 텍스트면 shake만 발동하고 false 반환.
+    @discardableResult
+    public func submitComposer() -> Bool {
+        let text = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else {
+            shakeTrigger += 1
+            return false
+        }
+        if let editingID = editingBlockID {
+            withActiveBlocks { blocks in
+                guard let idx = blocks.firstIndex(where: { $0.id == editingID }) else { return }
+                blocks[idx].text = text
+                if blocks[idx].kind == .line {
+                    blocks[idx].speakerIDs = Array(selectedSpeakerIDs)
+                }
+            }
+            editingBlockID = nil
+        } else {
+            let block = ScenarioBlock(
+                kind: composerMode == .line ? .line : .instruction,
+                speakerIDs: composerMode == .line ? Array(selectedSpeakerIDs) : [],
+                text: text
+            )
+            withActiveBlocks { $0.append(block) }
+        }
+        composerText = ""
+        return true
+    }
+
+    /// 구분선 블록 삽입 (장면 전환 등).
+    public func insertDivider() {
+        withActiveBlocks { $0.append(ScenarioBlock(kind: .divider, text: "")) }
+    }
+
+    /// 빠른 메뉴 '내용 수정' — 블록 내용을 입력란으로 이동.
+    public func beginEditing(_ block: ScenarioBlock) {
+        editingBlockID = block.id
+        composerText = block.text
+        composerMode = block.kind == .line ? .line : .instruction
+        selectedSpeakerIDs = Set(block.speakerIDs)
+    }
+
+    public func cancelEditing() {
+        editingBlockID = nil
+        composerText = ""
+    }
+
+    public func deleteBlock(_ id: UUID) {
+        withActiveBlocks { $0.removeAll { $0.id == id } }
+        if editingBlockID == id { cancelEditing() }
+    }
+
+    public func moveBlocks(from source: IndexSet, to destination: Int) {
+        withActiveBlocks { $0.move(fromOffsets: source, toOffset: destination) }
+    }
+
+    // MARK: 캐스트
+
+    public func castMember(id: UUID) -> CastMember? {
+        content.cast.first { $0.id == id }
+    }
+
+    public func speakers(of block: ScenarioBlock) -> [CastMember] {
+        block.speakerIDs.compactMap { castMember(id: $0) }
+    }
+
+    public func addCastMember(name: String) {
+        let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6"]
+        let hex = palette[content.cast.count % palette.count]
+        mutate { $0.cast.append(CastMember(name: name, accentHex: hex)) }
+    }
+
+    public func updateCastMember(_ member: CastMember) {
+        mutate { c in
+            guard let idx = c.cast.firstIndex(where: { $0.id == member.id }) else { return }
+            c.cast[idx] = member
+        }
+    }
+
+    public func removeCastMember(_ id: UUID) {
+        mutate { c in
+            c.cast.removeAll { $0.id == id }
+            for i in c.blocks.indices {
+                c.blocks[i].speakerIDs.removeAll { $0 == id }
+            }
+            for b in c.branches.indices {
+                for i in c.branches[b].blocks.indices {
+                    c.branches[b].blocks[i].speakerIDs.removeAll { $0 == id }
+                }
+            }
+        }
+        selectedSpeakerIDs.remove(id)
+    }
+
+    /// 프로젝트 캐릭터 페이지를 캐스트로 가져오기 (이미 연결된 페이지는 중복 방지).
+    public func importCastMember(_ character: ImportableCharacter) {
+        guard !content.cast.contains(where: { $0.characterPageID == character.id }) else { return }
+        mutate {
+            $0.cast.append(CastMember(
+                name: character.name,
+                roleLine: character.role,
+                symbolName: character.symbolName,
+                accentHex: character.accentHex,
+                characterPageID: character.id
+            ))
+        }
+    }
+
+    public func moveCast(from source: IndexSet, to destination: Int) {
+        mutate { $0.cast.move(fromOffsets: source, toOffset: destination) }
+    }
+
+    public func toggleSpeaker(_ id: UUID, exclusive: Bool) {
+        if exclusive {
+            selectedSpeakerIDs = selectedSpeakerIDs == [id] ? [] : [id]
+        } else if selectedSpeakerIDs.contains(id) {
+            selectedSpeakerIDs.remove(id)
+        } else {
+            selectedSpeakerIDs.insert(id)
+        }
+    }
+
+    // MARK: AI
+
+    /// 프로젝트·시나리오·캐릭터를 파악해 이어쓰기 제안 생성 (최대 10블록).
+    public func generateSuggestions() async {
+        guard let autoWriter, !isGenerating else { return }
+        isGenerating = true
+        defer { isGenerating = false }
+        do {
+            // 분기 모드에서는 분기점까지의 본편 + 분기 흐름을 컨텍스트로 사용
+            let effective = ScenarioContent(cast: content.cast, blocks: effectiveFlowForAI)
+            let suggested = try await autoWriter(effective)
+            pendingSuggestions = suggested.prefix(10).map { suggestion in
+                let speaker = content.cast.first {
+                    $0.name.localizedCaseInsensitiveContains(suggestion.speakerName ?? "")
+                    && !(suggestion.speakerName ?? "").isEmpty
+                }
+                return ScenarioBlock(
+                    kind: suggestion.isInstruction ? .instruction : .line,
+                    speakerIDs: speaker.map { [$0.id] } ?? [],
+                    text: suggestion.text
+                )
+            }
+        } catch {
+            pendingSuggestions = []
+        }
+    }
+
+    public func acceptSuggestion(_ block: ScenarioBlock) {
+        withActiveBlocks { $0.append(block) }
+        pendingSuggestions.removeAll { $0.id == block.id }
+    }
+
+    public func acceptAllSuggestions() {
+        let blocks = pendingSuggestions
+        withActiveBlocks { $0.append(contentsOf: blocks) }
+        pendingSuggestions = []
+    }
+
+    public func dismissSuggestions() {
+        pendingSuggestions = []
+    }
+}

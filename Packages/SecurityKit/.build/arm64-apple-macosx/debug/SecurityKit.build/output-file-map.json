@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Sources/SecurityKit/SecurityKit.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/SecurityKit.dia"
+  }
+}

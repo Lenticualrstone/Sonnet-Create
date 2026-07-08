@@ -1,0 +1,3 @@
+module SecurityKitPackageTests {
+    header "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitPackageTests.build/include/SecurityKitPackageTests-Swift.h"
+}

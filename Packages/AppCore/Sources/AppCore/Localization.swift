@@ -1,0 +1,306 @@
+import Foundation
+import Observation
+
+/// 지원 언어 (한/일/영).
+public enum AppLanguage: String, Codable, CaseIterable, Sendable, Identifiable {
+    case korean = "ko"
+    case japanese = "ja"
+    case english = "en"
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .korean: "한국어"
+        case .japanese: "日本語"
+        case .english: "English"
+        }
+    }
+}
+
+/// 앱 전역 UI 문자열 키.
+public enum L10nKey: String, Sendable {
+    case appName, home, searchPlaceholder, newDocument, recentDocuments, noRecents
+    case scenario, mindmap, page, characterPage, project
+    case newScenario, newMindMap, newPage, newCharacter, newProject
+    case cancel, save, done, delete, rename, duplicate, close, open, choose, apply
+    case hide, unhide, moveToTrash, restore, hiddenItems, trashItems
+    case settings, settingsGeneral, settingsTheme, settingsText, settingsBeta
+    case language, themeMode, themeSystem, themeLight, themeDark
+    case accentColor, accentCustom, qualityTier, qualityLow, qualityStandard, qualityHigh
+    case backgroundEffect, effectSpeed, effectDensity, effectBlur
+    case fontSize, lineSpacing, workspacePath, autosave
+    case backups, backupNow, backupTimeline, restoreBackup, exportProject, importProject
+    case aiProvider, aiProviderApple, aiProviderAnthropic, aiProviderMock
+    case apiKey, contextScope, ctxDocument, ctxProject, ctxWorkspace
+    case dialogue, instruction, send, composerPlaceholderLine, composerPlaceholderNote
+    case characters, addCharacter, characterName, characterRole, characterSummary, andOthers
+    case undo, redo, searchInDocument, inspector, aiCompose, aiSuggesting, acceptAll, dismissAll, accept
+    case archive, allDocuments, sortBy, sortName, sortModified, sortKind, viewList, viewGrid
+    case openBehavior, singleClick, doubleClick
+    case branch, mainRoute, newBranch, branchFromHere, branchPoint, backToMain
+    case blockImage, blockTable
+    case chooseImage, embedURL, aspectOriginal, enlarge, addRow, addColumn, showAsIcon
+    case importFromProject
+    case references, backlinks, addReference, properties, noReferences, createdAt, modifiedAt
+    case exportHTML, exportPDF
+    case effectDotSize, effectPitch, effectColor, followTheme
+    case emptyWorkspaceTitle, emptyWorkspaceBody, createFirstProject, emptyCategory
+    case adjustCrop
+    case interfaceStyle, themeSonnet, fontLabel, fontPretendard, fontSystem, fontSerif, fontMono, disableGlass
+    case blockSpacing
+    case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
+    case importAny, aiAgent, askAnything, openAsTab, clearChat
+    case touchBarSupport, touchBarFunctions
+    case profileTab, notesTab, relationsTab, galleryTab, voiceTab
+    case addField, fieldName, fieldValue, addRelation, relationLabel
+    case addImage, phaseTag, captionLabel
+    case voiceTone, voiceTaboo, voiceSamples, addVoiceCard, addSample
+    case appearances, linesCountFormat, editProfileImage
+    case authRequiredHidden, authRequiredTrash, authReason, unlocked
+    case profile, workspace, documents, untitled, editContent
+    case addNode, nodeText, nodePage, nodeImage, nodeFile, edgeCaption, zoomReset
+    case blockParagraph, blockHeading1, blockHeading2, blockHeading3
+    case blockBulleted, blockNumbered, blockTask, blockToggle, blockQuote, blockCode, blockDivider, blockCallout
+    case slashHint, exportMarkdown, importMarkdown
+    case saveStateSaved, saveStateSaving, saveStateUnsaved, saveStateError
+    case emptyEditorHint, doubleClickToCreate, dropHere, today, greeting
+}
+
+/// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
+@MainActor
+@Observable
+public final class Localizer {
+    public static let shared = Localizer()
+
+    public var language: AppLanguage = .korean
+
+    public init() {}
+
+    public func t(_ key: L10nKey) -> String {
+        Self.table[key]?[language] ?? Self.table[key]?[.english] ?? key.rawValue
+    }
+
+    private static let table: [L10nKey: [AppLanguage: String]] = [
+        .appName: [.korean: "Sonnet Create", .japanese: "Sonnet Create", .english: "Sonnet Create"],
+        .home: [.korean: "홈", .japanese: "ホーム", .english: "Home"],
+        .searchPlaceholder: [.korean: "프로젝트, 문서, 캐릭터 검색…", .japanese: "プロジェクト・ドキュメント・キャラクターを検索…", .english: "Search projects, documents, characters…"],
+        .newDocument: [.korean: "새 문서", .japanese: "新規ドキュメント", .english: "New Document"],
+        .recentDocuments: [.korean: "최근 항목", .japanese: "最近の項目", .english: "Recents"],
+        .noRecents: [.korean: "최근에 연 문서가 없습니다", .japanese: "最近開いた項目はありません", .english: "No recent documents"],
+        .scenario: [.korean: "시나리오", .japanese: "シナリオ", .english: "Scenario"],
+        .mindmap: [.korean: "마인드맵", .japanese: "マインドマップ", .english: "Mind Map"],
+        .page: [.korean: "페이지", .japanese: "ページ", .english: "Page"],
+        .characterPage: [.korean: "캐릭터 페이지", .japanese: "キャラクターページ", .english: "Character Page"],
+        .project: [.korean: "프로젝트", .japanese: "プロジェクト", .english: "Project"],
+        .newScenario: [.korean: "새 시나리오", .japanese: "新規シナリオ", .english: "New Scenario"],
+        .newMindMap: [.korean: "새 마인드맵", .japanese: "新規マインドマップ", .english: "New Mind Map"],
+        .newPage: [.korean: "새 페이지", .japanese: "新規ページ", .english: "New Page"],
+        .newCharacter: [.korean: "새 캐릭터", .japanese: "新規キャラクター", .english: "New Character"],
+        .newProject: [.korean: "새 프로젝트", .japanese: "新規プロジェクト", .english: "New Project"],
+        .cancel: [.korean: "취소", .japanese: "キャンセル", .english: "Cancel"],
+        .save: [.korean: "저장", .japanese: "保存", .english: "Save"],
+        .done: [.korean: "완료", .japanese: "完了", .english: "Done"],
+        .delete: [.korean: "삭제", .japanese: "削除", .english: "Delete"],
+        .rename: [.korean: "이름 변경", .japanese: "名称変更", .english: "Rename"],
+        .duplicate: [.korean: "복제", .japanese: "複製", .english: "Duplicate"],
+        .close: [.korean: "닫기", .japanese: "閉じる", .english: "Close"],
+        .open: [.korean: "열기", .japanese: "開く", .english: "Open"],
+        .choose: [.korean: "선택…", .japanese: "選択…", .english: "Choose…"],
+        .apply: [.korean: "적용", .japanese: "適用", .english: "Apply"],
+        .hide: [.korean: "가리기", .japanese: "非表示", .english: "Hide"],
+        .unhide: [.korean: "가리기 해제", .japanese: "再表示", .english: "Unhide"],
+        .moveToTrash: [.korean: "휴지통으로 이동", .japanese: "ゴミ箱に入れる", .english: "Move to Trash"],
+        .restore: [.korean: "복원", .japanese: "復元", .english: "Restore"],
+        .hiddenItems: [.korean: "가려진 항목", .japanese: "非表示の項目", .english: "Hidden"],
+        .trashItems: [.korean: "휴지통", .japanese: "ゴミ箱", .english: "Trash"],
+        .settings: [.korean: "설정", .japanese: "設定", .english: "Settings"],
+        .settingsGeneral: [.korean: "기본", .japanese: "一般", .english: "General"],
+        .settingsTheme: [.korean: "테마", .japanese: "テーマ", .english: "Theme"],
+        .settingsText: [.korean: "텍스트", .japanese: "テキスト", .english: "Text"],
+        .settingsBeta: [.korean: "베타", .japanese: "ベータ", .english: "Beta"],
+        .language: [.korean: "언어", .japanese: "言語", .english: "Language"],
+        .themeMode: [.korean: "화면 모드", .japanese: "外観モード", .english: "Appearance"],
+        .themeSystem: [.korean: "시스템", .japanese: "システム", .english: "System"],
+        .themeLight: [.korean: "라이트", .japanese: "ライト", .english: "Light"],
+        .themeDark: [.korean: "다크", .japanese: "ダーク", .english: "Dark"],
+        .accentColor: [.korean: "강조 색상", .japanese: "アクセントカラー", .english: "Accent Color"],
+        .accentCustom: [.korean: "사용자 지정", .japanese: "カスタム", .english: "Custom"],
+        .qualityTier: [.korean: "품질 단계", .japanese: "品質レベル", .english: "Quality Tier"],
+        .qualityLow: [.korean: "낮음", .japanese: "低", .english: "Low"],
+        .qualityStandard: [.korean: "표준", .japanese: "標準", .english: "Standard"],
+        .qualityHigh: [.korean: "높음", .japanese: "高", .english: "High"],
+        .backgroundEffect: [.korean: "배경 효과", .japanese: "背景エフェクト", .english: "Background Effect"],
+        .effectSpeed: [.korean: "속도", .japanese: "速度", .english: "Speed"],
+        .effectDensity: [.korean: "밀도", .japanese: "密度", .english: "Density"],
+        .effectBlur: [.korean: "블러", .japanese: "ぼかし", .english: "Blur"],
+        .fontSize: [.korean: "글자 크기", .japanese: "文字サイズ", .english: "Font Size"],
+        .lineSpacing: [.korean: "줄 간격", .japanese: "行間", .english: "Line Spacing"],
+        .workspacePath: [.korean: "저장 경로", .japanese: "保存先", .english: "Workspace Path"],
+        .autosave: [.korean: "자동 저장", .japanese: "自動保存", .english: "Autosave"],
+        .backups: [.korean: "백업", .japanese: "バックアップ", .english: "Backups"],
+        .backupNow: [.korean: "지금 백업", .japanese: "今すぐバックアップ", .english: "Back Up Now"],
+        .backupTimeline: [.korean: "타임라인 백업", .japanese: "タイムラインバックアップ", .english: "Backup Timeline"],
+        .restoreBackup: [.korean: "이 시점으로 복원", .japanese: "この時点に復元", .english: "Restore This Point"],
+        .exportProject: [.korean: "프로젝트 내보내기(.scproj)", .japanese: "プロジェクトを書き出す(.scproj)", .english: "Export Project (.scproj)"],
+        .importProject: [.korean: "프로젝트 가져오기", .japanese: "プロジェクトを読み込む", .english: "Import Project"],
+        .aiProvider: [.korean: "AI 제공자", .japanese: "AIプロバイダ", .english: "AI Provider"],
+        .aiProviderApple: [.korean: "온디바이스 (Apple)", .japanese: "オンデバイス (Apple)", .english: "On-Device (Apple)"],
+        .aiProviderAnthropic: [.korean: "Anthropic API", .japanese: "Anthropic API", .english: "Anthropic API"],
+        .aiProviderMock: [.korean: "오프라인 초안 (내장)", .japanese: "オフラインドラフト (内蔵)", .english: "Offline Draft (Built-in)"],
+        .apiKey: [.korean: "API 키", .japanese: "APIキー", .english: "API Key"],
+        .contextScope: [.korean: "컨텍스트 범위", .japanese: "コンテキスト範囲", .english: "Context Scope"],
+        .ctxDocument: [.korean: "현재 문서", .japanese: "現在のドキュメント", .english: "Current Document"],
+        .ctxProject: [.korean: "프로젝트", .japanese: "プロジェクト", .english: "Project"],
+        .ctxWorkspace: [.korean: "워크스페이스", .japanese: "ワークスペース", .english: "Workspace"],
+        .dialogue: [.korean: "대사", .japanese: "セリフ", .english: "Dialogue"],
+        .instruction: [.korean: "지침", .japanese: "指示", .english: "Direction"],
+        .send: [.korean: "입력", .japanese: "送信", .english: "Send"],
+        .composerPlaceholderLine: [.korean: "대사를 입력하세요…", .japanese: "セリフを入力…", .english: "Write a line…"],
+        .composerPlaceholderNote: [.korean: "지침을 입력하세요…", .japanese: "指示を入力…", .english: "Write a direction…"],
+        .characters: [.korean: "캐릭터", .japanese: "キャラクター", .english: "Characters"],
+        .addCharacter: [.korean: "캐릭터 추가", .japanese: "キャラクターを追加", .english: "Add Character"],
+        .characterName: [.korean: "이름", .japanese: "名前", .english: "Name"],
+        .characterRole: [.korean: "역할", .japanese: "役割", .english: "Role"],
+        .characterSummary: [.korean: "설명", .japanese: "説明", .english: "Summary"],
+        .andOthers: [.korean: "외 %d인", .japanese: "他%d人", .english: "+%d more"],
+        .undo: [.korean: "실행 취소", .japanese: "取り消す", .english: "Undo"],
+        .redo: [.korean: "다시 실행", .japanese: "やり直す", .english: "Redo"],
+        .searchInDocument: [.korean: "문서 내 검색", .japanese: "ドキュメント内検索", .english: "Search in Document"],
+        .inspector: [.korean: "인스펙터", .japanese: "インスペクタ", .english: "Inspector"],
+        .aiCompose: [.korean: "AI 자동 작성", .japanese: "AI自動作成", .english: "AI Compose"],
+        .aiSuggesting: [.korean: "AI가 이어쓰는 중…", .japanese: "AIが続きを作成中…", .english: "AI is drafting…"],
+        .acceptAll: [.korean: "모두 반영", .japanese: "すべて反映", .english: "Accept All"],
+        .dismissAll: [.korean: "모두 무시", .japanese: "すべて破棄", .english: "Dismiss All"],
+        .accept: [.korean: "반영", .japanese: "反映", .english: "Accept"],
+        .archive: [.korean: "파일 아카이브", .japanese: "ファイルアーカイブ", .english: "File Archive"],
+        .allDocuments: [.korean: "전체", .japanese: "すべて", .english: "All"],
+        .sortBy: [.korean: "정렬", .japanese: "並べ替え", .english: "Sort By"],
+        .sortName: [.korean: "이름", .japanese: "名前", .english: "Name"],
+        .sortModified: [.korean: "수정일", .japanese: "変更日", .english: "Date Modified"],
+        .sortKind: [.korean: "종류", .japanese: "種類", .english: "Kind"],
+        .viewList: [.korean: "리스트", .japanese: "リスト", .english: "List"],
+        .viewGrid: [.korean: "그리드", .japanese: "グリッド", .english: "Grid"],
+        .openBehavior: [.korean: "파일 열기 방식", .japanese: "ファイルを開く操作", .english: "Open Items With"],
+        .singleClick: [.korean: "싱글 클릭", .japanese: "シングルクリック", .english: "Single Click"],
+        .doubleClick: [.korean: "더블 클릭", .japanese: "ダブルクリック", .english: "Double Click"],
+        .branch: [.korean: "분기", .japanese: "分岐", .english: "Branch"],
+        .mainRoute: [.korean: "본편", .japanese: "本編", .english: "Main Route"],
+        .newBranch: [.korean: "새 분기", .japanese: "新規分岐", .english: "New Branch"],
+        .branchFromHere: [.korean: "여기서 분기 만들기", .japanese: "ここから分岐を作成", .english: "Branch From Here"],
+        .branchPoint: [.korean: "분기점", .japanese: "分岐点", .english: "Branch Point"],
+        .backToMain: [.korean: "본편으로", .japanese: "本編へ戻る", .english: "Back to Main"],
+        .blockImage: [.korean: "이미지", .japanese: "画像", .english: "Image"],
+        .blockTable: [.korean: "표", .japanese: "テーブル", .english: "Table"],
+        .chooseImage: [.korean: "이미지 선택…", .japanese: "画像を選択…", .english: "Choose Image…"],
+        .embedURL: [.korean: "URL 임베드", .japanese: "URLを埋め込む", .english: "Embed URL"],
+        .aspectOriginal: [.korean: "원본 비율", .japanese: "元の比率", .english: "Original Ratio"],
+        .enlarge: [.korean: "확대 보기", .japanese: "拡大表示", .english: "Enlarge"],
+        .addRow: [.korean: "행 추가", .japanese: "行を追加", .english: "Add Row"],
+        .addColumn: [.korean: "열 추가", .japanese: "列を追加", .english: "Add Column"],
+        .showAsIcon: [.korean: "아이콘으로 표시", .japanese: "アイコンで表示", .english: "Show as Icon"],
+        .importFromProject: [.korean: "프로젝트에서 가져오기", .japanese: "プロジェクトから読み込む", .english: "Import from Project"],
+        .references: [.korean: "참조", .japanese: "参照", .english: "References"],
+        .backlinks: [.korean: "백링크", .japanese: "バックリンク", .english: "Backlinks"],
+        .addReference: [.korean: "참조 추가", .japanese: "参照を追加", .english: "Add Reference"],
+        .properties: [.korean: "속성", .japanese: "プロパティ", .english: "Properties"],
+        .noReferences: [.korean: "연결된 항목이 없습니다", .japanese: "リンクされた項目はありません", .english: "No linked items"],
+        .createdAt: [.korean: "생성일", .japanese: "作成日", .english: "Created"],
+        .modifiedAt: [.korean: "수정일", .japanese: "変更日", .english: "Modified"],
+        .exportHTML: [.korean: "HTML 내보내기", .japanese: "HTMLを書き出す", .english: "Export HTML"],
+        .exportPDF: [.korean: "PDF 내보내기", .japanese: "PDFを書き出す", .english: "Export PDF"],
+        .effectDotSize: [.korean: "도트 크기", .japanese: "ドットサイズ", .english: "Dot Size"],
+        .effectPitch: [.korean: "시점 각도", .japanese: "視点角度", .english: "View Angle"],
+        .effectColor: [.korean: "도트 색", .japanese: "ドットの色", .english: "Dot Color"],
+        .followTheme: [.korean: "테마", .japanese: "テーマ", .english: "Theme"],
+        .emptyWorkspaceTitle: [.korean: "창작을 시작해보세요", .japanese: "創作を始めましょう", .english: "Start creating"],
+        .emptyWorkspaceBody: [.korean: "프로젝트는 세계관과 캐릭터를 함께 담는 폴더예요. 시나리오·마인드맵·페이지가 그 안에서 서로 연결됩니다.", .japanese: "プロジェクトは世界観とキャラクターをまとめるフォルダです。シナリオ・マインドマップ・ページが互いにつながります。", .english: "A project is a folder that holds your world and characters. Scenarios, mind maps, and pages connect inside it."],
+        .createFirstProject: [.korean: "첫 프로젝트 만들기", .japanese: "最初のプロジェクトを作成", .english: "Create First Project"],
+        .emptyCategory: [.korean: "이 카테고리에 문서가 없습니다", .japanese: "このカテゴリにドキュメントはありません", .english: "No documents in this category"],
+        .adjustCrop: [.korean: "크롭 조정…", .japanese: "切り抜きを調整…", .english: "Adjust Crop…"],
+        .interfaceStyle: [.korean: "스타일", .japanese: "スタイル", .english: "Style"],
+        .themeSonnet: [.korean: "Sonnet", .japanese: "Sonnet", .english: "Sonnet"],
+        .fontLabel: [.korean: "글꼴", .japanese: "フォント", .english: "Font"],
+        .fontPretendard: [.korean: "Pretendard", .japanese: "Pretendard", .english: "Pretendard"],
+        .fontSystem: [.korean: "시스템", .japanese: "システム", .english: "System"],
+        .fontSerif: [.korean: "세리프", .japanese: "セリフ", .english: "Serif"],
+        .fontMono: [.korean: "모노", .japanese: "モノ", .english: "Mono"],
+        .disableGlass: [.korean: "Liquid Glass 비활성화 (평면 표면)", .japanese: "Liquid Glassを無効化（フラット表面）", .english: "Disable Liquid Glass (flat surfaces)"],
+        .blockSpacing: [.korean: "블록 간격", .japanese: "ブロック間隔", .english: "Block Spacing"],
+        .uiScale: [.korean: "전체 크기", .japanese: "全体サイズ", .english: "UI Scale"],
+        .tabStyle: [.korean: "탭 스타일", .japanese: "タブスタイル", .english: "Tab Style"],
+        .tabStyleCapsule: [.korean: "캡슐", .japanese: "カプセル", .english: "Capsule"],
+        .tabStyleChrome: [.korean: "사각 (Chrome)", .japanese: "四角 (Chrome)", .english: "Square (Chrome)"],
+        .inspectorPosition: [.korean: "캐릭터 인스펙터 위치", .japanese: "キャラクターインスペクタの位置", .english: "Character Inspector Position"],
+        .positionLeft: [.korean: "왼쪽", .japanese: "左", .english: "Left"],
+        .positionRight: [.korean: "오른쪽", .japanese: "右", .english: "Right"],
+        .importAny: [.korean: "프로젝트/파일 불러오기", .japanese: "プロジェクト/ファイルを読み込む", .english: "Import Project/File"],
+        .aiAgent: [.korean: "AI 에이전트", .japanese: "AIエージェント", .english: "AI Agent"],
+        .askAnything: [.korean: "무엇이든 물어보세요…", .japanese: "何でも聞いてください…", .english: "Ask anything…"],
+        .openAsTab: [.korean: "탭으로 열기", .japanese: "タブで開く", .english: "Open as Tab"],
+        .clearChat: [.korean: "대화 지우기", .japanese: "会話をクリア", .english: "Clear Chat"],
+        .touchBarSupport: [.korean: "Touch Bar 지원", .japanese: "Touch Barサポート", .english: "Touch Bar Support"],
+        .touchBarFunctions: [.korean: "제공 기능", .japanese: "提供される機能", .english: "Available Functions"],
+        .profileTab: [.korean: "프로필", .japanese: "プロフィール", .english: "Profile"],
+        .notesTab: [.korean: "노트", .japanese: "ノート", .english: "Notes"],
+        .relationsTab: [.korean: "관계", .japanese: "関係", .english: "Relations"],
+        .galleryTab: [.korean: "갤러리", .japanese: "ギャラリー", .english: "Gallery"],
+        .voiceTab: [.korean: "보이스", .japanese: "ボイス", .english: "Voice"],
+        .addField: [.korean: "속성 추가", .japanese: "属性を追加", .english: "Add Field"],
+        .fieldName: [.korean: "속성", .japanese: "属性", .english: "Field"],
+        .fieldValue: [.korean: "값", .japanese: "値", .english: "Value"],
+        .addRelation: [.korean: "관계 추가", .japanese: "関係を追加", .english: "Add Relation"],
+        .relationLabel: [.korean: "관계 (예: 연인, 숙적)", .japanese: "関係（例：恋人、宿敵）", .english: "Relation (e.g. lover, rival)"],
+        .addImage: [.korean: "이미지 추가", .japanese: "画像を追加", .english: "Add Image"],
+        .phaseTag: [.korean: "시점/상태", .japanese: "時点/状態", .english: "Phase/State"],
+        .captionLabel: [.korean: "설명", .japanese: "説明", .english: "Caption"],
+        .voiceTone: [.korean: "말투", .japanese: "話し方", .english: "Tone"],
+        .voiceTaboo: [.korean: "금기 (쓰지 않는 말)", .japanese: "禁句", .english: "Taboo"],
+        .voiceSamples: [.korean: "예시 대사", .japanese: "セリフ例", .english: "Sample Lines"],
+        .addVoiceCard: [.korean: "보이스 카드 추가", .japanese: "ボイスカードを追加", .english: "Add Voice Card"],
+        .addSample: [.korean: "예시 추가", .japanese: "例を追加", .english: "Add Sample"],
+        .appearances: [.korean: "등장 기록", .japanese: "登場記録", .english: "Appearances"],
+        .linesCountFormat: [.korean: "대사 %d개", .japanese: "セリフ%d件", .english: "%d lines"],
+        .editProfileImage: [.korean: "프로필 이미지 편집", .japanese: "プロフィール画像を編集", .english: "Edit Profile Image"],
+        .authRequiredHidden: [.korean: "가려진 항목을 보려면 인증이 필요합니다", .japanese: "非表示項目の閲覧には認証が必要です", .english: "Authentication required to view hidden items"],
+        .authRequiredTrash: [.korean: "휴지통에 접근하려면 인증이 필요합니다", .japanese: "ゴミ箱へのアクセスには認証が必要です", .english: "Authentication required to access Trash"],
+        .authReason: [.korean: "보호된 항목에 접근", .japanese: "保護された項目へのアクセス", .english: "Access protected items"],
+        .unlocked: [.korean: "잠금 해제됨", .japanese: "ロック解除済み", .english: "Unlocked"],
+        .profile: [.korean: "작업자", .japanese: "作成者", .english: "Author"],
+        .workspace: [.korean: "워크스페이스", .japanese: "ワークスペース", .english: "Workspace"],
+        .documents: [.korean: "문서", .japanese: "ドキュメント", .english: "Documents"],
+        .untitled: [.korean: "제목 없음", .japanese: "無題", .english: "Untitled"],
+        .editContent: [.korean: "내용 수정", .japanese: "内容を編集", .english: "Edit Content"],
+        .addNode: [.korean: "노드 추가", .japanese: "ノードを追加", .english: "Add Node"],
+        .nodeText: [.korean: "텍스트", .japanese: "テキスト", .english: "Text"],
+        .nodePage: [.korean: "페이지", .japanese: "ページ", .english: "Page"],
+        .nodeImage: [.korean: "이미지", .japanese: "画像", .english: "Image"],
+        .nodeFile: [.korean: "파일", .japanese: "ファイル", .english: "File"],
+        .edgeCaption: [.korean: "연결선 캡션", .japanese: "接続キャプション", .english: "Edge Caption"],
+        .zoomReset: [.korean: "확대 초기화", .japanese: "ズームをリセット", .english: "Reset Zoom"],
+        .blockParagraph: [.korean: "본문", .japanese: "本文", .english: "Text"],
+        .blockHeading1: [.korean: "제목 1", .japanese: "見出し1", .english: "Heading 1"],
+        .blockHeading2: [.korean: "제목 2", .japanese: "見出し2", .english: "Heading 2"],
+        .blockHeading3: [.korean: "제목 3", .japanese: "見出し3", .english: "Heading 3"],
+        .blockBulleted: [.korean: "글머리 기호 목록", .japanese: "箇条書きリスト", .english: "Bulleted List"],
+        .blockNumbered: [.korean: "번호 매기기 목록", .japanese: "番号付きリスト", .english: "Numbered List"],
+        .blockTask: [.korean: "할 일", .japanese: "ToDo", .english: "To-do"],
+        .blockToggle: [.korean: "토글", .japanese: "トグル", .english: "Toggle"],
+        .blockQuote: [.korean: "인용", .japanese: "引用", .english: "Quote"],
+        .blockCode: [.korean: "코드", .japanese: "コード", .english: "Code"],
+        .blockDivider: [.korean: "구분선", .japanese: "区切り線", .english: "Divider"],
+        .blockCallout: [.korean: "콜아웃", .japanese: "コールアウト", .english: "Callout"],
+        .slashHint: [.korean: "'/'를 입력해 블록 전환", .japanese: "「/」でブロックを変換", .english: "Type '/' for commands"],
+        .exportMarkdown: [.korean: "Markdown 내보내기", .japanese: "Markdownを書き出す", .english: "Export Markdown"],
+        .importMarkdown: [.korean: "Markdown 가져오기", .japanese: "Markdownを読み込む", .english: "Import Markdown"],
+        .saveStateSaved: [.korean: "저장됨", .japanese: "保存済み", .english: "Saved"],
+        .saveStateSaving: [.korean: "저장 중", .japanese: "保存中", .english: "Saving"],
+        .saveStateUnsaved: [.korean: "저장 안 됨", .japanese: "未保存", .english: "Unsaved"],
+        .saveStateError: [.korean: "저장 오류", .japanese: "保存エラー", .english: "Save Error"],
+        .emptyEditorHint: [.korean: "아래 입력기에서 첫 블록을 작성해보세요", .japanese: "下の入力欄から最初のブロックを作成しましょう", .english: "Write your first block from the composer below"],
+        .doubleClickToCreate: [.korean: "빈 공간을 더블 클릭해 노드 생성", .japanese: "空白をダブルクリックでノード作成", .english: "Double-click empty space to create a node"],
+        .dropHere: [.korean: "여기에 놓기", .japanese: "ここにドロップ", .english: "Drop here"],
+        .today: [.korean: "오늘", .japanese: "今日", .english: "Today"],
+        .greeting: [.korean: "무엇을 창작해볼까요?", .japanese: "今日は何を創りますか？", .english: "What shall we create?"],
+    ]
+}

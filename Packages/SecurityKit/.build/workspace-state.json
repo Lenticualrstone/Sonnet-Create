@@ -1,0 +1,27 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "appcore",
+          "kind" : "fileSystem",
+          "location" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore",
+          "name" : "AppCore"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore"
+        },
+        "subpath" : "appcore"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

@@ -1,0 +1,55 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "appcore",
+          "kind" : "fileSystem",
+          "location" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore",
+          "name" : "AppCore"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore"
+        },
+        "subpath" : "appcore"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "designsystem",
+          "kind" : "fileSystem",
+          "location" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem",
+          "name" : "DesignSystem"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem"
+        },
+        "subpath" : "designsystem"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "renderingkit",
+          "kind" : "fileSystem",
+          "location" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/RenderingKit",
+          "name" : "RenderingKit"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/RenderingKit"
+        },
+        "subpath" : "renderingkit"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

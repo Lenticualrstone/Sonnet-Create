@@ -1,0 +1,356 @@
+import AppCore
+import DesignSystem
+import DocumentKit
+import SwiftUI
+
+/// 블록 한 행 — 호버 드래그 핸들 + 타입별 렌더링 + '/' 커맨드 메뉴.
+struct PageBlockRow: View {
+    @Bindable var store: PageStore
+    let block: PageBlock
+    var focusedBlockID: FocusState<UUID?>.Binding
+
+    @State private var hovering = false
+    @Environment(\.renderQuality) private var quality
+    @Environment(\.contentFontScale) private var fontScale
+    @Environment(\.contentLineSpacing) private var lineScale
+    @Environment(\.contentFontFamily) private var fontFamily
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            gutter
+
+            // 들여쓰기
+            if block.indent > 0 {
+                Spacer().frame(width: CGFloat(block.indent) * 22)
+            }
+
+            leading
+
+            content
+        }
+        .padding(.vertical, verticalPadding)
+        .padding(.trailing, 6)
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
+                .fill(hovering ? Color.primary.opacity(0.035) : .clear)
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        .animation(DesignTokens.Motion.snappy, value: hovering)
+        // 주의: 여기에 popover를 붙이면 List 레이아웃 패스 중 NSPopover 예외로 크래시한다.
+        // 슬래시 메뉴는 PageEditorView의 하단 팔레트 오버레이로 렌더링된다.
+    }
+
+    /// 좌측 거터 — 블록 추가(+)와 드래그 핸들, 호버 시 노출 (Notion 패턴).
+    private var gutter: some View {
+        HStack(spacing: 0) {
+            Button {
+                store.insertBlock(after: block.id)
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 20, height: 22)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(Localizer.shared.t(.newDocument))
+
+            Image(systemName: "line.3.horizontal")
+                .font(.system(size: 10))
+                .foregroundStyle(.tertiary)
+                .frame(width: 20, height: 22)
+                .contentShape(Rectangle())
+                .contextMenu {
+                    let l10n = Localizer.shared
+                    Button(l10n.t(.duplicate)) { store.duplicateBlock(block.id) }
+                    Button(l10n.t(.delete), role: .destructive) { store.deleteBlock(block.id) }
+                }
+        }
+        .frame(width: 44, alignment: .trailing)
+        .opacity(hovering ? 1 : 0)
+    }
+
+    @Environment(\.contentBlockSpacing) private var blockSpacing
+
+    private var verticalPadding: CGFloat {
+        let base: CGFloat = switch block.kind {
+        case .heading1: 10
+        case .heading2: 7
+        case .heading3: 5
+        default: 1
+        }
+        return base + blockSpacing / 2
+    }
+
+    // MARK: 타입별 leading 장식
+
+    @ViewBuilder
+    private var leading: some View {
+        switch block.kind {
+        case .bulleted:
+            Text("•").font(.body.weight(.bold)).foregroundStyle(.secondary)
+        case .numbered:
+            Text("\(store.numberedIndex(of: block.id)).")
+                .font(.body.monospacedDigit())
+                .foregroundStyle(.secondary)
+        case .task:
+            Button {
+                store.toggleCheck(block.id)
+            } label: {
+                Image(systemName: block.isChecked ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(block.isChecked ? Color.accentColor : .secondary)
+            }
+            .buttonStyle(.plain)
+        case .toggle:
+            Button {
+                store.toggleExpand(block.id)
+            } label: {
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .rotationEffect(.degrees(block.isExpanded ? 90 : 0))
+            }
+            .buttonStyle(.plain)
+            .animation(DesignTokens.Motion.snappy, value: block.isExpanded)
+        case .quote:
+            RoundedRectangle(cornerRadius: 1)
+                .fill(Color.accentColor.opacity(0.6))
+                .frame(width: 3, height: 18)
+        case .callout:
+            Text("💡").font(.callout)
+        default:
+            EmptyView()
+        }
+    }
+
+    // MARK: 본문
+
+    @ViewBuilder
+    private var content: some View {
+        switch block.kind {
+        case .image:
+            ImageBlockView(store: store, block: block)
+        case .table:
+            TableBlockView(store: store, block: block)
+        case .divider:
+            Rectangle()
+                .fill(.separator)
+                .frame(height: 1)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        case .code:
+            textField
+                .font(.system(.callout, design: .monospaced))
+                .padding(8)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
+                        .fill(Color.primary.opacity(0.06))
+                )
+        case .callout:
+            textField
+                .padding(8)
+                .glassSurface(cornerRadius: DesignTokens.Radius.small, tint: .accentColor, quality: quality)
+        default:
+            textField
+        }
+    }
+
+    private var textField: some View {
+        TextField(
+            placeholder,
+            text: Binding(
+                get: { store.block(id: block.id)?.text ?? "" },
+                set: { store.updateText(block.id, text: $0) }
+            ),
+            axis: .vertical
+        )
+        .textFieldStyle(.plain)
+        .font(font)
+        .contentLineSpacing(lineScale)
+        .strikethrough(block.kind == .task && block.isChecked)
+        .foregroundStyle(textColor)
+        .focused(focusedBlockID, equals: block.id)
+        .onKeyPress { press in
+            handleKey(press)
+        }
+    }
+
+    private func handleKey(_ press: KeyPress) -> KeyPress.Result {
+        // 슬래시 메뉴가 열려 있으면 ↑↓로 후보 탐색
+        if store.slashBlockID == block.id {
+            let candidates = SlashCommandMenu.matches(query: store.slashQuery)
+            switch press.key {
+            case .upArrow:
+                store.slashSelectionIndex = max(0, store.slashSelectionIndex - 1)
+                return .handled
+            case .downArrow:
+                store.slashSelectionIndex = min(max(0, candidates.count - 1), store.slashSelectionIndex + 1)
+                return .handled
+            default:
+                break
+            }
+        }
+        switch press.key {
+        case .return:
+            // Enter = 새 블록 (슬래시 메뉴가 열려 있으면 선택된 후보 적용), ⇧Enter = 줄바꿈
+            if press.modifiers.contains(.shift) { return .ignored }
+            if store.slashBlockID == block.id {
+                let candidates = SlashCommandMenu.matches(query: store.slashQuery)
+                if candidates.indices.contains(store.slashSelectionIndex) {
+                    store.applySlashCommand(candidates[store.slashSelectionIndex].kind)
+                } else if let first = candidates.first {
+                    store.applySlashCommand(first.kind)
+                } else {
+                    store.closeSlashMenu()
+                }
+            } else {
+                store.insertBlock(after: block.id)
+            }
+            return .handled
+        case .tab:
+            if press.modifiers.contains(.shift) {
+                store.outdent(block.id)
+            } else {
+                store.indent(block.id)
+            }
+            return .handled
+        case .delete:
+            let text = store.block(id: block.id)?.text ?? ""
+            if text.isEmpty {
+                store.removeBlockFocusPrevious(block.id)
+                return .handled
+            }
+            return .ignored
+        case .escape:
+            if store.slashBlockID == block.id {
+                store.closeSlashMenu()
+                return .handled
+            }
+            return .ignored
+        default:
+            return .ignored
+        }
+    }
+
+    private var placeholder: String {
+        let l10n = Localizer.shared
+        switch block.kind {
+        case .heading1: return l10n.t(.blockHeading1)
+        case .heading2: return l10n.t(.blockHeading2)
+        case .heading3: return l10n.t(.blockHeading3)
+        case .code: return "code"
+        default: return focusedBlockID.wrappedValue == block.id ? l10n.t(.slashHint) : ""
+        }
+    }
+
+    private var font: Font {
+        switch block.kind {
+        case .heading1: DSFonts.font(size: 24 * fontScale, weight: .bold, family: fontFamily)
+        case .heading2: DSFonts.font(size: 19 * fontScale, weight: .bold, family: fontFamily)
+        case .heading3: DSFonts.font(size: 16 * fontScale, weight: .semibold, family: fontFamily)
+        case .quote: DSFonts.font(size: 13 * fontScale, family: fontFamily).italic()
+        default: DSFonts.font(size: 13 * fontScale, family: fontFamily)
+        }
+    }
+
+    private var textColor: Color {
+        switch block.kind {
+        case .quote: .secondary
+        case .task where block.isChecked: .secondary
+        default: .primary
+        }
+    }
+}
+
+// MARK: - '/' 커맨드 메뉴
+
+struct SlashCommandMenu: View {
+    @Bindable var store: PageStore
+
+    struct Item: Identifiable {
+        let kind: PageBlockKind
+        let key: L10nKey
+        let symbol: String
+        var id: String { kind.rawValue }
+    }
+
+    private static let items: [Item] = [
+        Item(kind: .paragraph, key: .blockParagraph, symbol: "text.alignleft"),
+        Item(kind: .heading1, key: .blockHeading1, symbol: "textformat.size.larger"),
+        Item(kind: .heading2, key: .blockHeading2, symbol: "textformat.size"),
+        Item(kind: .heading3, key: .blockHeading3, symbol: "textformat.size.smaller"),
+        Item(kind: .bulleted, key: .blockBulleted, symbol: "list.bullet"),
+        Item(kind: .numbered, key: .blockNumbered, symbol: "list.number"),
+        Item(kind: .task, key: .blockTask, symbol: "checkmark.square"),
+        Item(kind: .toggle, key: .blockToggle, symbol: "chevron.right.square"),
+        Item(kind: .quote, key: .blockQuote, symbol: "text.quote"),
+        Item(kind: .code, key: .blockCode, symbol: "chevron.left.forwardslash.chevron.right"),
+        Item(kind: .divider, key: .blockDivider, symbol: "minus"),
+        Item(kind: .callout, key: .blockCallout, symbol: "lightbulb"),
+        Item(kind: .image, key: .blockImage, symbol: "photo"),
+        Item(kind: .table, key: .blockTable, symbol: "tablecells"),
+    ]
+
+    @MainActor
+    static func matches(query: String) -> [Item] {
+        let l10n = Localizer.shared
+        guard !query.isEmpty else { return items }
+        return items.filter {
+            l10n.t($0.key).localizedCaseInsensitiveContains(query)
+                || $0.kind.rawValue.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    /// Enter로 첫 후보를 즉시 적용할 때 사용.
+    @MainActor
+    static func firstMatch(query: String) -> PageBlockKind? {
+        matches(query: query).first?.kind
+    }
+
+    private var filtered: [Item] {
+        Self.matches(query: store.slashQuery)
+    }
+
+    var body: some View {
+        let l10n = Localizer.shared
+        let selection = min(store.slashSelectionIndex, max(0, filtered.count - 1))
+        ScrollView {
+            VStack(alignment: .leading, spacing: 1) {
+                ForEach(Array(filtered.enumerated()), id: \.element.id) { index, item in
+                    Button {
+                        store.applySlashCommand(item.kind)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: item.symbol)
+                                .font(.callout)
+                                .foregroundStyle(index == selection ? Color.accentColor : .secondary)
+                                .frame(width: 22)
+                            Text(l10n.t(item.key))
+                                .font(.callout)
+                            Spacer()
+                            if index == selection {
+                                Text("↩")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .fill(index == selection ? Color.primary.opacity(0.08) : .clear)
+                        )
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .onHover { inside in
+                        if inside { store.slashSelectionIndex = index }
+                    }
+                }
+            }
+            .padding(6)
+        }
+        .frame(width: 220, height: min(CGFloat(filtered.count) * 30 + 16, 320))
+    }
+}

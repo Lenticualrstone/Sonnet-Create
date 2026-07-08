@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/PersistenceKit.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/PersistenceKit/Sources/PersistenceKit/PersistenceKit.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/PersistenceKit.build/PersistenceKit.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/PersistenceKit.build/PersistenceKit.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/PersistenceKit.build/PersistenceKit~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/PersistenceKit.build/PersistenceKit.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/PersistenceKit.build/PersistenceKit.dia"
+  }
+}

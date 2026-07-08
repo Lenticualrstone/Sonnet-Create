@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/Tests/SecurityKitTests/SecurityKitTests.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKitTests.build/SecurityKitTests.dia"
+  }
+}

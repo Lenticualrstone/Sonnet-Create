@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKitTests.build/primary.swiftdeps"
+  },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/Tests/BackupKitTests/BackupKitTests.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKitTests.build/BackupKitTests.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKitTests.build/BackupKitTests.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKitTests.build/BackupKitTests~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKitTests.build/BackupKitTests.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/BackupKit/.build/arm64-apple-macosx/debug/BackupKitTests.build/BackupKitTests.dia"
+  }
+}
