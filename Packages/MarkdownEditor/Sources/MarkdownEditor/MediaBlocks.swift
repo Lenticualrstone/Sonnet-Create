@@ -35,29 +35,92 @@ struct ImageBlockView: View {
             if block.resourcePath == nil {
                 emptyPlaceholder(l10n)
             } else {
-                imageContent
-                    .frame(maxHeight: 380)
-                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
-                    .onTapGesture { showViewer = true }
-                    .contextMenu {
-                        Button(l10n.t(.enlarge)) { showViewer = true }
-                        Menu(l10n.t(.aspectOriginal)) {
-                            Button(l10n.t(.aspectOriginal)) { setAspect(nil) }
-                            Button("16:9") { setAspect(16.0 / 9.0) }
-                            Button("4:3") { setAspect(4.0 / 3.0) }
-                            Button("1:1") { setAspect(1) }
-                        }
-                        Button(l10n.t(.chooseImage)) { pickImage() }
-                        Divider()
-                        Button(l10n.t(.delete), role: .destructive) {
-                            var updated = block
-                            updated.resourcePath = nil
-                            store.updateBlock(updated)
+                VStack(alignment: captionAlignment, spacing: 4) {
+                    imageContent
+                        .frame(maxHeight: 380)
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
+                        .onTapGesture { showViewer = true }
+                    // 캡션 (block.text)
+                    TextField(
+                        l10n.t(.captionLabel),
+                        text: Binding(
+                            get: { store.block(id: block.id)?.text ?? "" },
+                            set: { store.updateText(block.id, text: $0) }
+                        )
+                    )
+                    .textFieldStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(textAlignment)
+                }
+                // 너비 비율 + 정렬
+                .containerRelativeFrame(.horizontal, alignment: frameAlignment) { length, _ in
+                    length * (block.widthFraction ?? 1.0)
+                }
+                .frame(maxWidth: .infinity, alignment: frameAlignment)
+                .contextMenu {
+                    Button(l10n.t(.enlarge)) { showViewer = true }
+                    Menu(l10n.t(.aspectOriginal)) {
+                        Button(l10n.t(.aspectOriginal)) { setAspect(nil) }
+                        Button("16:9") { setAspect(16.0 / 9.0) }
+                        Button("4:3") { setAspect(4.0 / 3.0) }
+                        Button("1:1") { setAspect(1) }
+                    }
+                    Menu(l10n.t(.imageWidth)) {
+                        ForEach([0.25, 0.5, 0.75, 1.0], id: \.self) { fraction in
+                            Button("\(Int(fraction * 100))%") {
+                                var updated = block
+                                updated.widthFraction = fraction == 1.0 ? nil : fraction
+                                store.updateBlock(updated)
+                            }
                         }
                     }
-                    .sheet(isPresented: $showViewer) { viewerOverlay }
+                    Menu(l10n.t(.imageAlign)) {
+                        Button(l10n.t(.alignLeft)) { setAlign("left") }
+                        Button(l10n.t(.alignCenter)) { setAlign(nil) }
+                        Button(l10n.t(.alignRight)) { setAlign("right") }
+                    }
+                    Button(l10n.t(.chooseImage)) { pickImage() }
+                    Divider()
+                    Button(l10n.t(.delete), role: .destructive) {
+                        var updated = block
+                        updated.resourcePath = nil
+                        store.updateBlock(updated)
+                    }
+                }
+                .sheet(isPresented: $showViewer) { viewerOverlay }
             }
         }
+    }
+
+    private var frameAlignment: Alignment {
+        switch block.alignRaw {
+        case "left": .leading
+        case "right": .trailing
+        default: .center
+        }
+    }
+
+    private var captionAlignment: HorizontalAlignment {
+        switch block.alignRaw {
+        case "left": .leading
+        case "right": .trailing
+        default: .center
+        }
+    }
+
+    private var textAlignment: TextAlignment {
+        switch block.alignRaw {
+        case "left": .leading
+        case "right": .trailing
+        default: .center
+        }
+    }
+
+    private func setAlign(_ raw: String?) {
+        var updated = block
+        updated.alignRaw = raw
+        store.updateBlock(updated)
     }
 
     @ViewBuilder
@@ -112,6 +175,11 @@ struct ImageBlockView: View {
             } label: {
                 Label(l10n.t(.embedURL), systemImage: "link")
             }
+            Button {
+                pasteFromClipboard()
+            } label: {
+                Label(l10n.t(.pasteImage), systemImage: "doc.on.clipboard")
+            }
             Text(l10n.t(.dropHere))
                 .font(.caption)
                 .foregroundStyle(.tertiary)
@@ -153,6 +221,22 @@ struct ImageBlockView: View {
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
         applyLocalFile(url)
+    }
+
+    /// 클립보드의 이미지를 번들 리소스로 저장해 삽입.
+    private func pasteFromClipboard() {
+        guard let image = NSPasteboard.general.readObjects(forClasses: [NSImage.self])?.first as? NSImage,
+              let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let png = rep.representation(using: .png, properties: [:])
+        else { return }
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("pasted-\(UUID().uuidString.prefix(8)).png")
+        do {
+            try png.write(to: temp)
+            applyLocalFile(temp)
+            try? FileManager.default.removeItem(at: temp)
+        } catch {}
     }
 
     private func applyLocalFile(_ url: URL) {

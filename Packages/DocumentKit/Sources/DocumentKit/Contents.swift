@@ -202,6 +202,12 @@ public struct PageBlock: Identifiable, Codable, Sendable, Equatable {
     public var resourcePath: String?
     /// image 블록: 표시 비율 (nil = 원본)
     public var aspect: Double?
+    /// image 블록: 표시 너비 비율 0.25~1.0 (nil = 1.0)
+    public var widthFraction: Double?
+    /// image 블록: 정렬 "left" | "center" | "right" (nil = center)
+    public var alignRaw: String?
+    /// 다음 블록과 나란히(2단) 배치
+    public var sideBySide: Bool?
     /// table 블록: 행 × 열 문자열
     public var tableData: [[String]]?
 
@@ -225,6 +231,7 @@ public struct PageBlock: Identifiable, Codable, Sendable, Equatable {
         self.resourcePath = resourcePath
         self.aspect = aspect
         self.tableData = tableData
+        // widthFraction/alignRaw/sideBySide는 옵셔널 기본 nil
     }
 }
 

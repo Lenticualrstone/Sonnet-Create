@@ -2,11 +2,12 @@ import AppCore
 import AppKit
 import DesignSystem
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// 탭형 설정창 (기본·테마·텍스트·베타). 변경은 draft에 쌓이고 저장 버튼으로 반영된다.
+/// 탭형 설정창 — 일반 · 모양 · 에디터 · 베타. 변경은 draft에 쌓이고 저장 버튼으로 반영된다.
 public struct SettingsRootView: View {
     @Bindable var store: SettingsStore
-    /// 백업 타임라인 등 앱 수준 액션 (기본 탭에 노출)
+    /// 백업 타임라인 등 앱 수준 액션 (일반 탭에 노출)
     let backupTimelineView: AnyView?
 
     public init(store: SettingsStore, backupTimelineView: AnyView? = nil) {
@@ -21,11 +22,11 @@ public struct SettingsRootView: View {
                 Tab(l10n.t(.settingsGeneral), systemImage: "gearshape") {
                     generalTab(l10n)
                 }
-                Tab(l10n.t(.settingsTheme), systemImage: "paintpalette") {
-                    themeTab(l10n)
+                Tab(l10n.t(.settingsAppearance), systemImage: "paintpalette") {
+                    appearanceTab(l10n)
                 }
-                Tab(l10n.t(.settingsText), systemImage: "textformat") {
-                    textTab(l10n)
+                Tab(l10n.t(.settingsEditor), systemImage: "square.and.pencil") {
+                    editorTab(l10n)
                 }
                 Tab(l10n.t(.settingsBeta), systemImage: "flask") {
                     betaTab(l10n)
@@ -48,11 +49,11 @@ public struct SettingsRootView: View {
             }
             .padding(DesignTokens.Spacing.m)
         }
-        .frame(width: 520, height: 480)
+        .frame(width: 540, height: 520)
         .onAppear { store.refreshAPIKeyDraft() }
     }
 
-    // MARK: 기본
+    // MARK: 일반 — 언어/프로필/경로/파일 동작/백업
 
     private func generalTab(_ l10n: Localizer) -> some View {
         Form {
@@ -62,7 +63,29 @@ public struct SettingsRootView: View {
                 }
             }
 
-            TextField(l10n.t(.profile), text: $store.draft.authorName)
+            Section(l10n.t(.profile)) {
+                HStack(spacing: DesignTokens.Spacing.m) {
+                    Button {
+                        pickPhoto()
+                    } label: {
+                        profileAvatar
+                    }
+                    .buttonStyle(.plain)
+                    .help(l10n.t(.choosePhoto))
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        TextField(l10n.t(.profile), text: $store.draft.authorName)
+                        TextField(l10n.t(.aboutMe), text: $store.draft.authorBio, axis: .vertical)
+                            .lineLimit(2...4)
+                    }
+                }
+                if !store.draft.authorPhotoPath.isEmpty {
+                    Button(l10n.t(.removePhoto), role: .destructive) {
+                        store.draft.authorPhotoPath = ""
+                    }
+                    .controlSize(.small)
+                }
+            }
 
             LabeledContent(l10n.t(.workspacePath)) {
                 HStack(spacing: 6) {
@@ -82,12 +105,6 @@ public struct SettingsRootView: View {
             }
             .pickerStyle(.segmented)
 
-            Picker(l10n.t(.inspectorPosition), selection: $store.draft.scenarioInspectorOnRight) {
-                Text(l10n.t(.positionLeft)).tag(false)
-                Text(l10n.t(.positionRight)).tag(true)
-            }
-            .pickerStyle(.segmented)
-
             Toggle(l10n.t(.autosave), isOn: $store.draft.autosave)
             Toggle(l10n.t(.backups) + " — " + l10n.t(.backupNow), isOn: $store.draft.backupOnQuit)
 
@@ -100,6 +117,46 @@ public struct SettingsRootView: View {
         .formStyle(.grouped)
     }
 
+    @ViewBuilder
+    private var profileAvatar: some View {
+        if !store.draft.authorPhotoPath.isEmpty,
+           let image = NSImage(contentsOfFile: store.draft.authorPhotoPath) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 56, height: 56)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle().fill(Color.accentColor.opacity(0.16))
+                Image(systemName: "person.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .frame(width: 56, height: 56)
+        }
+    }
+
+    /// 프로필 사진은 문서 번들과 무관한 앱 전역 파일이라 Application Support에 고정 저장한다.
+    private func pickPhoto() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.allowsMultipleSelection = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard let supportDir = try? FileManager.default.url(
+            for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true
+        ) else { return }
+        let target = supportDir
+            .appendingPathComponent("SonnetCreate", isDirectory: true)
+            .appendingPathComponent("profile-photo.\(url.pathExtension)")
+        try? FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try? FileManager.default.removeItem(at: target)
+        do {
+            try FileManager.default.copyItem(at: url, to: target)
+            store.draft.authorPhotoPath = target.path
+        } catch {}
+    }
+
     private func chooseWorkspace() {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
@@ -110,23 +167,13 @@ public struct SettingsRootView: View {
         }
     }
 
-    // MARK: 테마
+    // MARK: 모양 — 테마/크기/탭/품질
 
-    private func themeTab(_ l10n: Localizer) -> some View {
+    private func appearanceTab(_ l10n: Localizer) -> some View {
         Form {
             Picker(l10n.t(.interfaceStyle), selection: $store.draft.interfaceTheme) {
                 Text(l10n.t(.themeSonnet)).tag(InterfaceTheme.sonnet)
                 Text(l10n.t(.themeSystem)).tag(InterfaceTheme.system)
-            }
-            .pickerStyle(.segmented)
-
-            LabeledContent(l10n.t(.uiScale)) {
-                Slider(value: $store.draft.uiScale, in: 0.9...1.3, step: 0.05)
-            }
-
-            Picker(l10n.t(.tabStyle), selection: $store.draft.tabStyleRaw) {
-                Text(l10n.t(.tabStyleCapsule)).tag("capsule")
-                Text(l10n.t(.tabStyleChrome)).tag("chrome")
             }
             .pickerStyle(.segmented)
 
@@ -149,13 +196,22 @@ public struct SettingsRootView: View {
                 }
             }
 
+            LabeledContent(l10n.t(.uiScale)) {
+                Slider(value: $store.draft.uiScale, in: 0.9...1.3, step: 0.05)
+            }
+
+            Picker(l10n.t(.tabStyle), selection: $store.draft.tabStyleRaw) {
+                Text(l10n.t(.tabStyleChrome)).tag("chrome")
+                Text(l10n.t(.tabStyleCapsule)).tag("capsule")
+            }
+            .pickerStyle(.segmented)
+
             Picker(l10n.t(.qualityTier), selection: $store.draft.quality) {
                 Text(l10n.t(.qualityLow)).tag(RenderQuality.low)
                 Text(l10n.t(.qualityStandard)).tag(RenderQuality.standard)
                 Text(l10n.t(.qualityHigh)).tag(RenderQuality.high)
             }
             .pickerStyle(.segmented)
-
         }
         .formStyle(.grouped)
     }
@@ -183,8 +239,6 @@ public struct SettingsRootView: View {
         .buttonStyle(.plain)
     }
 
-    // MARK: - Touch Bar 프리뷰
-
     private var customAccentBinding: Binding<Color> {
         Binding(
             get: {
@@ -195,9 +249,9 @@ public struct SettingsRootView: View {
         )
     }
 
-    // MARK: 텍스트
+    // MARK: 에디터 — 글꼴/간격/인스펙터
 
-    private func textTab(_ l10n: Localizer) -> some View {
+    private func editorTab(_ l10n: Localizer) -> some View {
         Form {
             Picker(l10n.t(.fontLabel), selection: $store.draft.fontFamily) {
                 Text(l10n.t(.fontPretendard)).tag(FontFamily.pretendard)
@@ -212,9 +266,19 @@ public struct SettingsRootView: View {
             LabeledContent(l10n.t(.lineSpacing)) {
                 Slider(value: $store.draft.lineSpacingScale, in: 0.8...1.6, step: 0.1)
             }
-            LabeledContent(l10n.t(.blockSpacing)) {
-                Slider(value: $store.draft.blockSpacing, in: 2...16, step: 1)
+            Picker(l10n.t(.blockSpacing), selection: $store.draft.blockSpacing) {
+                Text(l10n.t(.spacingCompact)).tag(4.0)
+                Text(l10n.t(.spacingMedium)).tag(9.0)
+                Text(l10n.t(.spacingWide)).tag(14.0)
             }
+            .pickerStyle(.segmented)
+
+            Picker(l10n.t(.inspectorPosition), selection: $store.draft.scenarioInspectorOnRight) {
+                Text(l10n.t(.positionLeft)).tag(false)
+                Text(l10n.t(.positionRight)).tag(true)
+            }
+            .pickerStyle(.segmented)
+
             Section {
                 Text("본문 미리보기 — The quick brown fox / 다람쥐 헌 쳇바퀴에 타고파")
                     .font(DSFonts.font(size: 13 * store.draft.fontScale, family: store.draft.fontFamily))
@@ -271,6 +335,7 @@ public struct SettingsRootView: View {
     }
 }
 
+/// 사이드바 퀵 액션 라이브 프리뷰 — 사이드바 상단에 표시될 실제 모습.
 /// Touch Bar 프리뷰 — 활성화 시 실제로 배치될 항목의 시각 모형.
 public struct TouchBarPreviewView: View {
     public struct Item {
@@ -291,7 +356,6 @@ public struct TouchBarPreviewView: View {
     public var body: some View {
         let l10n = Localizer.shared
         HStack(spacing: 8) {
-            // esc 영역
             Text("esc")
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.7))

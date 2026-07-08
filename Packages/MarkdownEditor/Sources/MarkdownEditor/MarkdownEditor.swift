@@ -71,6 +71,40 @@ public struct PageEditorView: View {
         .animation(DesignTokens.Motion.snappy, value: store.slashBlockID != nil)
     }
 
+    /// 표시 단위 — 단일 블록 또는 나란히 페어.
+    private enum DisplayItem: Identifiable {
+        case single(PageBlock)
+        case pair(PageBlock, PageBlock)
+
+        var id: UUID {
+            switch self {
+            case .single(let block): block.id
+            case .pair(let left, _): left.id
+            }
+        }
+    }
+
+    private var displayItems: [DisplayItem] {
+        let blocks = store.visibleBlocks
+        var result: [DisplayItem] = []
+        var index = 0
+        while index < blocks.count {
+            let block = blocks[index]
+            if block.sideBySide == true, index + 1 < blocks.count {
+                result.append(.pair(block, blocks[index + 1]))
+                index += 2
+            } else {
+                result.append(.single(block))
+                index += 1
+            }
+        }
+        return result
+    }
+
+    private var hasPairs: Bool {
+        store.visibleBlocks.contains { $0.sideBySide == true }
+    }
+
     private func pageList(_ l10n: Localizer) -> some View {
             List {
                 // Notion처럼 중앙 정렬된 본문 칼럼 (캐릭터 페이지는 제목을 프로필 탭에서 편집)
@@ -86,15 +120,33 @@ public struct PageEditorView: View {
                         .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 2, trailing: 0))
                 }
 
-                ForEach(store.visibleBlocks) { block in
-                    PageBlockRow(store: store, block: block, focusedBlockID: $focusedBlockID)
-                        .modifier(CenteredColumn())
-                        .id(block.id)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
+                // 나란히(2단) 배치: sideBySide 블록은 다음 블록과 한 행으로 묶는다
+                let display = displayItems
+                ForEach(display) { item in
+                    Group {
+                        switch item {
+                        case .single(let block):
+                            PageBlockRow(store: store, block: block, focusedBlockID: $focusedBlockID)
+                        case .pair(let left, let right):
+                            HStack(alignment: .top, spacing: DesignTokens.Spacing.m) {
+                                PageBlockRow(store: store, block: left, focusedBlockID: $focusedBlockID)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                                PageBlockRow(store: store, block: right, focusedBlockID: $focusedBlockID)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                            }
+                        }
+                    }
+                    .modifier(CenteredColumn())
+                    .id(item.id)
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
-                .onMove { store.moveVisibleBlocks(from: $0, to: $1) }
+                .onMove { source, destination in
+                    // 페어가 있으면 인덱스 매핑이 어긋나므로 드래그 정렬은 단일 상태에서만
+                    guard !hasPairs else { return }
+                    store.moveVisibleBlocks(from: source, to: destination)
+                }
 
                 Color.clear
                     .frame(height: 200)

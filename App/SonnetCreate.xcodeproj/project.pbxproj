@@ -14,6 +14,7 @@
 		2BE731F8989DBAB49443A5E5 /* MindMapEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 2156137A81292CD1ACB4C89C /* MindMapEditor */; };
 		376249414C17B9E064AD94FD /* BackupTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A17E86B8424F8306FD4B021 /* BackupTimelineView.swift */; };
 		3FAC1FB551CFA25588210BE4 /* AIAgentKit in Frameworks */ = {isa = PBXBuildFile; productRef = 00F386E97DD83D5B4B114EB5 /* AIAgentKit */; };
+		51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0573DE5D33E846CBAC56F881 /* ProfileView.swift */; };
 		67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3ED3D33526C84530606161E /* SidebarView.swift */; };
 		739698DB548DA49A80F70BF0 /* PersistenceKit in Frameworks */ = {isa = PBXBuildFile; productRef = A79C4CEF0465317FD9C7756D /* PersistenceKit */; };
 		73C1957625A8EF96EE98588F /* AppKitTweaks.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3A38D7E56C4651C29B5608 /* AppKitTweaks.swift */; };
@@ -35,6 +36,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		0573DE5D33E846CBAC56F881 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		0B44C3D75121B9967F503526 /* FileManagerKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FileManagerKit; path = ../Packages/FileManagerKit; sourceTree = SOURCE_ROOT; };
 		1D99E3851BA6E0A5B95B1508 /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = ../Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
 		3A17E86B8424F8306FD4B021 /* BackupTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupTimelineView.swift; sourceTree = "<group>"; };
@@ -98,6 +100,7 @@
 				7858C36D928A18AE009A7109 /* DocumentSession.swift */,
 				8D11BB4282BA195D4F440C97 /* HomeView.swift */,
 				B272B5B24C1D05E090A56FDE /* MainWindowView.swift */,
+				0573DE5D33E846CBAC56F881 /* ProfileView.swift */,
 				A225ADDF85117C42771140CB /* ReferencePanelView.swift */,
 				E3ED3D33526C84530606161E /* SidebarView.swift */,
 				4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */,
@@ -249,6 +252,7 @@
 				AF49D942F7AC3E75387EBE40 /* DocumentSession.swift in Sources */,
 				0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */,
 				C494EDD5B6181E2B58C3A896 /* MainWindowView.swift in Sources */,
+				51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */,
 				0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */,
 				67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */,
 				DEDBCA2FAA6C5AACAAD3ADE0 /* SonnetCreateApp.swift in Sources */,

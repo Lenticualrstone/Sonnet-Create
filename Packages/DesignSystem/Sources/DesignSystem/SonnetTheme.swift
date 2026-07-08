@@ -37,16 +37,16 @@ private extension NSColor {
 
 /// Sonnet 테마 팔레트 v2 — 앤티크 페이퍼 캔버스 위의 적갈색 액센트. 부드러운 레트로 미니멀리즘.
 public enum SonnetPalette {
-    /// 메인 캔버스 (라이트: 앤티크 페이퍼 / 다크: 웜 브라운 블랙)
-    public static let canvas = dynamicColor(light: "#EAE3D2", dark: "#221E19")
+    /// 메인 캔버스 (라이트: 연베이지 백색 / 다크: 웜 브라운 블랙)
+    public static let canvas = dynamicColor(light: "#F6F1E7", dark: "#221E19")
     /// 살짝 떠 있는 표면 (카드/패널)
-    public static let surface = dynamicColor(light: "#F4EFE3", dark: "#2C2620")
-    /// 가라앉은 표면 (입력 필드 배경 등) — 본톤 #C8C0B0 계열
-    public static let sunken = dynamicColor(light: "#D9D0BC", dark: "#1A1613")
+    public static let surface = dynamicColor(light: "#FCF9F2", dark: "#2C2620")
+    /// 가라앉은 표면 (사이드바/탭바/입력 필드) — 본톤 기운
+    public static let sunken = dynamicColor(light: "#EAE3D3", dark: "#1A1613")
     /// 본문 잉크
     public static let ink = dynamicColor(light: "#33291E", dark: "#E7E0D0")
     /// 보조 잉크
-    public static let inkMuted = dynamicColor(light: "#7C7260", dark: "#9E9585")
+    public static let inkMuted = dynamicColor(light: "#867B67", dark: "#9E9585")
     /// 적갈색 액센트 (Claude 오렌지보다 어둡고 붉은 쪽)
     public static let accent = dynamicColor(light: "#9C4A2E", dark: "#C4714F")
     /// 배경 도트 기본색 (테마 추종 모드)

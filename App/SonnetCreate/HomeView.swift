@@ -232,9 +232,9 @@ struct HomeView: View {
                     }
                     .padding(10)
                     .contentShape(Rectangle())
+                    .glassSurface(cornerRadius: DesignTokens.Radius.small, quality: quality)
                 }
-                .buttonStyle(.plain)
-                .glassSurface(cornerRadius: DesignTokens.Radius.small, quality: quality)
+                .buttonStyle(LiftButtonStyle(hoverScale: 1.015, pressScale: 0.99))
             }
             if results.isEmpty {
                 Text(l10n.t(.noRecents))
@@ -253,7 +253,6 @@ struct QuickCreateButton: View {
     let title: String
     let action: () -> Void
 
-    @State private var hovering = false
     @Environment(\.renderQuality) private var quality
 
     var body: some View {
@@ -267,11 +266,8 @@ struct QuickCreateButton: View {
             }
             .frame(width: 108, height: 76)
             .glassSurface(cornerRadius: DesignTokens.Radius.medium, interactive: true, quality: quality)
-            .scaleEffect(hovering ? 1.04 : 1)
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .animation(DesignTokens.Motion.snappy, value: hovering)
+        .buttonStyle(LiftButtonStyle())
     }
 }
 
@@ -279,7 +275,6 @@ struct RecentCard: View {
     let item: DocumentListItem
     let action: () -> Void
 
-    @State private var hovering = false
     @Environment(\.renderQuality) private var quality
 
     var body: some View {
@@ -301,10 +296,7 @@ struct RecentCard: View {
             .frame(height: 104, alignment: .topLeading)
             .frame(maxWidth: .infinity, alignment: .leading)
             .glassSurface(cornerRadius: DesignTokens.Radius.medium, interactive: true, quality: quality)
-            .scaleEffect(hovering ? 1.03 : 1)
         }
-        .buttonStyle(.plain)
-        .onHover { hovering = $0 }
-        .animation(DesignTokens.Motion.snappy, value: hovering)
+        .buttonStyle(LiftButtonStyle())
     }
 }

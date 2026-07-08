@@ -21,6 +21,10 @@ struct MainWindowView: View {
                 // 사이드바 상단의 시스템 툴바(백색 박스 원인) 제거
                 .toolbar(removing: .sidebarToggle)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                // 윈도우 모드에서만 콘텐츠를 타이틀 라인(신호등 뒤)까지 끌어올린다.
+                // 전체화면에서는 그대로 두어야 한다 — 무조건 ignoresSafeArea하면
+                // 전체화면의 (더 큰) 상단 안전영역만큼 헤더가 화면 밖으로 밀려나 사라진다.
+                .modifier(TopChromeExtension(active: !app.isFullscreen))
         } detail: {
             ZStack {
                 // Sonnet 테마: 본톤 캔버스가 모든 레이어의 바닥
@@ -30,11 +34,15 @@ struct MainWindowView: View {
                 background
 
                 VStack(spacing: 0) {
-                    // 탭바가 곧 헤더 — 사이드바 토글·우측 액션까지 모두 이 한 줄에
-                    ChromeTabBar(columnVisibility: $columnVisibility)
+                    // 탭바가 곧 타이틀 라인 — 신호등과 같은 줄에 토글/탭/도구막대
+                    ChromeTabBar(
+                        columnVisibility: $columnVisibility,
+                        needsTrafficLightInset: columnVisibility == .detailOnly && !app.isFullscreen
+                    )
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .modifier(TopChromeExtension(active: !app.isFullscreen))
             }
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         }
@@ -42,6 +50,44 @@ struct MainWindowView: View {
         // 크롬(버튼/탭/툴바)의 안내 텍스트가 커서로 선택되는 것을 방지.
         // 본문 텍스트 선택이 필요한 곳(시나리오 블록 등)은 개별적으로 다시 활성화한다.
         .textSelection(.disabled)
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
+            withAnimation(DesignTokens.Motion.gentle) { app.isFullscreen = true }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
+            withAnimation(DesignTokens.Motion.gentle) { app.isFullscreen = false }
+        }
+        // 휴지통 이동 확인
+        .confirmationDialog(
+            Localizer.shared.t(.moveToTrash),
+            isPresented: Binding(
+                get: { app.pendingTrashItem != nil },
+                set: { if !$0 { app.pendingTrashItem = nil } }
+            ),
+            presenting: app.pendingTrashItem
+        ) { item in
+            Button("\(Localizer.shared.t(.moveToTrash)): \(item.envelope.title)", role: .destructive) {
+                app.confirmPendingTrash()
+            }
+            Button(Localizer.shared.t(.cancel), role: .cancel) {}
+        } message: { _ in
+            Text(Localizer.shared.t(.trashConfirmMessage))
+        }
+        // 프로젝트 삭제 확인
+        .confirmationDialog(
+            Localizer.shared.t(.deleteProject),
+            isPresented: Binding(
+                get: { app.pendingDeleteProject != nil },
+                set: { if !$0 { app.pendingDeleteProject = nil } }
+            ),
+            presenting: app.pendingDeleteProject
+        ) { project in
+            Button("\(Localizer.shared.t(.deleteProject)): \(project.manifest.name)", role: .destructive) {
+                app.confirmPendingDeleteProject()
+            }
+            Button(Localizer.shared.t(.cancel), role: .cancel) {}
+        } message: { _ in
+            Text(Localizer.shared.t(.projectDeleteMessage))
+        }
     }
 
     /// 시그니처 배경 — 설정에서 켠 경우에만 (기본 꺼짐).
@@ -104,6 +150,8 @@ struct MainWindowView: View {
             HomeView()
         case .aiChat:
             AIChatView()
+        case .profile:
+            ProfileView()
         case .archive:
             ArchiveView(
                 workspace: app.workspace,
@@ -111,7 +159,12 @@ struct MainWindowView: View {
                 requestUnlock: { reason in
                     await app.privacyGate.unlock(reason: reason)
                 },
-                openOnSingleClick: app.settings.applied.openOnSingleClick
+                openOnSingleClick: app.settings.applied.openOnSingleClick,
+                externalCategory: Binding(
+                    get: { app.archiveCategoryRequest },
+                    set: { app.archiveCategoryRequest = $0 }
+                ),
+                requestTrash: { app.requestTrash($0) }
             )
         case .document(let docID):
             if let session = app.sessions[docID] {
@@ -130,6 +183,20 @@ struct MainWindowView: View {
     }
 }
 
+/// 윈도우 모드에서만 상단 안전영역을 무시해 신호등 뒤로 콘텐츠를 확장한다.
+/// 전체화면에서는 안전영역이 (더 크게) 다시 보고되므로 그대로 두지 않으면 헤더 전체가 화면 밖으로 밀려 사라진다.
+private struct TopChromeExtension: ViewModifier {
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.ignoresSafeArea(.container, edges: .top)
+        } else {
+            content
+        }
+    }
+}
+
 // MARK: - Chrome-tabs 스타일 탭바
 // 참고: github.com/adamschwartz/chrome-tabs — 좌측 정렬 유동 폭 탭,
 // 활성 탭은 콘텐츠 캔버스와 병합, 비활성 탭 사이 세로 구분선.
@@ -138,6 +205,8 @@ struct ChromeTabBar: View {
     @Environment(AppState.self) private var app
     @Environment(\.interfaceTheme) private var theme
     @Binding var columnVisibility: NavigationSplitViewVisibility
+    /// 사이드바가 접혀 신호등이 이 바 위에 겹칠 때의 좌측 여백 (전체화면에서는 불필요)
+    var needsTrafficLightInset = false
 
     private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
 
@@ -154,7 +223,7 @@ struct ChromeTabBar: View {
                     columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
                 }
             }
-            .padding(.leading, 6)
+            .padding(.leading, needsTrafficLightInset ? 76 : 6)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: isChrome ? 0 : 4) {
@@ -166,9 +235,35 @@ struct ChromeTabBar: View {
                 .padding(.top, isChrome ? 5 : 3)
             }
 
-            ToolbarIconButton("plus", help: l10n.t(.newDocument)) {
-                app.selectOrOpenHome()
+            // 새 문서 종류 선택 메뉴
+            Menu {
+                Button(l10n.t(.newScenario), systemImage: "text.bubble") {
+                    app.createAndOpen(kind: .scenario)
+                }
+                Button(l10n.t(.newMindMap), systemImage: "point.3.connected.trianglepath.dotted") {
+                    app.createAndOpen(kind: .mindmap)
+                }
+                Button(l10n.t(.newPage), systemImage: "doc.richtext") {
+                    app.createAndOpen(kind: .page)
+                }
+                Button(l10n.t(.newCharacter), systemImage: "person.crop.circle.badge.plus") {
+                    app.createAndOpen(kind: .page, pageRole: .character)
+                }
+                Divider()
+                Button(l10n.t(.newProject), systemImage: "folder.badge.plus") {
+                    _ = try? app.workspace.createProject(name: l10n.t(.newProject))
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
             }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(l10n.t(.newDocument))
 
             Spacer(minLength: 0)
 
@@ -300,7 +395,9 @@ struct TabChip: View {
     private func beginRename() {
         guard let session = documentSession else { return }
         draftTitle = session.title
-        renaming = true
+        // 탭 ForEach가 재배치/디프 중일 때 popover를 열면 앵커 뷰가 아직
+        // 윈도우 계층에서 확정되지 않아 NSPopover가 크래시한다 (macOS 26).
+        DispatchQueue.main.async { renaming = true }
     }
 
     private var renamePopover: some View {

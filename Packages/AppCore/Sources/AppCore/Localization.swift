@@ -57,6 +57,13 @@ public enum L10nKey: String, Sendable {
     case addImage, phaseTag, captionLabel
     case voiceTone, voiceTaboo, voiceSamples, addVoiceCard, addSample
     case appearances, linesCountFormat, editProfileImage
+    case settingsAppearance, settingsEditor
+    case deleteProject, trashConfirmMessage, projectDeleteMessage
+    case profilePage, contributions, activityEmpty
+    case spacingCompact, spacingMedium, spacingWide
+    case inbox, eventImported, eventExported, eventBackedUp, eventRestored, eventProjectDeleted
+    case sideBySideToggle, imageWidth, imageAlign, alignLeft, alignCenter, alignRight, pasteImage
+    case aboutMe, recentlyDeleted, choosePhoto, removePhoto, viewProfile
     case authRequiredHidden, authRequiredTrash, authReason, unlocked
     case profile, workspace, documents, untitled, editContent
     case addNode, nodeText, nodePage, nodeImage, nodeFile, edgeCaption, zoomReset
@@ -262,6 +269,35 @@ public final class Localizer {
         .appearances: [.korean: "등장 기록", .japanese: "登場記録", .english: "Appearances"],
         .linesCountFormat: [.korean: "대사 %d개", .japanese: "セリフ%d件", .english: "%d lines"],
         .editProfileImage: [.korean: "프로필 이미지 편집", .japanese: "プロフィール画像を編集", .english: "Edit Profile Image"],
+        .settingsAppearance: [.korean: "모양", .japanese: "外観", .english: "Appearance"],
+        .settingsEditor: [.korean: "에디터", .japanese: "エディタ", .english: "Editor"],
+        .deleteProject: [.korean: "프로젝트 삭제", .japanese: "プロジェクトを削除", .english: "Delete Project"],
+        .trashConfirmMessage: [.korean: "이 문서를 휴지통으로 이동할까요?", .japanese: "このドキュメントをゴミ箱に移動しますか？", .english: "Move this document to Trash?"],
+        .projectDeleteMessage: [.korean: "프로젝트 폴더 전체(포함된 문서 포함)가 Finder 휴지통으로 이동합니다.", .japanese: "プロジェクトフォルダ全体（含まれるドキュメントを含む）がFinderのゴミ箱に移動します。", .english: "The entire project folder (including its documents) will move to the Finder Trash."],
+        .profilePage: [.korean: "프로필", .japanese: "プロフィール", .english: "Profile"],
+        .contributions: [.korean: "기여도", .japanese: "アクティビティ", .english: "Contributions"],
+        .activityEmpty: [.korean: "아직 기록된 활동이 없습니다 — 문서를 저장하면 채워집니다", .japanese: "まだ活動記録がありません — 保存すると記録されます", .english: "No activity yet — it fills in as you save"],
+        .spacingCompact: [.korean: "좁게", .japanese: "狭い", .english: "Compact"],
+        .spacingMedium: [.korean: "중간", .japanese: "中", .english: "Medium"],
+        .spacingWide: [.korean: "넓게", .japanese: "広い", .english: "Wide"],
+        .inbox: [.korean: "수신함", .japanese: "受信トレイ", .english: "Inbox"],
+        .eventImported: [.korean: "가져옴", .japanese: "読み込み", .english: "Imported"],
+        .eventExported: [.korean: "내보냄", .japanese: "書き出し", .english: "Exported"],
+        .eventBackedUp: [.korean: "백업 생성", .japanese: "バックアップ作成", .english: "Backed Up"],
+        .eventRestored: [.korean: "백업 복원", .japanese: "バックアップ復元", .english: "Restored"],
+        .eventProjectDeleted: [.korean: "프로젝트 삭제", .japanese: "プロジェクト削除", .english: "Project Deleted"],
+        .sideBySideToggle: [.korean: "다음 블록과 나란히", .japanese: "次のブロックと横並び", .english: "Side by Side with Next"],
+        .imageWidth: [.korean: "너비", .japanese: "幅", .english: "Width"],
+        .imageAlign: [.korean: "정렬", .japanese: "配置", .english: "Align"],
+        .alignLeft: [.korean: "왼쪽", .japanese: "左", .english: "Left"],
+        .alignCenter: [.korean: "가운데", .japanese: "中央", .english: "Center"],
+        .alignRight: [.korean: "오른쪽", .japanese: "右", .english: "Right"],
+        .pasteImage: [.korean: "클립보드 붙여넣기", .japanese: "クリップボードから貼り付け", .english: "Paste from Clipboard"],
+        .aboutMe: [.korean: "소개", .japanese: "自己紹介", .english: "About"],
+        .recentlyDeleted: [.korean: "최근 지워진 항목", .japanese: "最近削除した項目", .english: "Recently Deleted"],
+        .choosePhoto: [.korean: "사진 선택…", .japanese: "写真を選択…", .english: "Choose Photo…"],
+        .removePhoto: [.korean: "사진 제거", .japanese: "写真を削除", .english: "Remove Photo"],
+        .viewProfile: [.korean: "프로필 보기", .japanese: "プロフィールを見る", .english: "View Profile"],
         .authRequiredHidden: [.korean: "가려진 항목을 보려면 인증이 필요합니다", .japanese: "非表示項目の閲覧には認証が必要です", .english: "Authentication required to view hidden items"],
         .authRequiredTrash: [.korean: "휴지통에 접근하려면 인증이 필요합니다", .japanese: "ゴミ箱へのアクセスには認証が必要です", .english: "Authentication required to access Trash"],
         .authReason: [.korean: "보호된 항목에 접근", .japanese: "保護された項目へのアクセス", .english: "Access protected items"],

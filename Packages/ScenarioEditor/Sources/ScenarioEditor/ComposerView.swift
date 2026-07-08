@@ -21,19 +21,6 @@ struct ComposerView: View {
             HStack(spacing: DesignTokens.Spacing.s) {
                 modeToggle(l10n)
 
-                // 구분선 삽입 (장면 전환)
-                Button {
-                    store.insertDivider()
-                } label: {
-                    Image(systemName: "minus")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .help(l10n.t(.blockDivider))
-
                 if store.composerMode == .line {
                     speakerSelector
                 }

@@ -183,6 +183,13 @@ public final class ScenarioStore {
             shakeTrigger += 1
             return false
         }
+        // 지침 모드에서 마크다운 구분선 문법 → 구분선 블록 (전용 버튼 대체)
+        if editingBlockID == nil, composerMode == .instruction, text == "---" || text == "***" {
+            withActiveBlocks { $0.append(ScenarioBlock(kind: .divider, text: "")) }
+            composerText = ""
+            return true
+        }
+
         if let editingID = editingBlockID {
             withActiveBlocks { blocks in
                 guard let idx = blocks.firstIndex(where: { $0.id == editingID }) else { return }

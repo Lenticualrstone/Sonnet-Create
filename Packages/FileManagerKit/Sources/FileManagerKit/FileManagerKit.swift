@@ -258,6 +258,13 @@ public final class WorkspaceStore {
         return duplicate
     }
 
+    /// 프로젝트 폴더 전체(포함 문서 포함)를 Finder 휴지통으로 이동한다.
+    /// 앱 내부 휴지통이 아닌 시스템 휴지통을 쓰는 이유: 폴더 단위 복원이 Finder에서 가장 안전하다.
+    public func deleteProject(_ project: ProjectFolder) {
+        try? FileManager.default.trashItem(at: project.url, resultingItemURL: nil)
+        scan()
+    }
+
     public func renameProject(_ project: ProjectFolder, to name: String) {
         var manifest = project.manifest
         manifest.name = name

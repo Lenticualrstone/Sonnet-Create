@@ -18,6 +18,7 @@ enum TabContent: Hashable {
     case home
     case archive
     case aiChat
+    case profile
     case document(UUID)
 }
 
@@ -54,6 +55,21 @@ struct OpenTab: Identifiable, Hashable {
     var content: TabContent
 }
 
+/// 수신함 이벤트 한 건 (가져오기/백업/복원 등 시스템 알림).
+struct InboxEvent: Identifiable, Codable {
+    let id: UUID
+    let date: Date
+    let symbol: String
+    let message: String
+
+    init(symbol: String, message: String) {
+        self.id = UUID()
+        self.date = Date()
+        self.symbol = symbol
+        self.message = message
+    }
+}
+
 /// 앱 전역 컴포지션 루트 — 모든 모듈을 조립한다.
 @MainActor
 @Observable
@@ -71,6 +87,21 @@ final class AppState {
     var selectedTabID: UUID?
     /// 참조 패널 표시 여부 (문서 탭에서만 의미 있음)
     var showReferencePanel = false
+    /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
+    var isFullscreen = false
+
+    /// 휴지통 이동 확인 대기 항목 (확인 팝업)
+    var pendingTrashItem: DocumentListItem?
+    /// 프로젝트 삭제 확인 대기 (확인 팝업 → Finder 휴지통)
+    var pendingDeleteProject: ProjectFolder?
+    /// 아카이브 탭을 특정 카테고리로 열기 위한 요청 (소비형)
+    var archiveCategoryRequest: ArchiveView.Category?
+
+    /// 일별 저장 활동 (yyyy-MM-dd → 횟수) — 프로필 기여도 그래프용
+    private(set) var activity: [String: Int] = [:]
+
+    /// 수신함 이벤트 (가져오기/백업/복원 등)
+    private(set) var inbox: [InboxEvent] = []
 
     // 열린 문서 세션
     private(set) var sessions: [UUID: DocumentSession] = [:]
@@ -100,6 +131,8 @@ final class AppState {
             self?.applySettings(applied)
         }
         touchBar.appState = self
+        loadActivity()
+        loadInbox()
     }
 
     private func applySettings(_ applied: AppSettings) {
@@ -113,6 +146,8 @@ final class AppState {
             selectedTabID = tabs.first?.id
             workspace.setRoot(newRoot)
             backupManager = BackupManager(workspaceRoot: newRoot)
+            loadActivity()
+            loadInbox()
         }
         for session in sessions.values {
             session.autosaveEnabled = applied.autosave
@@ -141,24 +176,73 @@ final class AppState {
         }
     }
 
-    func openArchiveTab() {
-        if let existing = tabs.first(where: { $0.content == .archive }) {
+    func openAIChatTab() {
+        openSingletonTab(.aiChat)
+    }
+
+    func openProfileTab() {
+        openSingletonTab(.profile)
+    }
+
+    /// 아카이브 탭 열기 — 카테고리 지정 시 해당 카테고리로 (가림/휴지통 바로가기).
+    func openArchiveTab(category: ArchiveView.Category? = nil) {
+        if let category {
+            archiveCategoryRequest = category
+        }
+        openSingletonTab(.archive)
+    }
+
+    private func openSingletonTab(_ content: TabContent) {
+        if let existing = tabs.first(where: { $0.content == content }) {
             selectedTabID = existing.id
         } else {
-            let tab = OpenTab(content: .archive)
+            let tab = OpenTab(content: content)
             tabs.append(tab)
             selectedTabID = tab.id
         }
     }
 
-    func openAIChatTab() {
-        if let existing = tabs.first(where: { $0.content == .aiChat }) {
-            selectedTabID = existing.id
-        } else {
-            let tab = OpenTab(content: .aiChat)
-            tabs.append(tab)
-            selectedTabID = tab.id
+    // MARK: 확인 팝업
+
+    /// 지금 백업 — 설정의 백업 타임라인에서도 호출된다.
+    func backupNow() {
+        flushAllSessions()
+        if (try? backupManager.snapshot()) != nil {
+            notify(symbol: "clock.arrow.circlepath", message: Localizer.shared.t(.eventBackedUp))
         }
+    }
+
+    /// 휴지통 이동 요청 — 확인 팝업을 거친다.
+    func requestTrash(_ item: DocumentListItem) {
+        pendingTrashItem = item
+    }
+
+    func confirmPendingTrash() {
+        guard let item = pendingTrashItem else { return }
+        pendingTrashItem = nil
+        // 열려 있으면 탭부터 닫는다
+        if let tab = tabs.first(where: { $0.content == .document(item.id) }) {
+            closeTab(tab)
+        }
+        workspace.moveToTrash(item)
+    }
+
+    func requestDeleteProject(_ project: ProjectFolder) {
+        pendingDeleteProject = project
+    }
+
+    func confirmPendingDeleteProject() {
+        guard let project = pendingDeleteProject else { return }
+        pendingDeleteProject = nil
+        // 프로젝트 소속 문서 탭/세션 정리
+        let memberIDs = Set(workspace.visibleDocuments.filter { $0.envelope.projectID == project.id }.map(\.id))
+        for tab in tabs {
+            if case .document(let docID) = tab.content, memberIDs.contains(docID) {
+                closeTab(tab)
+            }
+        }
+        workspace.deleteProject(project)
+        notify(symbol: "trash", message: "\(Localizer.shared.t(.eventProjectDeleted)): \(project.manifest.name)")
     }
 
     /// ⌘1~9 — n번째 탭 선택.
@@ -248,6 +332,7 @@ final class AppState {
         session.onSaved = { [weak self] in
             self?.workspace.scan()
             self?.workspace.touchRecent(id)
+            self?.recordActivity()
         }
         configureAI(for: session)
         configureEditorHooks(for: session)
@@ -442,7 +527,71 @@ final class AppState {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = project.manifest.name + ".scproj"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? backupManager.exportProject(project, to: url)
+        if (try? backupManager.exportProject(project, to: url)) != nil {
+            notify(symbol: "square.and.arrow.up", message: "\(Localizer.shared.t(.eventExported)): \(project.manifest.name).scproj")
+        }
+    }
+
+    // MARK: 수신함
+
+    private var inboxURL: URL {
+        workspace.rootURL.appendingPathComponent(".sonnetcreate/inbox.json")
+    }
+
+    func loadInbox() {
+        guard let data = try? Data(contentsOf: inboxURL),
+              let decoded = try? JSONDecoder().decode([InboxEvent].self, from: data)
+        else {
+            inbox = []
+            return
+        }
+        inbox = decoded
+    }
+
+    /// 수신함에 이벤트 기록 (최근 50개 유지).
+    func notify(symbol: String, message: String) {
+        inbox.insert(InboxEvent(symbol: symbol, message: message), at: 0)
+        if inbox.count > 50 { inbox = Array(inbox.prefix(50)) }
+        if let data = try? JSONEncoder().encode(inbox) {
+            try? data.write(to: inboxURL, options: .atomic)
+        }
+    }
+
+    // MARK: 활동 로그 (기여도 그래프)
+
+    private var activityURL: URL {
+        workspace.rootURL.appendingPathComponent(".sonnetcreate/activity.json")
+    }
+
+    private static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    func loadActivity() {
+        guard let data = try? Data(contentsOf: activityURL),
+              let decoded = try? JSONDecoder().decode([String: Int].self, from: data)
+        else {
+            activity = [:]
+            return
+        }
+        activity = decoded
+    }
+
+    /// 문서 저장 1회 = 활동 1 (프로필의 GitHub식 기여도 그래프 데이터).
+    private func recordActivity() {
+        let key = Self.dayFormatter.string(from: Date())
+        activity[key, default: 0] += 1
+        if let data = try? JSONEncoder().encode(activity) {
+            try? data.write(to: activityURL, options: .atomic)
+        }
+    }
+
+    /// 특정 날짜의 활동 횟수.
+    func activityCount(on date: Date) -> Int {
+        activity[Self.dayFormatter.string(from: date)] ?? 0
     }
 
     // MARK: 외부 가져오기
@@ -456,23 +605,25 @@ final class AppState {
         panel.message = Localizer.shared.t(.importAny)
         guard panel.runModal() == .OK else { return }
         for url in panel.urls {
-            importItem(at: url)
+            if importItem(at: url) {
+                notify(symbol: "square.and.arrow.down", message: "\(Localizer.shared.t(.eventImported)): \(url.lastPathComponent)")
+            }
         }
         workspace.scan()
     }
 
-    private func importItem(at url: URL) {
+    @discardableResult
+    private func importItem(at url: URL) -> Bool {
         let fm = FileManager.default
         // 1) .scproj 백업 패키지
         if url.pathExtension.lowercased() == "scproj" {
-            _ = try? backupManager.importProject(from: url)
-            return
+            return (try? backupManager.importProject(from: url)) != nil
         }
         // 2) 프로젝트 폴더 (project.json 보유) 또는 문서 번들 (.scen/.scno/.scpa)
         let isProject = fm.fileExists(atPath: url.appendingPathComponent("project.json").path)
         let isDocument = DocumentKind.from(fileExtension: url.pathExtension) != nil
-        guard isProject || isDocument else { return }
-        guard url.deletingLastPathComponent() != workspace.rootURL else { return } // 이미 워크스페이스 안
+        guard isProject || isDocument else { return false }
+        guard url.deletingLastPathComponent() != workspace.rootURL else { return false } // 이미 워크스페이스 안
 
         var target = workspace.rootURL.appendingPathComponent(url.lastPathComponent)
         var counter = 2
@@ -480,7 +631,7 @@ final class AppState {
             target = workspace.rootURL.appendingPathComponent("\(counter)-\(url.lastPathComponent)")
             counter += 1
         }
-        try? fm.copyItem(at: url, to: target)
+        return (try? fm.copyItem(at: url, to: target)) != nil
     }
 
     /// 실효 강조색 — Sonnet 테마에서 '시스템' 선택 시 적갈색이 기본.
@@ -508,6 +659,7 @@ final class AppState {
         case .home: return l10n.t(.home)
         case .archive: return l10n.t(.archive)
         case .aiChat: return l10n.t(.aiAgent)
+        case .profile: return l10n.t(.profilePage)
         case .document(let docID):
             let title = sessions[docID]?.title ?? workspace.item(id: docID)?.envelope.title ?? ""
             return title.isEmpty ? l10n.t(.untitled) : title
@@ -519,6 +671,7 @@ final class AppState {
         case .home: "house"
         case .archive: "archivebox"
         case .aiChat: "sparkles"
+        case .profile: "person.crop.circle"
         case .document(let docID):
             sessions[docID]?.document.envelope.isCharacterPage == true
                 ? "person.crop.circle"

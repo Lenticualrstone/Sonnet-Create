@@ -11,6 +11,10 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var autosave: Bool = true
     public var backupOnQuit: Bool = true
     public var authorName: String = ""
+    /// 프로필 사진 — 워크스페이스 밖 고정 위치에 저장된 파일의 절대 경로 (문서 번들과 무관)
+    public var authorPhotoPath: String = ""
+    /// 짧은 자기소개
+    public var authorBio: String = ""
     /// 아카이브에서 항목을 여는 클릭 방식 (true = 싱글 클릭)
     public var openOnSingleClick: Bool = true
 
@@ -46,8 +50,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var fontFamily: FontFamily = .pretendard
     public var fontScale: Double = 1.0
     public var lineSpacingScale: Double = 1.0
-    /// 블록 간 간격 (pt) — 페이지·시나리오 에디터
-    public var blockSpacing: Double = 7
+    /// 블록 간 간격 (pt) — 페이지·시나리오 에디터 (프리셋: 좁게 4 / 중간 9 / 넓게 14)
+    public var blockSpacing: Double = 9
 
     // 베타 (AI)
     public var aiProviderRaw: String = "offline"
@@ -64,6 +68,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
         autosave = try c.decodeIfPresent(Bool.self, forKey: .autosave) ?? d.autosave
         backupOnQuit = try c.decodeIfPresent(Bool.self, forKey: .backupOnQuit) ?? d.backupOnQuit
         authorName = try c.decodeIfPresent(String.self, forKey: .authorName) ?? d.authorName
+        authorPhotoPath = try c.decodeIfPresent(String.self, forKey: .authorPhotoPath) ?? d.authorPhotoPath
+        authorBio = try c.decodeIfPresent(String.self, forKey: .authorBio) ?? d.authorBio
         openOnSingleClick = try c.decodeIfPresent(Bool.self, forKey: .openOnSingleClick) ?? d.openOnSingleClick
         interfaceTheme = try c.decodeIfPresent(InterfaceTheme.self, forKey: .interfaceTheme) ?? d.interfaceTheme
         themeMode = try c.decodeIfPresent(ThemeMode.self, forKey: .themeMode) ?? d.themeMode

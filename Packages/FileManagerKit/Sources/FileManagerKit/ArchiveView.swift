@@ -24,6 +24,10 @@ public struct ArchiveView: View {
     let requestUnlock: (String) async -> Bool
     /// 열기 클릭 방식 (설정 연동: true = 싱글 클릭)
     let openOnSingleClick: Bool
+    /// 외부(사이드바 바로가기 등)에서 카테고리를 지정해 열 때 (소비 후 nil로 되돌림)
+    @Binding var externalCategory: Category?
+    /// 휴지통 이동 요청 — nil이면 즉시 이동, 지정 시 앱이 확인 팝업을 거친다
+    let requestTrash: ((DocumentListItem) -> Void)?
 
     @State private var category: Category = .all
     @State private var sortOrder: SortOrder = .modified
@@ -37,12 +41,16 @@ public struct ArchiveView: View {
         workspace: WorkspaceStore,
         onOpen: @escaping (DocumentListItem) -> Void,
         requestUnlock: @escaping (String) async -> Bool = { _ in true },
-        openOnSingleClick: Bool = true
+        openOnSingleClick: Bool = true,
+        externalCategory: Binding<Category?> = .constant(nil),
+        requestTrash: ((DocumentListItem) -> Void)? = nil
     ) {
         self.workspace = workspace
         self.onOpen = onOpen
         self.requestUnlock = requestUnlock
         self.openOnSingleClick = openOnSingleClick
+        self._externalCategory = externalCategory
+        self.requestTrash = requestTrash
     }
 
     public var body: some View {
@@ -69,6 +77,15 @@ public struct ArchiveView: View {
                 let l10n = Localizer.shared
                 unlockGranted = await requestUnlock(l10n.t(.authReason))
             }
+        }
+        .onAppear { consumeExternalCategory() }
+        .onChange(of: externalCategory) { _, _ in consumeExternalCategory() }
+    }
+
+    private func consumeExternalCategory() {
+        if let requested = externalCategory {
+            category = requested
+            externalCategory = nil
         }
     }
 
@@ -229,7 +246,13 @@ public struct ArchiveView: View {
             } else {
                 Button(l10n.t(.hide)) { workspace.setHidden(item, hidden: true) }
             }
-            Button(l10n.t(.moveToTrash), role: .destructive) { workspace.moveToTrash(item) }
+            Button(l10n.t(.moveToTrash), role: .destructive) {
+                if let requestTrash {
+                    requestTrash(item)
+                } else {
+                    workspace.moveToTrash(item)
+                }
+            }
         }
     }
 }
@@ -307,6 +330,7 @@ struct ArchiveCard: View {
         .frame(maxWidth: .infinity)
         .glassSurface(cornerRadius: DesignTokens.Radius.medium, quality: quality)
         .scaleEffect(hovering ? 1.03 : 1)
+        .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
         .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
         .onHover { hovering = $0 }
         .onTapGesture(count: clickCount) { onOpen(item) }

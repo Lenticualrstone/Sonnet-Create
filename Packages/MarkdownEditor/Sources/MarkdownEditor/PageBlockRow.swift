@@ -63,6 +63,16 @@ struct PageBlockRow: View {
                 .contentShape(Rectangle())
                 .contextMenu {
                     let l10n = Localizer.shared
+                    // 좌우(2단) 배치 — 다음 블록과 나란히
+                    Toggle(l10n.t(.sideBySideToggle), isOn: Binding(
+                        get: { store.block(id: block.id)?.sideBySide ?? false },
+                        set: { enabled in
+                            guard var updated = store.block(id: block.id) else { return }
+                            updated.sideBySide = enabled ? true : nil
+                            store.updateBlock(updated)
+                        }
+                    ))
+                    Divider()
                     Button(l10n.t(.duplicate)) { store.duplicateBlock(block.id) }
                     Button(l10n.t(.delete), role: .destructive) { store.deleteBlock(block.id) }
                 }

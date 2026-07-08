@@ -40,6 +40,10 @@ struct AIChatView: View {
                         ForEach(chat.messages) { message in
                             ChatBubble(message: message, fontFamily: fontFamily)
                                 .id(message.id)
+                                .transition(.asymmetric(
+                                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                                    removal: .opacity
+                                ))
                         }
                         if chat.isBusy {
                             HStack(spacing: 6) {
@@ -55,6 +59,7 @@ struct AIChatView: View {
                     .padding(.vertical, DesignTokens.Spacing.m)
                     .frame(maxWidth: 680)
                     .frame(maxWidth: .infinity)
+                    .animation(DesignTokens.Motion.arrival, value: chat.messages.count)
                 }
                 .onChange(of: chat.messages.count) {
                     if let last = chat.messages.last {
@@ -166,6 +171,7 @@ struct ChatBubble: View {
 /// 사이드패널 미니 챗 — 최근 대화 + 빠른 입력 + 탭으로 확장.
 struct SidebarAIChatSection: View {
     @Environment(AppState.self) private var app
+    var maxMessages = 3
 
     var body: some View {
         let l10n = Localizer.shared
@@ -187,7 +193,7 @@ struct SidebarAIChatSection: View {
                 .help(l10n.t(.openAsTab))
             }
 
-            ForEach(chat.messages.suffix(3)) { message in
+            ForEach(chat.messages.suffix(maxMessages)) { message in
                 HStack(alignment: .top, spacing: 4) {
                     Image(systemName: message.role == .user ? "person.fill" : "sparkles")
                         .font(.system(size: 8))

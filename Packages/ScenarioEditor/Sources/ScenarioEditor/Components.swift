@@ -7,7 +7,7 @@ import SwiftUI
 
 struct CastAvatar: View {
     let member: CastMember?
-    var size: CGFloat = 26
+    var size: CGFloat = 34
 
     var body: some View {
         ZStack {
@@ -151,15 +151,15 @@ struct SpeakerCluster: View {
     var body: some View {
         Group {
             if speakers.count <= 1 {
-                CastAvatar(member: speakers.first)
+                CastAvatar(member: speakers.first, size: 34)
             } else {
                 ZStack {
                     ForEach(Array(speakers.prefix(3).enumerated()), id: \.element.id) { index, member in
-                        CastAvatar(member: member, size: 24)
-                            .offset(x: CGFloat(index) * 12)
+                        CastAvatar(member: member, size: 34)
+                            .offset(x: CGFloat(index) * 14)
                     }
                 }
-                .frame(width: 24 + CGFloat(min(speakers.count, 3) - 1) * 12, alignment: .leading)
+                .frame(width: 34 + CGFloat(min(speakers.count, 3) - 1) * 14, alignment: .leading)
                 .onHover { showPopover = $0 }
                 .popover(isPresented: $showPopover, arrowEdge: .top) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -345,7 +345,7 @@ struct CastInspectorRow: View {
     var body: some View {
         let l10n = Localizer.shared
         HStack(spacing: DesignTokens.Spacing.s) {
-            CastAvatar(member: member, size: 30)
+            CastAvatar(member: member, size: 40)
             VStack(alignment: .leading, spacing: 1) {
                 Text(member.name)
                     .font(.callout.weight(.medium))
@@ -372,12 +372,12 @@ struct CastInspectorRow: View {
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { editing = true }
+        .onTapGesture { beginEditing() }
         .popover(isPresented: $editing, arrowEdge: .trailing) {
             CastEditorView(store: store, memberID: member.id, onOpen: onOpen, onCreatePage: onCreatePage)
         }
         .contextMenu {
-            Button(l10n.t(.editContent)) { editing = true }
+            Button(l10n.t(.editContent)) { beginEditing() }
             if let pageID = member.characterPageID {
                 Button(l10n.t(.open)) { onOpen(pageID) }
             }
@@ -385,6 +385,12 @@ struct CastInspectorRow: View {
             Button(l10n.t(.delete), role: .destructive) { store.removeCastMember(member.id) }
         }
         .animation(DesignTokens.Motion.snappy, value: hovering)
+    }
+
+    /// List 행이 아직 재배치/디프 중일 때 popover를 열면 앵커 뷰가 유효하지 않아
+    /// NSPopover가 크래시한다 (macOS 26) — 다음 런루프 틱으로 지연해 안전하게 연다.
+    private func beginEditing() {
+        DispatchQueue.main.async { editing = true }
     }
 }
 

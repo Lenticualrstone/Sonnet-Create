@@ -15,8 +15,7 @@ struct BackupTimelineView: View {
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
             HStack {
                 Button(l10n.t(.backupNow)) {
-                    app.flushAllSessions()
-                    _ = try? app.backupManager.snapshot()
+                    app.backupNow()
                     refresh()
                 }
                 .controlSize(.small)
@@ -68,6 +67,7 @@ struct BackupTimelineView: View {
         app.flushAllSessions()
         try? app.backupManager.restore(record)
         app.workspace.scan()
+        app.notify(symbol: "clock.arrow.circlepath", message: Localizer.shared.t(.eventRestored))
         refresh()
     }
 }

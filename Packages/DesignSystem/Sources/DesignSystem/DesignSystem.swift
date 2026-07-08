@@ -219,6 +219,44 @@ public extension View {
     }
 }
 
+// MARK: - 카드형 모션 (호버 리프트 + 눌림)
+
+/// 카드형 버튼 공통 모션 — 호버 시 살짝 떠오르며 그림자, 클릭 시 눌림.
+/// GitHub/Figma의 카드 인터랙션 패턴 참고: 정지 상태와 호버 상태의 차이를 그림자 깊이로 표현.
+public struct LiftButtonStyle: ButtonStyle {
+    var hoverScale: CGFloat
+    var pressScale: CGFloat
+
+    public init(hoverScale: CGFloat = 1.03, pressScale: CGFloat = 0.97) {
+        self.hoverScale = hoverScale
+        self.pressScale = pressScale
+    }
+
+    public func makeBody(configuration: Configuration) -> some View {
+        LiftButtonBody(configuration: configuration, hoverScale: hoverScale, pressScale: pressScale)
+    }
+
+    private struct LiftButtonBody: View {
+        let configuration: ButtonStyleConfiguration
+        let hoverScale: CGFloat
+        let pressScale: CGFloat
+        @State private var hovering = false
+
+        var body: some View {
+            configuration.label
+                .scaleEffect(configuration.isPressed ? pressScale : (hovering ? hoverScale : 1))
+                .shadow(
+                    color: .black.opacity(hovering && !configuration.isPressed ? 0.14 : 0),
+                    radius: hovering ? 10 : 0,
+                    y: hovering ? 4 : 0
+                )
+                .onHover { hovering = $0 }
+                .animation(DesignTokens.Motion.snappy, value: hovering)
+                .animation(DesignTokens.Motion.snappy, value: configuration.isPressed)
+        }
+    }
+}
+
 // MARK: - 저장 상태 배지
 
 /// 색상 배지 저장 버튼 상태 — 빨강 미저장 / 노랑 오류 / 하늘 저장중·자동 / 초록 수동 저장.
@@ -253,6 +291,8 @@ public struct SaveStatusBadge: View {
     let label: String
     let action: () -> Void
 
+    @State private var pulse = false
+
     public init(state: SaveState, label: String, action: @escaping () -> Void) {
         self.state = state
         self.label = label
@@ -265,10 +305,12 @@ public struct SaveStatusBadge: View {
                 Circle()
                     .fill(state.color)
                     .frame(width: 7, height: 7)
+                    .scaleEffect(pulse ? 1.7 : 1)
                     .shadow(color: state.color.opacity(0.8), radius: 3)
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                    .textStateSwap()
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -278,6 +320,14 @@ public struct SaveStatusBadge: View {
         .textSelection(.disabled)
         .animation(DesignTokens.Motion.snappy, value: state)
         .help(label)
+        .onChange(of: state) {
+            // 상태가 바뀔 때마다 도트가 짧게 튀는 하이라이트 (GitHub 상태 배지 참고)
+            withAnimation(DesignTokens.Motion.snappy) { pulse = true }
+            Task {
+                try? await Task.sleep(for: .milliseconds(180))
+                withAnimation(DesignTokens.Motion.snappy) { pulse = false }
+            }
+        }
     }
 }
 
