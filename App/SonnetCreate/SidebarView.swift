@@ -65,6 +65,8 @@ struct SidebarView: View {
     @State private var showProfileMenu = false
     @State private var tab: SidebarTab = .home
     @Namespace private var tabHighlight
+    /// profileFooter의 실측 높이 — 오버레이 패널을 그 바로 위에 정확히 앉히는 데 쓴다.
+    @State private var footerHeight: CGFloat = 64
 
     var body: some View {
         let l10n = Localizer.shared
@@ -89,7 +91,8 @@ struct SidebarView: View {
                 inboxList(l10n)
             }
 
-            profileFloatingCard(l10n)
+            Divider().opacity(0.4)
+            profileFooter(l10n)
         }
         .background(
             // 메인 콘텐츠(canvas)보다 살짝 가라앉은 톤으로 패널을 구분
@@ -97,6 +100,7 @@ struct SidebarView: View {
                 ? AnyShapeStyle(SonnetPalette.sunken)
                 : AnyShapeStyle(.clear)
         )
+        .overlay(alignment: .bottom) { profileMenuOverlay }
         .animation(DesignTokens.Motion.gentle, value: app.isFullscreen)
         .animation(DesignTokens.Motion.gentle, value: showProfileMenu)
     }
@@ -341,30 +345,33 @@ struct SidebarView: View {
 
     // MARK: 작업자 프로필
 
-    /// 프로필 행 + (열려있다면) 위로 솟구치는 메뉴를 하나의 불투명 카드로 묶는다.
-    /// 사이드바 자체가 반투명/가라앉은 톤이라 이전엔 메뉴가 올라올 때 뒤쪽 리스트 글씨가
-    /// 그대로 비쳐 보였다 — 이 영역만 사이드바에서 살짝 띄운(inset) 불투명 플로팅 카드로 분리.
-    private func profileFloatingCard(_ l10n: Localizer) -> some View {
-        VStack(spacing: 0) {
-            if showProfileMenu {
-                SidebarProfileMenu(dismiss: { showProfileMenu = false })
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                Divider().opacity(0.35)
-            }
-            profileFooter(l10n)
-        }
-        .background(
-            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
-                .fill(
-                    app.settings.applied.interfaceTheme == .sonnet
-                        ? AnyShapeStyle(SonnetPalette.surface)
-                        : AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
+    /// 진짜 오버레이로 띄운다 — 이전엔 이 패널이 사이드바의 일반 VStack 레이아웃 안에
+    /// 끼워 넣어져서, 나타날 때 위쪽 프로젝트 목록이 동시에 눌리며 리레이아웃되는 타이밍과
+    /// 슬라이드 애니메이션이 어긋나 순간적으로 글자가 비쳐 보였다. `.overlay`로 완전히
+    /// 분리하면 아래 레이아웃은 전혀 건드리지 않고 이 패널만 독립된 z-레이어로 뜬다.
+    @ViewBuilder
+    private var profileMenuOverlay: some View {
+        if showProfileMenu {
+            SidebarProfileMenu(dismiss: { showProfileMenu = false })
+                .background(
+                    RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                        .fill(
+                            app.settings.applied.interfaceTheme == .sonnet
+                                ? AnyShapeStyle(SonnetPalette.surface)
+                                : AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
+                        )
+                        // 테마 액센트(적갈)와 이어지도록 얇은 테두리 — 흰 카드가 붕 떠 보이는 느낌 완화
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                                .strokeBorder(SonnetPalette.accent.opacity(0.2), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
                 )
-                .shadow(color: .black.opacity(0.16), radius: 12, y: 3)
-        )
-        .padding(.horizontal, DesignTokens.Spacing.s)
-        .padding(.bottom, DesignTokens.Spacing.s)
-        .padding(.top, 2)
+                .padding(.horizontal, DesignTokens.Spacing.s)
+                .padding(.bottom, footerHeight + 4)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(1)
+        }
     }
 
     private func profileFooter(_ l10n: Localizer) -> some View {
@@ -390,6 +397,13 @@ struct SidebarView: View {
         .padding(DesignTokens.Spacing.m)
         .contentShape(Rectangle())
         .onTapGesture { showProfileMenu.toggle() }
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { footerHeight = geo.size.height }
+                    .onChange(of: geo.size.height) { _, newValue in footerHeight = newValue }
+            }
+        )
     }
 
     @ViewBuilder

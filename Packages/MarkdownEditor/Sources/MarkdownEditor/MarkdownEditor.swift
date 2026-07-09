@@ -17,6 +17,11 @@ public struct PageEditorView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontFamily) private var fontFamily
 
+    /// 빈 블록 위에서 백스페이스 — SwiftUI의 `.onKeyPress`가 SwiftUI 레이어 문제.
+    /// 필드가 완전히 비어있으면 AppKit이 "지울 게 없다"며 이벤트를 자체적으로 삼켜
+    /// SwiftUI KeyPress 시스템까지 아예 전달되지 않는다 (raw keyDown을 직접 가로채야 확실히 잡힌다).
+    @State private var backspaceMonitor: Any?
+
     public init(
         store: PageStore,
         title: Binding<String>,
@@ -50,8 +55,41 @@ public struct PageEditorView: View {
             if let newValue {
                 focusedBlockID = newValue
                 store.focusRequest = nil
+                // 포커스가 프로그래밍적으로 이동하면 AppKit이 기본으로 전체 텍스트를
+                // 선택해버린다 (빈 블록 백스페이스 병합 시 이전 블록 전체가 선택된 채로
+                // 포커스를 받아, 이어서 타이핑하면 기존 내용이 통째로 지워지는 문제였다).
+                // 포커스 반영 다음 런루프에서 커서를 텍스트 끝으로 되돌린다.
+                DispatchQueue.main.async {
+                    if let editor = NSApp.keyWindow?.firstResponder as? NSTextView {
+                        editor.selectedRange = NSRange(location: editor.string.count, length: 0)
+                    }
+                }
             }
         }
+        .onAppear { installBackspaceMonitor() }
+        .onDisappear { removeBackspaceMonitor() }
+    }
+
+    /// keyCode 51 = 백스페이스(Delete 키). 포커스된 블록이 완전히 비어있을 때만 개입하고,
+    /// 그 외(제목 필드 등 다른 텍스트 입력 중, 또는 내용이 있는 블록)는 이벤트를 그대로 흘려보낸다.
+    private func installBackspaceMonitor() {
+        guard backspaceMonitor == nil else { return }
+        backspaceMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            guard event.keyCode == 51,
+                  let focusedID = focusedBlockID,
+                  let block = store.block(id: focusedID),
+                  block.text.isEmpty
+            else { return event }
+            store.removeBlockFocusPrevious(focusedID)
+            return nil
+        }
+    }
+
+    private func removeBackspaceMonitor() {
+        if let backspaceMonitor {
+            NSEvent.removeMonitor(backspaceMonitor)
+        }
+        backspaceMonitor = nil
     }
 
     /// 블록 에디터 본문 (+ 슬래시 팔레트).
@@ -101,70 +139,72 @@ public struct PageEditorView: View {
         return result
     }
 
-    private var hasPairs: Bool {
-        store.visibleBlocks.contains { $0.sideBySide == true }
-    }
-
+    /// `List`(NSTableView 기반)는 첫 클릭을 행 선택으로 먼저 가로채서 안의 TextField로
+    /// 포커스가 넘어가기까지 눈에 띄는 지연이 있었다 — 순수 SwiftUI 레이아웃인
+    /// ScrollView + LazyVStack으로 바꿔 그 중간 계층을 없앤다.
+    /// 트레이드오프: List가 제공하던 `.onMove` 네이티브 드래그 재정렬은 이 전환으로 사라졌다.
+    /// (커스텀 드래그 재정렬은 후속 작업으로 남겨둠)
     private func pageList(_ l10n: Localizer) -> some View {
-            List {
-                // Notion처럼 중앙 정렬된 본문 칼럼 (캐릭터 페이지는 제목을 프로필 탭에서 편집)
-                if !store.isCharacterPage {
-                    TextField(l10n.t(.untitled), text: $title)
-                        .textFieldStyle(.plain)
-                        .font(DSFonts.font(size: 30, weight: .bold, family: fontFamily))
-                        .padding(.bottom, 6)
-                        .padding(.leading, 44) // 블록 거터와 정렬
+        // 콘텐츠가 뷰포트보다 짧으면 그 아래 남는 여백은 원래 아무 뷰도 없어 클릭이
+        // 반응하지 않았다 — GeometryReader로 뷰포트 높이를 재서 트레일링 여백이
+        // 화면 끝까지 채우도록 늘려, 어디를 클릭해도 새 블록으로 이어지게 한다.
+        GeometryReader { geo in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    // Notion처럼 중앙 정렬된 본문 칼럼 (캐릭터 페이지는 제목을 프로필 탭에서 편집)
+                    if !store.isCharacterPage {
+                        TextField(l10n.t(.untitled), text: $title)
+                            .textFieldStyle(.plain)
+                            .font(DSFonts.font(size: 30, weight: .bold, family: fontFamily))
+                            .padding(.top, 6)
+                            .padding(.bottom, 6)
+                            .padding(.leading, 44) // 블록 거터와 정렬
+                            .modifier(CenteredColumn())
+                    }
+
+                    // 나란히(2단) 배치: sideBySide 블록은 다음 블록과 한 행으로 묶는다
+                    let display = displayItems
+                    ForEach(display) { item in
+                        Group {
+                            switch item {
+                            case .single(let block):
+                                PageBlockRow(store: store, block: block, focusedBlockID: $focusedBlockID)
+                            case .pair(let left, let right):
+                                HStack(alignment: .top, spacing: DesignTokens.Spacing.m) {
+                                    PageBlockRow(store: store, block: left, focusedBlockID: $focusedBlockID)
+                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    PageBlockRow(store: store, block: right, focusedBlockID: $focusedBlockID)
+                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                                }
+                            }
+                        }
                         .modifier(CenteredColumn())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 2, trailing: 0))
-                }
+                        .id(item.id)
+                    }
 
-                // 나란히(2단) 배치: sideBySide 블록은 다음 블록과 한 행으로 묶는다
-                let display = displayItems
-                ForEach(display) { item in
-                    Group {
-                        switch item {
-                        case .single(let block):
-                            PageBlockRow(store: store, block: block, focusedBlockID: $focusedBlockID)
-                        case .pair(let left, let right):
-                            HStack(alignment: .top, spacing: DesignTokens.Spacing.m) {
-                                PageBlockRow(store: store, block: left, focusedBlockID: $focusedBlockID)
-                                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                                PageBlockRow(store: store, block: right, focusedBlockID: $focusedBlockID)
-                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                    Color.clear
+                        .frame(minHeight: 200, maxHeight: .infinity)
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            if let last = store.content.blocks.last {
+                                if last.text.isEmpty, last.kind == .paragraph {
+                                    store.focusRequest = last.id
+                                } else {
+                                    store.insertBlock(after: last.id)
+                                }
                             }
                         }
-                    }
-                    .modifier(CenteredColumn())
-                    .id(item.id)
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0))
-                }
-                .onMove { source, destination in
-                    // 페어가 있으면 인덱스 매핑이 어긋나므로 드래그 정렬은 단일 상태에서만
-                    guard !hasPairs else { return }
-                    store.moveVisibleBlocks(from: source, to: destination)
-                }
-
-                Color.clear
-                    .frame(height: 200)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        if let last = store.content.blocks.last {
-                            if last.text.isEmpty, last.kind == .paragraph {
-                                store.focusRequest = last.id
-                            } else {
-                                store.insertBlock(after: last.id)
-                            }
+                        // 문서 맨 끝으로 드래그해서 놓으면 마지막 블록 뒤로 옮긴다.
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let raw = items.first, let draggedID = UUID(uuidString: raw) else { return false }
+                            store.moveBlockToEnd(draggedID)
+                            return true
                         }
-                    }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
+                }
+                .frame(minHeight: geo.size.height, alignment: .top)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
+        }
     }
 
     private func toolbar(_ l10n: Localizer) -> some View {
