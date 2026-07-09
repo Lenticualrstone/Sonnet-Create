@@ -15,39 +15,40 @@ struct MainWindowView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarView()
-                // min을 260으로 올려 홈/Sonnet AI/수신함 3개 탭의 아이콘+텍스트가
-                // 줄바꿈되지 않고 한 줄에 들어갈 최소 폭을 항상 보장한다.
-                .navigationSplitViewColumnWidth(min: 260, ideal: 264, max: 340)
-                // 사이드바 상단의 시스템 툴바(백색 박스 원인) 제거
-                .toolbar(removing: .sidebarToggle)
-                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-                // 윈도우 모드에서만 콘텐츠를 타이틀 라인(신호등 뒤)까지 끌어올린다.
-                // 전체화면에서는 그대로 두어야 한다 — 무조건 ignoresSafeArea하면
-                // 전체화면의 (더 큰) 상단 안전영역만큼 헤더가 화면 밖으로 밀려나 사라진다.
-                .modifier(TopChromeExtension(active: !app.isFullscreen))
-        } detail: {
-            ZStack {
-                // Sonnet 테마: 본톤 캔버스가 모든 레이어의 바닥
-                if app.settings.applied.interfaceTheme == .sonnet {
-                    SonnetPalette.canvas.ignoresSafeArea()
-                }
-                background
+        // 헤더는 사이드바/콘텐츠 그 어느 쪽에도 귀속되지 않는 프로그램 전체의 유일한
+        // 상단 크롬이다 — NavigationSplitView 바깥에서 전체 폭을 한 번만 차지하고,
+        // 그 아래에 사이드바와 콘텐츠가 나란히 존재한다. 안전영역 무시(ignoresSafeArea)도
+        // 이 트리에서 단 한 곳(맨 아래 .modifier)에서만 일어나— 예전에 사이드바 컬럼과
+        // 콘텐츠 컬럼이 각자 따로 안전영역을 무시하다 전체화면에서 어긋나며 생기던
+        // "흰 박스" 이음매 버그가 구조적으로 발생할 수 없다.
+        VStack(spacing: 0) {
+            ChromeTabBar(columnVisibility: $columnVisibility)
 
-                VStack(spacing: 0) {
-                    // 탭바가 곧 타이틀 라인 — 신호등과 같은 줄에 토글/탭/도구막대
-                    ChromeTabBar(
-                        columnVisibility: $columnVisibility,
-                        needsTrafficLightInset: columnVisibility == .detailOnly && !app.isFullscreen
-                    )
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                SidebarView()
+                    // min을 260으로 올려 홈/Sonnet AI/수신함 3개 탭의 아이콘+텍스트가
+                    // 줄바꿈되지 않고 한 줄에 들어갈 최소 폭을 항상 보장한다.
+                    .navigationSplitViewColumnWidth(min: 260, ideal: 264, max: 340)
+                    // 사이드바 상단의 시스템 툴바(백색 박스 원인) 제거
+                    .toolbar(removing: .sidebarToggle)
+                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+            } detail: {
+                ZStack {
+                    // Sonnet 테마: 본톤 캔버스가 모든 레이어의 바닥
+                    if app.settings.applied.interfaceTheme == .sonnet {
+                        SonnetPalette.canvas.ignoresSafeArea()
+                    }
+                    background
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .modifier(TopChromeExtension(active: !app.isFullscreen))
+                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             }
-            .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         }
+        // 윈도우 모드에서만 헤더를 타이틀 라인(신호등 뒤)까지 끌어올린다.
+        // 전체화면에서는 그대로 두어야 한다 — 무조건 ignoresSafeArea하면
+        // 전체화면의 (더 큰) 상단 안전영역만큼 헤더가 화면 밖으로 밀려나 사라진다.
+        .modifier(TopChromeExtension(active: !app.isFullscreen))
         .navigationTitle("")
         // 크롬(버튼/탭/툴바)의 안내 텍스트가 커서로 선택되는 것을 방지.
         // 본문 텍스트 선택이 필요한 곳(시나리오 블록 등)은 개별적으로 다시 활성화한다.
@@ -207,24 +208,24 @@ struct ChromeTabBar: View {
     @Environment(AppState.self) private var app
     @Environment(\.interfaceTheme) private var theme
     @Binding var columnVisibility: NavigationSplitViewVisibility
-    /// 사이드바가 접혀 신호등이 이 바 위에 겹칠 때의 좌측 여백 (전체화면에서는 불필요)
-    var needsTrafficLightInset = false
 
     @State private var newDocMenuHover = false
 
     private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
+    /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 사이드바 펼침/접힘과 무관하게
+    /// 윈도우 모드에서는 항상 좌측에 신호등 자리를 남겨야 한다.
+    private var needsTrafficLightInset: Bool { !app.isFullscreen }
 
     var body: some View {
         let l10n = Localizer.shared
         HStack(spacing: isChrome ? 0 : 6) {
-            // 브랜드 앵커 — 사이드바가 접혀 신호등과 겹칠 땐 숨겨 공간을 확보
-            if !needsTrafficLightInset {
-                Image(systemName: "feather")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(theme == .sonnet ? SonnetPalette.accent : Color.accentColor)
-                    .padding(.leading, 12)
-                    .padding(.trailing, 2)
-            }
+            // 브랜드 앵커 — 헤더가 창 전체 폭을 차지하므로 항상 보이되, 윈도우 모드에서는
+            // 신호등 자리만큼 왼쪽 여백을 더 준다.
+            Image(systemName: "feather")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(theme == .sonnet ? SonnetPalette.accent : Color.accentColor)
+                .padding(.leading, needsTrafficLightInset ? 76 : 12)
+                .padding(.trailing, 2)
 
             // 사이드바 토글 (시스템 툴바 제거에 따른 대체)
             ToolbarIconButton(
@@ -236,7 +237,7 @@ struct ChromeTabBar: View {
                     columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
                 }
             }
-            .padding(.leading, needsTrafficLightInset ? 76 : 6)
+            .padding(.leading, 6)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: isChrome ? 0 : 4) {
@@ -317,19 +318,22 @@ struct ChromeTabBar: View {
 
     @ViewBuilder
     private var barBackground: some View {
-        if isChrome {
-            // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
-            ZStack {
+        // 헤더가 NavigationSplitView 바깥의 독립된 최상위 뷰라 뒤에 깔린 캔버스가
+        // 없다 — 탭 스타일과 무관하게 항상 불투명한 테마 베이스로 채워야 신호등
+        // 뒤 코너에 창의 기본 배경색(흰 박스)이 비쳐 보이지 않는다.
+        ZStack {
+            Rectangle()
+                .fill(theme == .sonnet ? AnyShapeStyle(SonnetPalette.canvas) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor)))
+            if isChrome {
+                // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
                 (theme == .sonnet ? SonnetPalette.sunken : Color.primary.opacity(0.06))
                 if theme == .sonnet {
                     // 앤티크 페이퍼 무드를 강화하는 미세 그레인
                     GrainOverlay(color: SonnetPalette.ink, opacity: 0.045, density: 500)
                 }
             }
-            .ignoresSafeArea(edges: .top)
-        } else {
-            Color.clear
         }
+        .ignoresSafeArea(edges: .top)
     }
 }
 
