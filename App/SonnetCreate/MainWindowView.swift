@@ -219,13 +219,19 @@ struct ChromeTabBar: View {
     var body: some View {
         let l10n = Localizer.shared
         HStack(spacing: isChrome ? 0 : 6) {
-            // 브랜드 앵커 — 헤더가 창 전체 폭을 차지하므로 항상 보이되, 윈도우 모드에서는
-            // 신호등 자리만큼 왼쪽 여백을 더 준다.
-            Image(systemName: "feather")
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(theme == .sonnet ? SonnetPalette.accent : Color.accentColor)
+            // 브랜드 앵커 — 프로젝트의 실제 앱 아이콘(깃털 로고) 아트워크를 그대로 축소해
+            // 쓴다. 예전엔 존재하지 않는 SF Symbol "feather"를 참조해 빈 화면으로
+            // 렌더링됐다. AppIcon.appiconset은 앱 번들 아이콘 전용 슬롯이라 일반 Image(_:)/
+            // NSApp.applicationIconImage로는 안정적으로 불러와지지 않아, 같은 아트워크를
+            // 복사한 별도의 BrandMark 이미지셋을 만들어 참조한다. 헤더가 창 전체 폭을
+            // 차지하므로 항상 보이되, 윈도우 모드에서는 신호등 자리만큼 왼쪽 여백을 더 준다.
+            Image("BrandMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 18, height: 18)
+                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .padding(.leading, needsTrafficLightInset ? 76 : 12)
-                .padding(.trailing, 2)
+                .padding(.trailing, 4)
 
             // 사이드바 토글 (시스템 툴바 제거에 따른 대체)
             ToolbarIconButton(
