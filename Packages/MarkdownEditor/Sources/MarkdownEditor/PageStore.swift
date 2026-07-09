@@ -91,6 +91,10 @@ public final class PageStore {
         content.blocks.firstIndex { $0.id == id }
     }
 
+    private func index(of id: UUID, in blocks: [PageBlock]) -> Int? {
+        blocks.firstIndex { $0.id == id }
+    }
+
     // MARK: 텍스트 편집 + '/' 감지
 
     public func updateText(_ id: UUID, text: String) {
@@ -269,6 +273,43 @@ public final class PageStore {
             actualDestination = idx
         }
         mutate { $0.blocks.move(fromOffsets: IndexSet(integer: actualSource), toOffset: actualDestination) }
+    }
+
+    // MARK: 커스텀 드래그 재정렬 (블록 ID 기반)
+
+    /// draggedID를 targetID 바로 앞으로 옮긴다.
+    public func moveBlock(_ draggedID: UUID, before targetID: UUID) {
+        guard draggedID != targetID, let sourceIndex = index(of: draggedID) else { return }
+        mutate { c in
+            let block = c.blocks.remove(at: sourceIndex)
+            guard let targetIndex = self.index(of: targetID, in: c.blocks) else {
+                c.blocks.insert(block, at: sourceIndex)
+                return
+            }
+            c.blocks.insert(block, at: targetIndex)
+        }
+    }
+
+    /// draggedID를 targetID 바로 뒤로 옮긴다.
+    public func moveBlock(_ draggedID: UUID, after targetID: UUID) {
+        guard draggedID != targetID, let sourceIndex = index(of: draggedID) else { return }
+        mutate { c in
+            let block = c.blocks.remove(at: sourceIndex)
+            guard let targetIndex = self.index(of: targetID, in: c.blocks) else {
+                c.blocks.insert(block, at: sourceIndex)
+                return
+            }
+            c.blocks.insert(block, at: targetIndex + 1)
+        }
+    }
+
+    /// draggedID를 문서 맨 끝으로 옮긴다 (하단 빈 영역에 드롭).
+    public func moveBlockToEnd(_ draggedID: UUID) {
+        guard let sourceIndex = index(of: draggedID) else { return }
+        mutate { c in
+            let block = c.blocks.remove(at: sourceIndex)
+            c.blocks.append(block)
+        }
     }
 
     /// numbered 블록의 표시 번호 (같은 indent에서 연속된 numbered 나열 기준).

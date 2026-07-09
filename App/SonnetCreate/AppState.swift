@@ -92,10 +92,76 @@ final class AppState {
 
     /// 휴지통 이동 확인 대기 항목 (확인 팝업)
     var pendingTrashItem: DocumentListItem?
+    /// 영구 삭제 확인 대기 항목 (단건/다건 공용, 확인 팝업)
+    var pendingPermanentDeleteItems: [DocumentListItem] = []
     /// 프로젝트 삭제 확인 대기 (확인 팝업 → Finder 휴지통)
     var pendingDeleteProject: ProjectFolder?
-    /// 아카이브 탭을 특정 카테고리로 열기 위한 요청 (소비형)
-    var archiveCategoryRequest: ArchiveView.Category?
+    /// 아카이브 탭을 특정 카테고리+프로젝트로 열기 위한 요청 (소비형)
+    var archiveNavigationRequest: ArchiveView.ArchiveNavigationTarget?
+    /// 아카이브 탭이 마지막으로 보고한 카테고리/프로젝트 상태 — 필터 변경 없이 탭만 다시 열 때도
+    /// 뒤로가기 스택에 이어붙일 수 있도록 기억해둔다.
+    private var lastKnownArchiveState: (category: ArchiveView.Category, projectID: UUID?) = (.all, nil)
+
+    // MARK: 뒤로/앞으로 탐색 (편집 되돌리기와 무관 — 탐색 중인 화면의 히스토리)
+
+    /// 하나의 탐색 지점 — 현재 선택된 탭이 무엇을 보여주고 있었는지를 나타낸다.
+    enum NavigationStep: Equatable {
+        case home
+        case archive(category: ArchiveView.Category, projectID: UUID?)
+        case aiChat
+        case profile
+        case document(UUID)
+    }
+
+    private(set) var navBackStack: [NavigationStep] = []
+    private(set) var navForwardStack: [NavigationStep] = []
+    private var currentNavStep: NavigationStep = .home
+    /// 되돌아가기/앞으로가기 적용 중에는 재귀적으로 다시 push되지 않도록 막는다.
+    private var isRestoringHistory = false
+
+    var canGoBack: Bool { !navBackStack.isEmpty }
+    var canGoForward: Bool { !navForwardStack.isEmpty }
+
+    private func pushNavigation(_ step: NavigationStep) {
+        guard !isRestoringHistory, step != currentNavStep else { return }
+        navBackStack.append(currentNavStep)
+        navForwardStack.removeAll()
+        currentNavStep = step
+    }
+
+    func goBack() {
+        guard let previous = navBackStack.popLast() else { return }
+        navForwardStack.append(currentNavStep)
+        isRestoringHistory = true
+        apply(previous)
+        currentNavStep = previous
+        DispatchQueue.main.async { [weak self] in self?.isRestoringHistory = false }
+    }
+
+    func goForward() {
+        guard let next = navForwardStack.popLast() else { return }
+        navBackStack.append(currentNavStep)
+        isRestoringHistory = true
+        apply(next)
+        currentNavStep = next
+        DispatchQueue.main.async { [weak self] in self?.isRestoringHistory = false }
+    }
+
+    private func apply(_ step: NavigationStep) {
+        switch step {
+        case .home: selectOrOpenHome()
+        case .aiChat: openAIChatTab()
+        case .profile: openProfileTab()
+        case .archive(let category, let projectID): openArchiveTab(category: category, project: projectID)
+        case .document(let id): openDocument(id: id)
+        }
+    }
+
+    /// 아카이브 뷰가 카테고리/프로젝트 필터를 바꿀 때마다 호출 — 히스토리에 기록.
+    func recordArchiveNav(_ category: ArchiveView.Category, _ projectID: UUID?) {
+        lastKnownArchiveState = (category, projectID)
+        pushNavigation(.archive(category: category, projectID: projectID))
+    }
 
     /// 일별 저장 활동 (yyyy-MM-dd → 횟수) — 프로필 기여도 그래프용
     private(set) var activity: [String: Int] = [:]
@@ -174,22 +240,27 @@ final class AppState {
             tabs.insert(tab, at: 0)
             selectedTabID = tab.id
         }
+        pushNavigation(.home)
     }
 
     func openAIChatTab() {
         openSingletonTab(.aiChat)
+        pushNavigation(.aiChat)
     }
 
     func openProfileTab() {
         openSingletonTab(.profile)
+        pushNavigation(.profile)
     }
 
-    /// 아카이브 탭 열기 — 카테고리 지정 시 해당 카테고리로 (가림/휴지통 바로가기).
-    func openArchiveTab(category: ArchiveView.Category? = nil) {
-        if let category {
-            archiveCategoryRequest = category
-        }
+    /// 아카이브 탭 열기 — 카테고리 지정 시 해당 카테고리로 (가림/휴지통 바로가기), 프로젝트 지정 시 해당 프로젝트로 필터링.
+    /// 둘 다 생략하면 마지막으로 보고 있던 카테고리/프로젝트 상태 그대로 연다.
+    func openArchiveTab(category: ArchiveView.Category? = nil, project: UUID? = nil) {
+        let targetCategory = category ?? lastKnownArchiveState.category
+        let targetProject = category != nil ? project : lastKnownArchiveState.projectID
+        archiveNavigationRequest = ArchiveView.ArchiveNavigationTarget(category: targetCategory, projectID: targetProject)
         openSingletonTab(.archive)
+        pushNavigation(.archive(category: targetCategory, projectID: targetProject))
     }
 
     private func openSingletonTab(_ content: TabContent) {
@@ -227,6 +298,19 @@ final class AppState {
         workspace.moveToTrash(item)
     }
 
+    /// 영구 삭제 요청 — 확인 팝업을 거친다 (단건/다건 공용).
+    func requestPermanentDelete(_ items: [DocumentListItem]) {
+        guard !items.isEmpty else { return }
+        pendingPermanentDeleteItems = items
+    }
+
+    func confirmPendingPermanentDelete() {
+        guard !pendingPermanentDeleteItems.isEmpty else { return }
+        let items = pendingPermanentDeleteItems
+        pendingPermanentDeleteItems = []
+        workspace.deletePermanently(items)
+    }
+
     func requestDeleteProject(_ project: ProjectFolder) {
         pendingDeleteProject = project
     }
@@ -248,7 +332,19 @@ final class AppState {
     /// ⌘1~9 — n번째 탭 선택.
     func selectTab(at index: Int) {
         guard tabs.indices.contains(index) else { return }
-        selectedTabID = tabs[index].id
+        selectExistingTab(tabs[index])
+    }
+
+    /// 탭 스트립에서 이미 열려 있는 탭을 직접 클릭해 전환할 때 — 뒤로/앞으로 히스토리에도 반영한다.
+    /// 기존 open* 경로를 그대로 재사용해 아카이브 탭이면 마지막 카테고리/프로젝트 필터도 다시 적용한다.
+    func selectExistingTab(_ tab: OpenTab) {
+        switch tab.content {
+        case .home: selectOrOpenHome()
+        case .archive: openArchiveTab(category: lastKnownArchiveState.category, project: lastKnownArchiveState.projectID)
+        case .aiChat: openAIChatTab()
+        case .profile: openProfileTab()
+        case .document(let id): openDocument(id: id)
+        }
     }
 
     /// ⌘W — 현재 탭 닫기.
@@ -289,6 +385,7 @@ final class AppState {
         // 이미 열린 탭이면 선택만
         if let existing = tabs.first(where: { $0.content == .document(id) }) {
             selectedTabID = existing.id
+            pushNavigation(.document(id))
             return
         }
         let resolvedURL = url ?? workspace.item(id: id)?.url
@@ -319,6 +416,7 @@ final class AppState {
         let id = document.envelope.id
         if let existing = tabs.first(where: { $0.content == .document(id) }) {
             selectedTabID = existing.id
+            pushNavigation(.document(id))
             return id
         }
         let session = DocumentSession(document: document, isPersisted: false)
@@ -334,6 +432,7 @@ final class AppState {
             self?.workspace.touchRecent(id)
             self?.recordActivity()
         }
+        pushNavigation(.document(id))
         configureAI(for: session)
         configureEditorHooks(for: session)
         sessions[id] = session
@@ -634,10 +733,10 @@ final class AppState {
         return (try? fm.copyItem(at: url, to: target)) != nil
     }
 
-    /// 실효 강조색 — Sonnet 테마에서 '시스템' 선택 시 적갈색이 기본.
+    /// 실효 강조색 — 브랜드 테마(Sonnet/Pilgrimage)에서 '시스템' 선택 시 테마 고유 액센트가 기본.
     var resolvedAccent: Color {
-        if settings.applied.accent == .system, settings.applied.interfaceTheme == .sonnet {
-            return SonnetPalette.accent
+        if settings.applied.accent == .system, settings.applied.interfaceTheme.isBranded {
+            return settings.applied.interfaceTheme.accentColor
         }
         return settings.applied.accent.color
     }

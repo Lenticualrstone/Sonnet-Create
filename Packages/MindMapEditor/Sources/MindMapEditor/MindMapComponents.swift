@@ -21,6 +21,7 @@ struct MindMapNodeView: View {
     @State private var dragOrigin: CGPoint?
     @State private var hovering = false
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     private var isSelected: Bool { store.selectedNodeID == node.id }
     private var tint: Color? { node.colorHex.map { Color(hex: $0) } }
@@ -44,9 +45,11 @@ struct MindMapNodeView: View {
             }
             if node.kind == .image, let path = node.resourcePath,
                let url = store.resourceResolver?(path),
-               let image = NSImage(contentsOf: url) {
+               let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: 264) {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.high)
+                    .antialiased(true)
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 132, height: 84)
                     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous))
@@ -58,7 +61,7 @@ struct MindMapNodeView: View {
         .overlay(
             RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
                 .strokeBorder(
-                    isSelected ? Color.accentColor : (store.connectingFromID == node.id ? Color.accentColor.opacity(0.6) : .clear),
+                    isSelected ? accent : (store.connectingFromID == node.id ? accent.opacity(0.6) : .clear),
                     lineWidth: 2
                 )
         )
@@ -88,7 +91,7 @@ struct MindMapNodeView: View {
     private var connectionPort: some View {
         let visible = hovering || isSelected || store.connectingFromID == node.id
         return Circle()
-            .fill(Color.accentColor)
+            .fill(accent)
             .frame(width: 12, height: 12)
             .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 1.5))
             .padding(6) // 히트 영역 확장
@@ -298,10 +301,12 @@ struct MindMapInspectorView: View {
                 }
                 if node.kind == .image, let path = node.resourcePath,
                    let url = store.resourceResolver?(path),
-                   let image = NSImage(contentsOf: url) {
+                   let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: 600) {
                     // 확대 뷰어
                     Image(nsImage: image)
                         .resizable()
+                        .interpolation(.high)
+                        .antialiased(true)
                         .aspectRatio(contentMode: .fit)
                         .frame(maxHeight: 180)
                         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous))

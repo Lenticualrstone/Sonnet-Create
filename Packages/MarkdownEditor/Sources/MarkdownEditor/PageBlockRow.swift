@@ -10,10 +10,13 @@ struct PageBlockRow: View {
     var focusedBlockID: FocusState<UUID?>.Binding
 
     @State private var hovering = false
+    /// 드래그 중인 블록이 이 행 위로 올라왔는지 — 삽입 위치 표시선에 쓴다.
+    @State private var isDropTargeted = false
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontScale) private var fontScale
     @Environment(\.contentLineSpacing) private var lineScale
     @Environment(\.contentFontFamily) private var fontFamily
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -28,15 +31,39 @@ struct PageBlockRow: View {
 
             content
         }
+        // Notion처럼 줄 전체가 호버/클릭 대상이 되도록 — 이게 없으면 텍스트가 짧을 때
+        // 글자 바로 옆까지만 반응해서 "빈 공간을 눌러도 편집이 안 되는" 느낌을 준다.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, verticalPadding)
         .padding(.trailing, 6)
         .background(
             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                .fill(hovering ? Color.primary.opacity(0.035) : .clear)
+                .fill(hovering ? Color.primary.opacity(0.05) : .clear)
         )
+        .overlay(alignment: .top) {
+            if isDropTargeted {
+                Rectangle()
+                    .fill(accent)
+                    .frame(height: 2)
+                    .padding(.leading, 44)
+            }
+        }
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .animation(DesignTokens.Motion.snappy, value: hovering)
+        // 호버 피드백은 즉각적이어야 한다 — 기존 snappy 스프링(0.28초)은 마우스를 올렸을 때
+        // 거터/배경이 한 박자 늦게 나타나는 느낌을 줬다. 거의 즉시 반응하도록 빠르게.
+        .animation(.easeOut(duration: 0.08), value: hovering)
+        // 커스텀 드래그 재정렬 — List의 .onMove를 대체. 블록 ID(문자열)만 옮겨서 항상
+        // "이 블록 바로 앞"에 끼워 넣는다 (위/아래 절반 구분 없이 단순하게).
+        .dropDestination(for: String.self) { items, _ in
+            guard let raw = items.first, let draggedID = UUID(uuidString: raw), draggedID != block.id else {
+                return false
+            }
+            store.moveBlock(draggedID, before: block.id)
+            return true
+        } isTargeted: { targeted in
+            isDropTargeted = targeted
+        }
         // 주의: 여기에 popover를 붙이면 List 레이아웃 패스 중 NSPopover 예외로 크래시한다.
         // 슬래시 메뉴는 PageEditorView의 하단 팔레트 오버레이로 렌더링된다.
     }
@@ -61,6 +88,8 @@ struct PageBlockRow: View {
                 .foregroundStyle(.tertiary)
                 .frame(width: 20, height: 22)
                 .contentShape(Rectangle())
+                // 핸들만 드래그 가능 — 행 전체를 드래그 소스로 만들면 텍스트 선택/편집과 충돌한다.
+                .draggable(block.id.uuidString)
                 .contextMenu {
                     let l10n = Localizer.shared
                     // 좌우(2단) 배치 — 다음 블록과 나란히
@@ -109,7 +138,7 @@ struct PageBlockRow: View {
                 store.toggleCheck(block.id)
             } label: {
                 Image(systemName: block.isChecked ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(block.isChecked ? Color.accentColor : .secondary)
+                    .foregroundStyle(block.isChecked ? accent : .secondary)
             }
             .buttonStyle(.plain)
         case .toggle:
@@ -125,7 +154,7 @@ struct PageBlockRow: View {
             .animation(DesignTokens.Motion.snappy, value: block.isExpanded)
         case .quote:
             RoundedRectangle(cornerRadius: 1)
-                .fill(Color.accentColor.opacity(0.6))
+                .fill(accent.opacity(0.6))
                 .frame(width: 3, height: 18)
         case .callout:
             Text("💡").font(.callout)
@@ -153,6 +182,7 @@ struct PageBlockRow: View {
             textField
                 .font(.system(.callout, design: .monospaced))
                 .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
                         .fill(Color.primary.opacity(0.06))
@@ -160,7 +190,8 @@ struct PageBlockRow: View {
         case .callout:
             textField
                 .padding(8)
-                .glassSurface(cornerRadius: DesignTokens.Radius.small, tint: .accentColor, quality: quality)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassSurface(cornerRadius: DesignTokens.Radius.small, tint: accent, quality: quality)
         default:
             textField
         }
@@ -181,6 +212,18 @@ struct PageBlockRow: View {
         .strikethrough(block.kind == .task && block.isChecked)
         .foregroundStyle(textColor)
         .focused(focusedBlockID, equals: block.id)
+        // 텍스트가 짧아도 줄 전체가 클릭 대상이 되도록 폭을 채운다 — 빈 공간을 눌러도
+        // 커서가 가장 가까운 위치(대개 줄 끝)로 들어가는 Notion식 동작.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        // Delete는 전용 오버로드로 분리 — 필드가 이미 비어있을 때는 AppKit이 "지울 게 없다"며
+        // 내부에서 이벤트를 삼켜, 범용 onKeyPress 클로저 안의 switch로는 잡히지 않는 경우가 있었다.
+        .onKeyPress(.delete) {
+            let text = store.block(id: block.id)?.text ?? ""
+            guard text.isEmpty else { return .ignored }
+            store.removeBlockFocusPrevious(block.id)
+            return .handled
+        }
         .onKeyPress { press in
             handleKey(press)
         }
@@ -225,13 +268,6 @@ struct PageBlockRow: View {
                 store.indent(block.id)
             }
             return .handled
-        case .delete:
-            let text = store.block(id: block.id)?.text ?? ""
-            if text.isEmpty {
-                store.removeBlockFocusPrevious(block.id)
-                return .handled
-            }
-            return .ignored
         case .escape:
             if store.slashBlockID == block.id {
                 store.closeSlashMenu()
@@ -243,6 +279,8 @@ struct PageBlockRow: View {
         }
     }
 
+    /// '/' 힌트는 포커스 + 빈 블록일 때만 — 항상 보이면 편집 중이 아닌 빈 블록도
+    /// 전부 힌트로 뒤덮여 오히려 산만해진다 (헤딩 placeholder는 원래부터 상시 노출).
     private var placeholder: String {
         let l10n = Localizer.shared
         switch block.kind {
@@ -277,6 +315,7 @@ struct PageBlockRow: View {
 
 struct SlashCommandMenu: View {
     @Bindable var store: PageStore
+    @Environment(\.resolvedAccent) private var accent
 
     struct Item: Identifiable {
         let kind: PageBlockKind
@@ -334,7 +373,7 @@ struct SlashCommandMenu: View {
                         HStack(spacing: 8) {
                             Image(systemName: item.symbol)
                                 .font(.callout)
-                                .foregroundStyle(index == selection ? Color.accentColor : .secondary)
+                                .foregroundStyle(index == selection ? accent : .secondary)
                                 .frame(width: 22)
                             Text(l10n.t(item.key))
                                 .font(.callout)

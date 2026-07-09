@@ -196,9 +196,11 @@ private struct ExportRenderView: View {
             Rectangle().fill(Color.gray.opacity(0.4)).frame(height: 1)
         case .image:
             if let path = block.resourcePath, !path.hasPrefix("http"),
-               let url = resolver?(path), let image = NSImage(contentsOf: url) {
+               let url = resolver?(path), let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: 640) {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.high)
+                    .antialiased(true)
                     .aspectRatio(contentMode: .fit)
                     .frame(maxHeight: 320)
                     .clipShape(RoundedRectangle(cornerRadius: 8))

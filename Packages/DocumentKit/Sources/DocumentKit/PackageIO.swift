@@ -89,7 +89,7 @@ public enum DocumentPackageIO {
         guard FileManager.default.fileExists(atPath: metaURL.path) else {
             throw DocumentIOError.notADocumentBundle(url)
         }
-        let envelope: DocumentEnvelope
+        var envelope: DocumentEnvelope
         do {
             envelope = try decoder.decode(DocumentEnvelope.self, from: Data(contentsOf: metaURL))
         } catch {
@@ -97,11 +97,15 @@ public enum DocumentPackageIO {
         }
         let contentURL = url.appendingPathComponent("content.json")
         let content: DocumentContent
-        if let data = try? Data(contentsOf: contentURL) {
+        if let rawData = try? Data(contentsOf: contentURL) {
+            let data = DocumentContentMigrations.apply(to: rawData, from: envelope.formatVersion, kind: envelope.kind)
             content = (try? decoder.decode(DocumentContent.self, from: data))
                 ?? .empty(for: envelope.kind, pageRole: envelope.pageRole)
         } else {
             content = .empty(for: envelope.kind, pageRole: envelope.pageRole)
+        }
+        if envelope.formatVersion < DocumentFormatVersion.current {
+            envelope.formatVersion = DocumentFormatVersion.current
         }
         let refsURL = url.appendingPathComponent("refs.json")
         let refs = (try? decoder.decode(ReferenceGraph.self, from: Data(contentsOf: refsURL))) ?? ReferenceGraph()

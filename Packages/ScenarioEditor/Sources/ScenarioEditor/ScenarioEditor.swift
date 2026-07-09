@@ -17,6 +17,7 @@ public struct ScenarioEditorView: View {
     @State private var showInspector = true
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentBlockSpacing) private var blockSpacing
+    @Environment(\.resolvedAccent) private var accent
 
     public init(
         store: ScenarioStore,
@@ -151,7 +152,7 @@ public struct ScenarioEditorView: View {
                     .font(.caption.weight(.semibold))
                     .textStateSwap()
             }
-            .foregroundStyle(store.activeBranchID == nil ? Color.secondary : Color.accentColor)
+            .foregroundStyle(store.activeBranchID == nil ? Color.secondary : accent)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
             .background(Capsule().fill(Color.primary.opacity(0.07)))
@@ -191,12 +192,12 @@ public struct ScenarioEditorView: View {
                                 .font(.caption)
                                 .buttonStyle(.borderless)
                         }
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(accent)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(
                             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.08))
+                                .fill(accent.opacity(0.08))
                         )
                         .listRowSeparator(.hidden)
                         .listRowBackground(Color.clear)

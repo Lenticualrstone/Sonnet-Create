@@ -50,8 +50,12 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var fontFamily: FontFamily = .pretendard
     public var fontScale: Double = 1.0
     public var lineSpacingScale: Double = 1.0
-    /// 블록 간 간격 (pt) — 페이지·시나리오 에디터 (프리셋: 좁게 4 / 중간 9 / 넓게 14)
-    public var blockSpacing: Double = 9
+    /// 블록 간 간격 (pt) — 페이지·시나리오 에디터 (프리셋: 좁게 6 / 중간 12 / 넓게 20)
+    public var blockSpacing: Double = 12
+    /// 시나리오 대사 블록의 캐릭터 표시 방식 — "avatarAndName"(기본) | "avatarOnly" | "nameOnly" | "hidden"
+    public var dialogueDisplayRaw: String = "avatarAndName"
+    /// 시나리오 대사 블록의 캐릭터 프로필(아바타) 크기 (pt)
+    public var dialogueAvatarSize: Double = 34
 
     // 베타 (AI)
     public var aiProviderRaw: String = "offline"
@@ -91,6 +95,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
         fontScale = try c.decodeIfPresent(Double.self, forKey: .fontScale) ?? d.fontScale
         lineSpacingScale = try c.decodeIfPresent(Double.self, forKey: .lineSpacingScale) ?? d.lineSpacingScale
         blockSpacing = try c.decodeIfPresent(Double.self, forKey: .blockSpacing) ?? d.blockSpacing
+        dialogueDisplayRaw = try c.decodeIfPresent(String.self, forKey: .dialogueDisplayRaw) ?? d.dialogueDisplayRaw
+        dialogueAvatarSize = try c.decodeIfPresent(Double.self, forKey: .dialogueAvatarSize) ?? d.dialogueAvatarSize
         aiProviderRaw = try c.decodeIfPresent(String.self, forKey: .aiProviderRaw) ?? d.aiProviderRaw
         aiContextScope = try c.decodeIfPresent(AIContextScope.self, forKey: .aiContextScope) ?? d.aiContextScope
     }

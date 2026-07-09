@@ -2,6 +2,12 @@ import AppCore
 import Foundation
 import PersistenceKit
 
+/// content.json 스키마 버전. 구조적(non-additive) 변경(필드 삭제/이름 변경/타입 변경/enum 케이스 변경) 시
+/// +1 하고 DocumentContentMigrations.all에 마이그레이션을 추가한다.
+public enum DocumentFormatVersion {
+    public static let current = 1
+}
+
 /// 문서 종류. 각 에디터가 독립 확장자를 가진다 (상호 변환 없음).
 public enum DocumentKind: String, Codable, CaseIterable, Sendable, Identifiable {
     case scenario   // 채팅형 시나리오
@@ -149,6 +155,8 @@ public struct DocumentEnvelope: Identifiable, Codable, Sendable, Equatable {
     public var projectID: UUID?
     public var isHidden: Bool
     public var isTrashed: Bool
+    /// 휴지통으로 이동한 시각 (정렬/자동정리/표시용). 휴지통 밖에서는 nil.
+    public var trashedAt: Date?
     public var formatVersion: Int
 
     public init(
@@ -162,7 +170,8 @@ public struct DocumentEnvelope: Identifiable, Codable, Sendable, Equatable {
         projectID: UUID? = nil,
         isHidden: Bool = false,
         isTrashed: Bool = false,
-        formatVersion: Int = 1
+        trashedAt: Date? = nil,
+        formatVersion: Int = DocumentFormatVersion.current
     ) {
         self.id = id
         self.title = title
@@ -174,6 +183,7 @@ public struct DocumentEnvelope: Identifiable, Codable, Sendable, Equatable {
         self.projectID = projectID
         self.isHidden = isHidden
         self.isTrashed = isTrashed
+        self.trashedAt = trashedAt
         self.formatVersion = formatVersion
     }
 

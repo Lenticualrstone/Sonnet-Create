@@ -35,7 +35,10 @@ struct SonnetCreateApp: App {
                 .dynamicTypeSize(Self.typeSize(for: appState.settings.applied.uiScale))
                 .environment(\.contentFontFamily, appState.settings.applied.fontFamily)
                 .environment(\.contentBlockSpacing, appState.settings.applied.blockSpacing)
+                .environment(\.dialogueDisplayStyle, appState.settings.applied.dialogueDisplayRaw)
+                .environment(\.dialogueAvatarSize, appState.settings.applied.dialogueAvatarSize)
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
+                .environment(\.resolvedAccent, appState.resolvedAccent)
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
                 .font(DSFonts.font(size: 13, family: appState.settings.applied.fontFamily))
                 .tint(appState.resolvedAccent)
@@ -44,6 +47,10 @@ struct SonnetCreateApp: App {
                 .onAppear {
                     appDelegate.appState = appState
                     appState.touchBar.setEnabled(appState.settings.applied.touchBarEnabled)
+                    Self.updateDockIcon(for: appState.settings.applied.interfaceTheme)
+                }
+                .onChange(of: appState.settings.applied.interfaceTheme) { _, newTheme in
+                    Self.updateDockIcon(for: newTheme)
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -86,10 +93,22 @@ struct SonnetCreateApp: App {
                 )
             )
             .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
+            .environment(\.resolvedAccent, appState.resolvedAccent)
             .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
             .tint(appState.resolvedAccent)
             .preferredColorScheme(appState.settings.applied.themeMode.colorScheme)
         }
+    }
+
+    /// 실행 중인 앱의 Dock 아이콘을 현재 테마에 맞춰 갱신한다.
+    /// Sonnet은 번들 기본 아이콘이므로 nil을 대입해 시스템이 되돌리게 한다.
+    private static func updateDockIcon(for theme: InterfaceTheme) {
+        let imageName: String? = switch theme {
+        case .sonnet: nil
+        case .pilgrimage: "BrandMark-Pilgrimage"
+        case .system: "BrandMark-System"
+        }
+        NSApp.applicationIconImage = imageName.flatMap { NSImage(named: $0) }
     }
 }
 

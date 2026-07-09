@@ -39,6 +39,8 @@ struct ScenarioBlockRow: View {
     @Environment(\.contentFontScale) private var fontScale
     @Environment(\.contentLineSpacing) private var lineScale
     @Environment(\.contentFontFamily) private var fontFamily
+    @Environment(\.dialogueDisplayStyle) private var displayStyle
+    @Environment(\.dialogueAvatarSize) private var avatarSize
 
     var body: some View {
         let l10n = Localizer.shared
@@ -84,14 +86,19 @@ struct ScenarioBlockRow: View {
     }
 
     /// 대사 — 버블 없이 투명 배경 (스크린플레이처럼 담백하게).
+    /// 캐릭터 프로필/이름 표시 방식과 프로필 크기는 설정 > 에디터에서 조절한다.
     private var lineBubble: some View {
         let speakers = store.speakers(of: block)
         return HStack(alignment: .top, spacing: DesignTokens.Spacing.s) {
-            SpeakerCluster(speakers: speakers)
+            if displayStyle != "nameOnly", displayStyle != "hidden" {
+                SpeakerCluster(speakers: speakers, avatarSize: avatarSize)
+            }
             VStack(alignment: .leading, spacing: 3) {
-                Text(speakerLabel(speakers))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(speakers.first.map { Color(hex: $0.accentHex) } ?? .secondary)
+                if displayStyle != "avatarOnly", displayStyle != "hidden" {
+                    Text(speakerLabel(speakers))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(speakers.first.map { Color(hex: $0.accentHex) } ?? .secondary)
+                }
                 Text(markdownText)
                     .font(DSFonts.font(size: 13 * fontScale, family: fontFamily))
                     .contentLineSpacing(lineScale)
@@ -145,21 +152,25 @@ struct ScenarioBlockRow: View {
 /// 다중 화자: 아바타 겹침 + 호버 팝오버로 전체 명단.
 struct SpeakerCluster: View {
     let speakers: [CastMember]
+    var avatarSize: CGFloat = 34
 
     @State private var showPopover = false
+
+    /// 겹친 아바타 사이 오프셋 — 크기에 비례해 겹침 비율을 유지한다.
+    private var stackOffset: CGFloat { avatarSize * 0.41 }
 
     var body: some View {
         Group {
             if speakers.count <= 1 {
-                CastAvatar(member: speakers.first, size: 34)
+                CastAvatar(member: speakers.first, size: avatarSize)
             } else {
                 ZStack {
                     ForEach(Array(speakers.prefix(3).enumerated()), id: \.element.id) { index, member in
-                        CastAvatar(member: member, size: 34)
-                            .offset(x: CGFloat(index) * 14)
+                        CastAvatar(member: member, size: avatarSize)
+                            .offset(x: CGFloat(index) * stackOffset)
                     }
                 }
-                .frame(width: 34 + CGFloat(min(speakers.count, 3) - 1) * 14, alignment: .leading)
+                .frame(width: avatarSize + CGFloat(min(speakers.count, 3) - 1) * stackOffset, alignment: .leading)
                 .onHover { showPopover = $0 }
                 .popover(isPresented: $showPopover, arrowEdge: .top) {
                     VStack(alignment: .leading, spacing: 6) {
@@ -249,6 +260,7 @@ struct CharacterInspectorView: View {
     let onCreateCharacterPage: (CastMember) -> UUID?
 
     @State private var newName = ""
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         let l10n = Localizer.shared
@@ -285,7 +297,7 @@ struct CharacterInspectorView: View {
                     .onSubmit(addMember)
                 Button(action: addMember) {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(newName.isEmpty ? Color.secondary : Color.accentColor)
+                        .foregroundStyle(newName.isEmpty ? Color.secondary : accent)
                 }
                 .buttonStyle(.plain)
                 .disabled(newName.isEmpty)

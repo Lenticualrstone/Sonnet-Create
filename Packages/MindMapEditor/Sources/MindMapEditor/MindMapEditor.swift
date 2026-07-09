@@ -19,6 +19,7 @@ public struct MindMapEditorView: View {
     @State private var showInspector = true
 
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     public init(
         store: MindMapStore,
@@ -256,11 +257,11 @@ public struct MindMapEditorView: View {
                 path.addLine(to: preview)
                 context.stroke(
                     path,
-                    with: .color(.accentColor),
+                    with: .color(accent),
                     style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 4])
                 )
                 let endDot = CGRect(x: preview.x - 5, y: preview.y - 5, width: 10, height: 10)
-                context.fill(Path(ellipseIn: endDot), with: .color(.accentColor))
+                context.fill(Path(ellipseIn: endDot), with: .color(accent))
             }
             .allowsHitTesting(false)
         }
@@ -352,7 +353,7 @@ public struct MindMapEditorView: View {
                     let isHot = highlighted.contains(edge.id)
                     context.stroke(
                         path,
-                        with: .color(isHot ? Color.accentColor : Color.primary.opacity(0.28)),
+                        with: .color(isHot ? accent : Color.primary.opacity(0.28)),
                         style: StrokeStyle(lineWidth: isHot ? 2.5 : 1.5, lineCap: .round)
                     )
                 }

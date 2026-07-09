@@ -8,6 +8,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     @State private var query = ""
     @State private var searchResults: [DocumentListItem] = []
@@ -19,10 +20,11 @@ struct HomeView: View {
             VStack(spacing: DesignTokens.Spacing.l) {
                 Spacer().frame(height: 44)
 
-                // 인사말 위 대형 픽셀 필드 — 크기가 제각각인 픽셀들의 무작위 브리딩
+                // 인사말 위 대형 픽셀 필드 — 사이드바와 동일하게 균일한 크기로 브리딩
                 PixelBreathField(
                     columns: 18, rows: 4,
-                    baseSize: 3.5, sizeVariance: 4, spacing: 4,
+                    baseSize: 3.5, spacing: 4,
+                    color: accent,
                     quality: quality
                 )
 
@@ -99,11 +101,11 @@ struct HomeView: View {
         VStack(spacing: DesignTokens.Spacing.m) {
             ZStack {
                 Circle()
-                    .fill(Color.accentColor.opacity(0.14))
+                    .fill(accent.opacity(0.14))
                     .frame(width: 76, height: 76)
                 Image(systemName: "sparkles.rectangle.stack")
                     .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(accent)
             }
             Text(l10n.t(.emptyWorkspaceTitle))
                 .font(.title3.weight(.semibold))
@@ -214,7 +216,7 @@ struct HomeView: View {
                 } label: {
                     HStack(spacing: DesignTokens.Spacing.s) {
                         Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(accent)
                             .frame(width: 24)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(item.envelope.title)
@@ -254,13 +256,14 @@ struct QuickCreateButton: View {
     let action: () -> Void
 
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         Button(action: action) {
             VStack(spacing: DesignTokens.Spacing.s) {
                 Image(systemName: symbol)
                     .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(accent)
                 Text(title)
                     .font(.caption.weight(.medium))
             }
@@ -276,13 +279,14 @@ struct RecentCard: View {
     let action: () -> Void
 
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 6) {
                 Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
                     .font(.title3)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(accent)
                 Text(item.envelope.title.isEmpty ? Localizer.shared.t(.untitled) : item.envelope.title)
                     .font(.callout.weight(.medium))
                     .lineLimit(2)

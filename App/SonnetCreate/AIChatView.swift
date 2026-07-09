@@ -8,6 +8,7 @@ struct AIChatView: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontFamily) private var fontFamily
+    @Environment(\.resolvedAccent) private var accent
 
     @FocusState private var inputFocused: Bool
 
@@ -86,7 +87,7 @@ struct AIChatView: View {
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(.white)
                         .frame(width: 28, height: 28)
-                        .background(Circle().fill(Color.accentColor.opacity(canSend ? 1 : 0.3)))
+                        .background(Circle().fill(accent.opacity(canSend ? 1 : 0.3)))
                 }
                 .buttonStyle(.plain)
                 .disabled(!canSend)
@@ -122,7 +123,7 @@ struct AIChatView: View {
         VStack(spacing: DesignTokens.Spacing.s) {
             Image(systemName: "sparkles")
                 .font(.system(size: 30))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(accent)
             Text(l10n.t(.askAnything))
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -137,6 +138,7 @@ struct ChatBubble: View {
     let fontFamily: FontFamily
 
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         HStack {
@@ -150,7 +152,7 @@ struct ChatBubble: View {
                     RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
                         .fill(
                             message.role == .user
-                                ? AnyShapeStyle(Color.accentColor.opacity(0.16))
+                                ? AnyShapeStyle(accent.opacity(0.16))
                                 : AnyShapeStyle(SonnetPalette.surface)
                         )
                 )
@@ -171,6 +173,7 @@ struct ChatBubble: View {
 /// 사이드패널 미니 챗 — 최근 대화 + 빠른 입력 + 탭으로 확장.
 struct SidebarAIChatSection: View {
     @Environment(AppState.self) private var app
+    @Environment(\.resolvedAccent) private var accent
     var maxMessages = 3
 
     var body: some View {
@@ -197,7 +200,7 @@ struct SidebarAIChatSection: View {
                 HStack(alignment: .top, spacing: 4) {
                     Image(systemName: message.role == .user ? "person.fill" : "sparkles")
                         .font(.system(size: 8))
-                        .foregroundStyle(message.role == .user ? Color.secondary : Color.accentColor)
+                        .foregroundStyle(message.role == .user ? Color.secondary : accent)
                         .padding(.top, 2)
                     Text(message.text)
                         .font(.caption)

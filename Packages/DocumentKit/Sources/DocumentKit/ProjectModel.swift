@@ -16,7 +16,7 @@ public struct ProjectManifest: Identifiable, Codable, Sendable, Equatable {
         note: String = "",
         createdAt: Date = Date(),
         modifiedAt: Date = Date(),
-        formatVersion: Int = 1
+        formatVersion: Int = DocumentFormatVersion.current
     ) {
         self.id = id
         self.name = name
