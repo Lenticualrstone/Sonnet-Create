@@ -19,10 +19,10 @@ struct HomeView: View {
             VStack(spacing: DesignTokens.Spacing.l) {
                 Spacer().frame(height: 44)
 
-                // 인사말 위 대형 픽셀 필드 — 크기가 제각각인 픽셀들의 무작위 브리딩
+                // 인사말 위 대형 픽셀 필드 — 사이드바와 동일하게 균일한 크기로 브리딩
                 PixelBreathField(
                     columns: 18, rows: 4,
-                    baseSize: 3.5, sizeVariance: 4, spacing: 4,
+                    baseSize: 3.5, spacing: 4,
                     quality: quality
                 )
 

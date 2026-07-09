@@ -1,4 +1,5 @@
 import AppCore
+import AppKit
 import DesignSystem
 import FileManagerKit
 import MarkdownEditor
@@ -13,22 +14,40 @@ struct MainWindowView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.colorScheme) private var colorScheme
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    /// 전체화면 전용 플로팅 사이드바의 표시 여부 (구조적 사이드바 컬럼과는 별개 상태).
+    @State private var floatingSidebarVisible = true
+
+    private var showFloatingSidebar: Bool { app.isFullscreen && floatingSidebarVisible }
+    /// 플로팅 패널 폭(280) + 좌측 여백(10) + 콘텐츠와의 여유 간격(10) — 콘텐츠가 이만큼
+    /// "가짜로" 비워두면, 패널을 닫을 때 이 여백이 사라지며 자연스럽게 확장된다.
+    private let floatingSidebarReservedWidth: CGFloat = 300
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
-            SidebarView()
-                // min을 260으로 올려 홈/Sonnet AI/수신함 3개 탭의 아이콘+텍스트가
-                // 줄바꿈되지 않고 한 줄에 들어갈 최소 폭을 항상 보장한다.
-                .navigationSplitViewColumnWidth(min: 260, ideal: 264, max: 340)
-                // 사이드바 상단의 시스템 툴바(백색 박스 원인) 제거
-                .toolbar(removing: .sidebarToggle)
-                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-                // 윈도우 모드에서만 콘텐츠를 타이틀 라인(신호등 뒤)까지 끌어올린다.
-                // 전체화면에서는 그대로 두어야 한다 — 무조건 ignoresSafeArea하면
-                // 전체화면의 (더 큰) 상단 안전영역만큼 헤더가 화면 밖으로 밀려나 사라진다.
-                .modifier(TopChromeExtension(active: !app.isFullscreen))
+            // 전체화면에서는 이 컬럼을 비워둔다. columnVisibility를 .detailOnly로 접어도
+            // macOS는 창 왼쪽 가장자리에 마우스를 대면 접힌 사이드바를 임시로 "미리보기"
+            // 형태로 다시 드러내는 자체 제스처가 있어서, 실제 SidebarView를 넣어두면
+            // 우리가 피하려던 버그 있는 컬럼이 호버만으로 다시 나타나 버렸다.
+            // 내용이 비어있으면 호버해도 보여줄 게 없어 그 문제가 사라진다.
+            if !app.isFullscreen {
+                SidebarView()
+                    // min을 260으로 올려 홈/Sonnet AI/수신함 3개 탭의 아이콘+텍스트가
+                    // 줄바꿈되지 않고 한 줄에 들어갈 최소 폭을 항상 보장한다.
+                    .navigationSplitViewColumnWidth(min: 260, ideal: 264, max: 340)
+                    // 사이드바 상단의 시스템 툴바(백색 박스 원인) 제거
+                    .toolbar(removing: .sidebarToggle)
+                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                    // 윈도우 모드에서만 콘텐츠를 타이틀 라인(신호등 뒤)까지 끌어올린다.
+                    // 전체화면에서는 그대로 두어야 한다 — 무조건 ignoresSafeArea하면
+                    // 전체화면의 (더 큰) 상단 안전영역만큼 헤더가 화면 밖으로 밀려나 사라진다.
+                    .modifier(TopChromeExtension(active: true))
+            } else {
+                Color.clear
+                    .toolbar(removing: .sidebarToggle)
+                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+            }
         } detail: {
-            ZStack {
+            ZStack(alignment: .topLeading) {
                 // Sonnet 테마: 본톤 캔버스가 모든 레이어의 바닥
                 if app.settings.applied.interfaceTheme == .sonnet {
                     SonnetPalette.canvas.ignoresSafeArea()
@@ -36,27 +55,82 @@ struct MainWindowView: View {
                 background
 
                 VStack(spacing: 0) {
-                    // 탭바가 곧 타이틀 라인 — 신호등과 같은 줄에 토글/탭/도구막대
+                    // 탭바가 곧 타이틀 라인 — 신호등과 같은 줄에 토글/탭/도구막대. 탭바 자체는
+                    // 전체 폭을 유지하고(플로팅 패널이 그 아래에서 시작하므로 겹치지 않는다),
+                    // 문서 콘텐츠만 플로팅 패널이 차지하는 만큼 여백을 두어 "가짜 예약 영역"을
+                    // 만든다 — 패널을 닫으면 이 여백이 사라지며 콘텐츠가 자연스럽게 확장된다.
                     ChromeTabBar(
                         columnVisibility: $columnVisibility,
+                        floatingSidebarVisible: $floatingSidebarVisible,
                         needsTrafficLightInset: columnVisibility == .detailOnly && !app.isFullscreen
                     )
                     content
+                        .padding(.leading, showFloatingSidebar ? floatingSidebarReservedWidth : 0)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .modifier(TopChromeExtension(active: !app.isFullscreen))
+
+                // 전체화면 전용 — NavigationSplitView의 사이드바 컬럼은 macOS에서 툴바
+                // 안전영역을 이중으로 잘못 예약하는 SwiftUI 버그(rdar://122947424)가 있어
+                // 전체화면에서는 그 컬럼을 아예 접어두고(.detailOnly), 대신 헤더 아래
+                // 콘텐츠 위에 자연스럽게 얹히는 플로팅 패널로 사이드바를 대체한다.
+                if showFloatingSidebar {
+                    SidebarView(isFloating: true)
+                        .frame(width: 280)
+                        .frame(maxHeight: .infinity)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous)
+                                .fill(
+                                    app.settings.applied.interfaceTheme == .sonnet
+                                        ? AnyShapeStyle(SonnetPalette.sunken)
+                                        : AnyShapeStyle(.regularMaterial)
+                                )
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous)
+                                .strokeBorder(SonnetPalette.accent.opacity(0.14), lineWidth: 1)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous))
+                        .shadow(color: .black.opacity(0.22), radius: 20, y: 8)
+                        // 탭바 높이(전체화면 메뉴바 여백 20 + 탭바 38 = 58)보다 확실히 아래에서
+                        // 시작해야 탭바 영역을 침범하지 않는다.
+                        .padding(.top, 64)
+                        .padding(.leading, 10)
+                        .padding(.bottom, 10)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+                }
             }
+            // 콘텐츠 여백/플로팅 패널의 등장·퇴장을 하나의 트랜잭션으로 함께 애니메이션한다.
+            // (각각 따로 .animation을 걸면 등장은 되는데 퇴장이 즉시 컷되는 비대칭이 생겼다.)
+            .animation(DesignTokens.Motion.gentle, value: floatingSidebarVisible)
             .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
         }
         .navigationTitle("")
         // 크롬(버튼/탭/툴바)의 안내 텍스트가 커서로 선택되는 것을 방지.
         // 본문 텍스트 선택이 필요한 곳(시나리오 블록 등)은 개별적으로 다시 활성화한다.
         .textSelection(.disabled)
-        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
-            withAnimation(DesignTokens.Motion.gentle) { app.isFullscreen = true }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { notification in
+            withAnimation(DesignTokens.Motion.gentle) {
+                app.isFullscreen = true
+                // NavigationSplitView의 구조적 사이드바 컬럼은 전체화면에서 macOS 툴바
+                // 안전영역 버그(rdar://122947424)를 겪는다 — 아예 접어두고 플로팅 패널로 대체.
+                columnVisibility = .detailOnly
+            }
+            // macOS는 전체화면 전환 시 별도의 시스템 툴바 영역을 다시 노출시키는 경우가
+            // 있다 (창모드용 toolbarBackgroundVisibility 설정이 전체화면에는 안 이어짐) —
+            // 사이드바 위쪽에 정체불명의 흰 박스로 보이던 원인. 전체화면 진입 시점에
+            // 툴바를 명시적으로 다시 숨긴다.
+            if let window = notification.object as? NSWindow {
+                window.toolbar?.isVisible = false
+                window.titlebarAppearsTransparent = true
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
-            withAnimation(DesignTokens.Motion.gentle) { app.isFullscreen = false }
+            withAnimation(DesignTokens.Motion.gentle) {
+                app.isFullscreen = false
+                // 창모드로 복귀하면 원래 구조적 사이드바 컬럼을 되돌린다.
+                columnVisibility = .all
+            }
         }
         // 휴지통 이동 확인
         .confirmationDialog(
@@ -207,6 +281,8 @@ struct ChromeTabBar: View {
     @Environment(AppState.self) private var app
     @Environment(\.interfaceTheme) private var theme
     @Binding var columnVisibility: NavigationSplitViewVisibility
+    /// 전체화면 전용 플로팅 사이드바의 표시 여부 — 전체화면에서는 구조적 컬럼 대신 이걸 토글한다.
+    @Binding var floatingSidebarVisible: Bool
     /// 사이드바가 접혀 신호등이 이 바 위에 겹칠 때의 좌측 여백 (전체화면에서는 불필요)
     var needsTrafficLightInset = false
 
@@ -216,6 +292,31 @@ struct ChromeTabBar: View {
 
     var body: some View {
         let l10n = Localizer.shared
+        VStack(spacing: 0) {
+            // 메뉴바 자동 숨김이 꺼진 환경에서는 전체화면에서도 메뉴바가 계속 보이는데,
+            // 이 여백을 탭바 바깥에 붙이면(.padding) barBackground가 안 덮인 채로 남아
+            // 캔버스색 빈 줄이 탭바 위에 별도 박스처럼 떠 보였다 — barBackground가 함께
+            // 덮이도록 탭바 내부(같은 배경을 받는 컨테이너 안)에 여백을 넣는다.
+            if app.isFullscreen {
+                Spacer().frame(height: 20)
+            }
+            tabBarContent(l10n)
+        }
+        .background(barBackground)
+        .overlay(alignment: .bottom) {
+            if isChrome {
+                Divider().opacity(0.35)
+            }
+        }
+        // 탭바 빈 영역 드래그로 창 이동 (타이틀바 역할)
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .gesture(WindowDragGesture())
+        }
+    }
+
+    private func tabBarContent(_ l10n: Localizer) -> some View {
         HStack(spacing: isChrome ? 0 : 6) {
             // 브랜드 앵커 — 사이드바가 접혀 신호등과 겹칠 땐 숨겨 공간을 확보
             if !needsTrafficLightInset {
@@ -226,14 +327,18 @@ struct ChromeTabBar: View {
                     .padding(.trailing, 2)
             }
 
-            // 사이드바 토글 (시스템 툴바 제거에 따른 대체)
+            // 사이드바 토글 — 전체화면에서는 플로팅 패널을, 창모드에서는 구조적 컬럼을 토글한다.
             ToolbarIconButton(
                 "sidebar.left",
                 help: l10n.t(.workspace),
-                isActive: columnVisibility != .detailOnly
+                isActive: app.isFullscreen ? floatingSidebarVisible : columnVisibility != .detailOnly
             ) {
                 withAnimation(DesignTokens.Motion.gentle) {
-                    columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                    if app.isFullscreen {
+                        floatingSidebarVisible.toggle()
+                    } else {
+                        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+                    }
                 }
             }
             .padding(.leading, needsTrafficLightInset ? 76 : 6)
@@ -301,24 +406,14 @@ struct ChromeTabBar: View {
             .padding(.trailing, 8)
         }
         .frame(height: 38)
-        .background(barBackground)
-        .overlay(alignment: .bottom) {
-            if isChrome {
-                Divider().opacity(0.35)
-            }
-        }
-        // 탭바 빈 영역 드래그로 창 이동 (타이틀바 역할)
-        .background {
-            Color.clear
-                .contentShape(Rectangle())
-                .gesture(WindowDragGesture())
-        }
     }
 
     @ViewBuilder
     private var barBackground: some View {
         if isChrome {
-            // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
+            // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다.
+            // NavigationSplitView/툴바의 안전영역 이중 예약 버그(rdar://122947424) 때문에
+            // ignoresSafeArea만으로는 미세한 틈이 남을 수 있어 위로 살짝 오버스캔한다.
             ZStack {
                 (theme == .sonnet ? SonnetPalette.sunken : Color.primary.opacity(0.06))
                 if theme == .sonnet {
@@ -327,6 +422,7 @@ struct ChromeTabBar: View {
                 }
             }
             .ignoresSafeArea(edges: .top)
+            .padding(.top, -24)
         } else {
             Color.clear
         }

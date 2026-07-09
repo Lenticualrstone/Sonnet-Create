@@ -62,6 +62,11 @@ struct SidebarView: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
 
+    /// 전체화면 전용 플로팅 패널로 쓰일 때 true — 신호등/툴바 관련 여백과 자체
+    /// 배경(모서리 없는 풀블리드 사각형)을 생략한다. 바깥(MainWindowView)에서
+    /// 카드 모양 배경·테두리·그림자를 대신 입힌다.
+    var isFloating = false
+
     @State private var showProfileMenu = false
     @State private var tab: SidebarTab = .home
     @Namespace private var tabHighlight
@@ -73,7 +78,10 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             // 신호등(닫기/최소화/확대) 영역 — 윈도우 모드에서만 예약, 전체화면에는 없음.
             // 윈도우 모드에서는 이 줄에 픽셀 필드가 함께 들어간다 (전체화면에서는 시계 위로 이동).
-            topStrip
+            // 플로팅 패널은 이미 헤더 아래에 위치하므로 이 줄 자체가 필요 없다.
+            if !isFloating {
+                topStrip
+            }
 
             infoHeader
 
@@ -94,12 +102,27 @@ struct SidebarView: View {
             Divider().opacity(0.4)
             profileFooter(l10n)
         }
-        .background(
-            // 메인 콘텐츠(canvas)보다 살짝 가라앉은 톤으로 패널을 구분
-            app.settings.applied.interfaceTheme == .sonnet
-                ? AnyShapeStyle(SonnetPalette.sunken)
-                : AnyShapeStyle(.clear)
-        )
+        .background {
+            if isFloating {
+                // 플로팅일 땐 바깥(MainWindowView)에서 카드 배경을 입히므로 투명하게 둔다.
+                Color.clear
+            } else {
+                // 메인 콘텐츠(canvas)보다 살짝 가라앉은 톤으로 패널을 구분.
+                // NavigationSplitView는 macOS에서 툴바 높이만큼 안전영역을 잘못 이중으로 예약하는
+                // 알려진 SwiftUI 버그가 있다(Apple 엔지니어가 rdar://122947424로 확인).
+                // ignoresSafeArea(edges: .top)만으로는 그 오차가 완전히 상쇄되지 않아 미세한
+                // 흰 선이 남았다 — 배경을 여유 있게 위로 오버스캔시켜(-24pt) 어떤 잔여 오차든
+                // 확실히 덮는다. 콘텐츠 자체의 위치는 이 오프셋의 영향을 받지 않는다.
+                Rectangle()
+                    .fill(
+                        app.settings.applied.interfaceTheme == .sonnet
+                            ? AnyShapeStyle(SonnetPalette.sunken)
+                            : AnyShapeStyle(.clear)
+                    )
+                    .ignoresSafeArea(edges: .top)
+                    .padding(.top, -24)
+            }
+        }
         .overlay(alignment: .bottom) { profileMenuOverlay }
         .animation(DesignTokens.Motion.gentle, value: app.isFullscreen)
         .animation(DesignTokens.Motion.gentle, value: showProfileMenu)
@@ -110,7 +133,9 @@ struct SidebarView: View {
     @ViewBuilder
     private var topStrip: some View {
         if app.isFullscreen {
-            Spacer().frame(height: 10)
+            // 메뉴바 자동 숨김이 꺼진 환경에서는 전체화면에서도 메뉴바가 계속 보이는데,
+            // 이전엔 10pt만 비워둬서 메뉴바와 탭바가 겹쳐 보였다. 메뉴바 높이만큼 여유를 둔다.
+            Spacer().frame(height: 28)
         } else {
             GeometryReader { geo in
                 HStack(spacing: 8) {
