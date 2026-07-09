@@ -260,6 +260,7 @@ struct CharacterInspectorView: View {
     let onCreateCharacterPage: (CastMember) -> UUID?
 
     @State private var newName = ""
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         let l10n = Localizer.shared
@@ -296,7 +297,7 @@ struct CharacterInspectorView: View {
                     .onSubmit(addMember)
                 Button(action: addMember) {
                     Image(systemName: "plus.circle.fill")
-                        .foregroundStyle(newName.isEmpty ? Color.secondary : Color.accentColor)
+                        .foregroundStyle(newName.isEmpty ? Color.secondary : accent)
                 }
                 .buttonStyle(.plain)
                 .disabled(newName.isEmpty)

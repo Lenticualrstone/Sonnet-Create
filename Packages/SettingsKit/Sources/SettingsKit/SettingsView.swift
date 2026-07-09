@@ -9,6 +9,7 @@ public struct SettingsRootView: View {
     @Bindable var store: SettingsStore
     /// 백업 타임라인 등 앱 수준 액션 (일반 탭에 노출)
     let backupTimelineView: AnyView?
+    @Environment(\.resolvedAccent) private var accent
 
     public init(store: SettingsStore, backupTimelineView: AnyView? = nil) {
         self.store = store
@@ -120,18 +121,20 @@ public struct SettingsRootView: View {
     @ViewBuilder
     private var profileAvatar: some View {
         if !store.draft.authorPhotoPath.isEmpty,
-           let image = NSImage(contentsOfFile: store.draft.authorPhotoPath) {
+           let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: store.draft.authorPhotoPath), maxPointSize: 56) {
             Image(nsImage: image)
                 .resizable()
+                .interpolation(.high)
+                .antialiased(true)
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 56, height: 56)
                 .clipShape(Circle())
         } else {
             ZStack {
-                Circle().fill(Color.accentColor.opacity(0.16))
+                Circle().fill(accent.opacity(0.16))
                 Image(systemName: "person.fill")
                     .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(accent)
             }
             .frame(width: 56, height: 56)
         }
@@ -171,11 +174,13 @@ public struct SettingsRootView: View {
 
     private func appearanceTab(_ l10n: Localizer) -> some View {
         Form {
-            Picker(l10n.t(.interfaceStyle), selection: $store.draft.interfaceTheme) {
-                Text(l10n.t(.themeSonnet)).tag(InterfaceTheme.sonnet)
-                Text(l10n.t(.themeSystem)).tag(InterfaceTheme.system)
+            LabeledContent(l10n.t(.interfaceStyle)) {
+                HStack(spacing: 10) {
+                    themeSwatch(.sonnet, label: l10n.t(.themeSonnet))
+                    themeSwatch(.pilgrimage, label: l10n.t(.themePilgrimage))
+                    themeSwatch(.system, label: l10n.t(.themeSystem))
+                }
             }
-            .pickerStyle(.segmented)
 
             Picker(l10n.t(.themeMode), selection: $store.draft.themeMode) {
                 Text(l10n.t(.themeSystem)).tag(ThemeMode.system)
@@ -247,6 +252,74 @@ public struct SettingsRootView: View {
             },
             set: { store.draft.accent = .custom(hex: $0.hexString) }
         )
+    }
+
+    // MARK: 테마 스와치 (메인/강조색 대각선 프리뷰)
+
+    private func themeSwatch(_ theme: InterfaceTheme, label: String) -> some View {
+        let isSelected = store.draft.interfaceTheme == theme
+        return Button {
+            store.draft.interfaceTheme = theme
+        } label: {
+            VStack(spacing: 4) {
+                ThemeColorTile(style: swatchStyle(for: theme))
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(
+                                isSelected ? Color.primary : Color.primary.opacity(0.15),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
+                Text(label)
+                    .font(.caption2)
+                    .foregroundStyle(isSelected ? .primary : .secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 테마별 미리보기 색 조합. 브랜드 테마는 메인 캔버스+강조색, 시스템 테마는
+    /// 화면 모드(라이트/다크/시스템)에 따라 실제 시스템 색 또는 밝음/어두움 조합을 보여준다.
+    private func swatchStyle(for theme: InterfaceTheme) -> ThemeSwatchStyle {
+        switch theme {
+        case .sonnet:
+            return .split(main: SonnetPalette.canvas, accent: swatchAccent(for: theme))
+        case .pilgrimage:
+            return .split(main: PilgrimagePalette.canvas, accent: swatchAccent(for: theme))
+        case .system:
+            switch store.draft.themeMode {
+            case .light:
+                return .split(main: resolvedSystemColor(dark: false), accent: swatchAccent(for: theme))
+            case .dark:
+                return .split(main: resolvedSystemColor(dark: true), accent: swatchAccent(for: theme))
+            case .system:
+                // 실제 OS 모드를 알 수 없으니 "적응형"임을 밝음/어두움 조합으로 보여준다.
+                return .lightDark
+            }
+        }
+    }
+
+    /// AppState.resolvedAccent와 동일한 규칙 — 강조색을 '시스템'으로 둔 경우에만
+    /// 브랜드 테마 고유 액센트를 쓰고, 그 외엔 사용자가 고른 강조색을 그대로 보여준다.
+    private func swatchAccent(for theme: InterfaceTheme) -> Color {
+        if store.draft.accent == .system, theme.isBranded {
+            return theme.accentColor
+        }
+        return store.draft.accent.color
+    }
+
+    /// 화면 모드가 라이트/다크로 고정된 경우, 실제 그 모드에서 보일 시스템 창 배경색을
+    /// 강제 해석해 즉시 미리보기에 반영한다 (draft가 아직 저장 전이라 창 자체의 렌더링
+    /// appearance는 못 따라오므로).
+    private func resolvedSystemColor(dark: Bool) -> Color {
+        let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+        var resolved = NSColor.windowBackgroundColor
+        appearance?.performAsCurrentDrawingAppearance {
+            resolved = NSColor.windowBackgroundColor.usingColorSpace(.deviceRGB) ?? resolved
+        }
+        return Color(nsColor: resolved)
     }
 
     // MARK: 에디터 — 글꼴/간격/인스펙터
@@ -347,6 +420,52 @@ public struct SettingsRootView: View {
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+/// 테마 스와치 색 구성 — 메인/강조색 대각선 분할, 또는 (시스템 모드가 불명확할 때) 밝음/어두움 조합.
+private enum ThemeSwatchStyle {
+    case split(main: Color, accent: Color)
+    case lightDark
+}
+
+/// 둥근 사각형을 대각선으로 나눠 두 색을 보여주는 테마 미리보기 타일.
+private struct ThemeColorTile: View {
+    let style: ThemeSwatchStyle
+
+    var body: some View {
+        ZStack {
+            switch style {
+            case .split(let main, let accent):
+                DiagonalHalf(upperRight: false).fill(main)
+                DiagonalHalf(upperRight: true).fill(accent)
+            case .lightDark:
+                DiagonalHalf(upperRight: false).fill(Color(white: 0.97))
+                DiagonalHalf(upperRight: true).fill(Color(white: 0.15))
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+    }
+}
+
+/// 사각형을 좌상단→우하단 대각선으로 나눈 삼각형 절반.
+private struct DiagonalHalf: Shape {
+    /// true = 우상단 삼각형, false = 좌하단 삼각형
+    let upperRight: Bool
+
+    func path(in rect: CGRect) -> Path {
+        var p = Path()
+        if upperRight {
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        } else {
+            p.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            p.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            p.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        }
+        p.closeSubpath()
+        return p
     }
 }
 

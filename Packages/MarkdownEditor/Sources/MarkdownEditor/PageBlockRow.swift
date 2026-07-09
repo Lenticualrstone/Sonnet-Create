@@ -16,6 +16,7 @@ struct PageBlockRow: View {
     @Environment(\.contentFontScale) private var fontScale
     @Environment(\.contentLineSpacing) private var lineScale
     @Environment(\.contentFontFamily) private var fontFamily
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -42,7 +43,7 @@ struct PageBlockRow: View {
         .overlay(alignment: .top) {
             if isDropTargeted {
                 Rectangle()
-                    .fill(Color.accentColor)
+                    .fill(accent)
                     .frame(height: 2)
                     .padding(.leading, 44)
             }
@@ -137,7 +138,7 @@ struct PageBlockRow: View {
                 store.toggleCheck(block.id)
             } label: {
                 Image(systemName: block.isChecked ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(block.isChecked ? Color.accentColor : .secondary)
+                    .foregroundStyle(block.isChecked ? accent : .secondary)
             }
             .buttonStyle(.plain)
         case .toggle:
@@ -153,7 +154,7 @@ struct PageBlockRow: View {
             .animation(DesignTokens.Motion.snappy, value: block.isExpanded)
         case .quote:
             RoundedRectangle(cornerRadius: 1)
-                .fill(Color.accentColor.opacity(0.6))
+                .fill(accent.opacity(0.6))
                 .frame(width: 3, height: 18)
         case .callout:
             Text("💡").font(.callout)
@@ -190,7 +191,7 @@ struct PageBlockRow: View {
             textField
                 .padding(8)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .glassSurface(cornerRadius: DesignTokens.Radius.small, tint: .accentColor, quality: quality)
+                .glassSurface(cornerRadius: DesignTokens.Radius.small, tint: accent, quality: quality)
         default:
             textField
         }
@@ -314,6 +315,7 @@ struct PageBlockRow: View {
 
 struct SlashCommandMenu: View {
     @Bindable var store: PageStore
+    @Environment(\.resolvedAccent) private var accent
 
     struct Item: Identifiable {
         let kind: PageBlockKind
@@ -371,7 +373,7 @@ struct SlashCommandMenu: View {
                         HStack(spacing: 8) {
                             Image(systemName: item.symbol)
                                 .font(.callout)
-                                .foregroundStyle(index == selection ? Color.accentColor : .secondary)
+                                .foregroundStyle(index == selection ? accent : .secondary)
                                 .frame(width: 22)
                             Text(l10n.t(item.key))
                                 .font(.callout)

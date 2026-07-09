@@ -6,10 +6,25 @@ import SwiftUI
 // MARK: - 인터페이스 테마
 
 /// 앱 전반의 시각 스타일. Sonnet = 본(#C8C0B0) 캔버스 + 적갈색 액센트의 모던-레트로 테마.
+/// Pilgrimage = 같은 본톤 캔버스에 짙은 네이비 액센트를 얹은 변형.
 public enum InterfaceTheme: String, Codable, CaseIterable, Sendable, Identifiable {
-    case system, sonnet
+    case system, sonnet, pilgrimage
 
     public var id: String { rawValue }
+
+    /// 고유 브랜드 팔레트(캔버스/표면/액센트 등)를 쓰는 테마인지 — system은 플랫폼 기본 소재를 쓴다.
+    public var isBranded: Bool { self != .system }
+
+    /// 테마별 메인 캔버스색. 브랜드 팔레트가 아닌 테마에서는 호출부가 쓰지 않지만
+    /// (isBranded로 먼저 분기) 안전하게 Sonnet 값을 기본으로 반환한다.
+    public var canvasColor: Color {
+        self == .pilgrimage ? PilgrimagePalette.canvas : SonnetPalette.canvas
+    }
+
+    /// 테마별 액센트색.
+    public var accentColor: Color {
+        self == .pilgrimage ? PilgrimagePalette.accent : SonnetPalette.accent
+    }
 }
 
 /// 라이트/다크에 자동 대응하는 다이나믹 컬러 헬퍼.
@@ -51,6 +66,15 @@ public enum SonnetPalette {
     public static let accent = dynamicColor(light: "#9C4A2E", dark: "#C4714F")
     /// 배경 도트 기본색 (테마 추종 모드)
     public static let dot = dynamicColor(light: "#5C5344", dark: "#C8C0B0")
+}
+
+/// Pilgrimage 테마 팔레트 — Sonnet과 같은 본톤 캔버스 가족이되 살짝 더 백색에 가깝게,
+/// 적갈색 대신 짙은 네이비 액센트. 표면/잉크/도트 등 나머지 톤은 Sonnet과 동일하게 공유한다.
+public enum PilgrimagePalette {
+    /// 메인 캔버스 — Sonnet보다 살짝 더 흰 쪽으로 (다크는 Sonnet과 동일)
+    public static let canvas = dynamicColor(light: "#F9F7F2", dark: "#221E19")
+    /// 짙은 네이비 액센트 — 라이트/다크 공통 고정 값
+    public static let accent = dynamicColor(light: "#031C35", dark: "#031C35")
 }
 
 // MARK: - 글꼴 팩
@@ -214,6 +238,10 @@ private struct LiquidGlassDisabledKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct ResolvedAccentKey: EnvironmentKey {
+    static let defaultValue: Color = .accentColor
+}
+
 public extension EnvironmentValues {
     var contentFontFamily: FontFamily {
         get { self[ContentFontFamilyKey.self] }
@@ -229,5 +257,13 @@ public extension EnvironmentValues {
     var liquidGlassDisabled: Bool {
         get { self[LiquidGlassDisabledKey.self] }
         set { self[LiquidGlassDisabledKey.self] = newValue }
+    }
+
+    /// AppState.resolvedAccent — 테마+강조색상 설정을 조합한 실효 강조색.
+    /// `.tint()`는 표준 컨트롤에만 영향을 주므로, 아이콘/Canvas 등 리터럴
+    /// `Color.accentColor` 참조는 이 환경값을 직접 구독해야 한다.
+    var resolvedAccent: Color {
+        get { self[ResolvedAccentKey.self] }
+        set { self[ResolvedAccentKey.self] = newValue }
     }
 }

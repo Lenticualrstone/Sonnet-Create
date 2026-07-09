@@ -34,9 +34,9 @@ struct MainWindowView: View {
                     .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             } detail: {
                 ZStack {
-                    // Sonnet 테마: 본톤 캔버스가 모든 레이어의 바닥
-                    if app.settings.applied.interfaceTheme == .sonnet {
-                        SonnetPalette.canvas.ignoresSafeArea()
+                    // 브랜드 테마(Sonnet/Pilgrimage): 테마별 캔버스가 모든 레이어의 바닥
+                    if app.settings.applied.interfaceTheme.isBranded {
+                        app.settings.applied.interfaceTheme.canvasColor.ignoresSafeArea()
                     }
                     background
                     content
@@ -74,6 +74,22 @@ struct MainWindowView: View {
             Button(Localizer.shared.t(.cancel), role: .cancel) {}
         } message: { _ in
             Text(Localizer.shared.t(.trashConfirmMessage))
+        }
+        // 영구 삭제 확인 (단건/다건 공용, 되돌릴 수 없음)
+        .confirmationDialog(
+            Localizer.shared.t(.permanentDelete),
+            isPresented: Binding(
+                get: { !app.pendingPermanentDeleteItems.isEmpty },
+                set: { if !$0 { app.pendingPermanentDeleteItems = [] } }
+            ),
+            presenting: app.pendingPermanentDeleteItems.isEmpty ? nil : app.pendingPermanentDeleteItems
+        ) { items in
+            Button("\(Localizer.shared.t(.permanentDelete)) (\(items.count))", role: .destructive) {
+                app.confirmPendingPermanentDelete()
+            }
+            Button(Localizer.shared.t(.cancel), role: .cancel) {}
+        } message: { items in
+            Text(items.count > 1 ? Localizer.shared.t(.permanentDeleteConfirmMessagePlural) : Localizer.shared.t(.permanentDeleteConfirmMessage))
         }
         // 프로젝트 삭제 확인
         .confirmationDialog(
@@ -127,7 +143,7 @@ struct MainWindowView: View {
         if s.backgroundUseAccent {
             return app.resolvedAccent.opacity(colorScheme == .dark ? 0.62 : 0.5)
         }
-        if s.interfaceTheme == .sonnet {
+        if s.interfaceTheme.isBranded {
             return SonnetPalette.dot.opacity(colorScheme == .dark ? 0.5 : 0.4)
         }
         return Color.primary.opacity(colorScheme == .dark ? 0.52 : 0.36)
@@ -163,11 +179,19 @@ struct MainWindowView: View {
                     await app.privacyGate.unlock(reason: reason)
                 },
                 openOnSingleClick: app.settings.applied.openOnSingleClick,
-                externalCategory: Binding(
-                    get: { app.archiveCategoryRequest },
-                    set: { app.archiveCategoryRequest = $0 }
+                externalTarget: Binding(
+                    get: { app.archiveNavigationRequest },
+                    set: { app.archiveNavigationRequest = $0 }
                 ),
-                requestTrash: { app.requestTrash($0) }
+                requestTrash: { app.requestTrash($0) },
+                requestPermanentDelete: { app.requestPermanentDelete($0) },
+                isSessionUnlocked: app.privacyGate.unlockedThisSession,
+                onRestoreFallback: {
+                    app.notify(symbol: "arrow.uturn.backward", message: Localizer.shared.t(.restoredToWorkspaceRoot))
+                },
+                onNavigate: { category, projectID in
+                    app.recordArchiveNav(category, projectID)
+                }
             )
         case .document(let docID):
             if let session = app.sessions[docID] {
@@ -207,6 +231,7 @@ private struct TopChromeExtension: ViewModifier {
 struct ChromeTabBar: View {
     @Environment(AppState.self) private var app
     @Environment(\.interfaceTheme) private var theme
+    @Environment(\.resolvedAccent) private var accent
     @Binding var columnVisibility: NavigationSplitViewVisibility
 
     @State private var newDocMenuHover = false
@@ -215,6 +240,14 @@ struct ChromeTabBar: View {
     /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 사이드바 펼침/접힘과 무관하게
     /// 윈도우 모드에서는 항상 좌측에 신호등 자리를 남겨야 한다.
     private var needsTrafficLightInset: Bool { !app.isFullscreen }
+    /// 현재 테마에 맞는 브랜드 마크 이미지셋 이름.
+    private var brandMarkImageName: String {
+        switch app.settings.applied.interfaceTheme {
+        case .sonnet: "BrandMark"
+        case .pilgrimage: "BrandMark-Pilgrimage"
+        case .system: "BrandMark-System"
+        }
+    }
 
     var body: some View {
         let l10n = Localizer.shared
@@ -223,9 +256,10 @@ struct ChromeTabBar: View {
             // 쓴다. 예전엔 존재하지 않는 SF Symbol "feather"를 참조해 빈 화면으로
             // 렌더링됐다. AppIcon.appiconset은 앱 번들 아이콘 전용 슬롯이라 일반 Image(_:)/
             // NSApp.applicationIconImage로는 안정적으로 불러와지지 않아, 같은 아트워크를
-            // 복사한 별도의 BrandMark 이미지셋을 만들어 참조한다. 헤더가 창 전체 폭을
-            // 차지하므로 항상 보이되, 윈도우 모드에서는 신호등 자리만큼 왼쪽 여백을 더 준다.
-            Image("BrandMark")
+            // 복사한 별도의 BrandMark 이미지셋(테마별 색상 바리에이션 포함)을 참조한다.
+            // 헤더가 창 전체 폭을 차지하므로 항상 보이되, 윈도우 모드에서는 신호등 자리만큼
+            // 왼쪽 여백을 더 준다.
+            Image(brandMarkImageName)
                 .resizable()
                 .scaledToFit()
                 .frame(width: 18, height: 18)
@@ -244,6 +278,22 @@ struct ChromeTabBar: View {
                 }
             }
             .padding(.leading, 6)
+
+            // 뒤로/앞으로 탐색 — 편집 되돌리기(⌘Z)와 무관, 탐색 중인 화면(문서/아카이브 카테고리·
+            // 프로젝트 필터)의 이동 기록을 오간다.
+            HStack(spacing: 0) {
+                ToolbarIconButton("chevron.left", help: l10n.t(.navigateBack)) {
+                    app.goBack()
+                }
+                .disabled(!app.canGoBack)
+                .opacity(app.canGoBack ? 1 : 0.35)
+
+                ToolbarIconButton("chevron.right", help: l10n.t(.navigateForward)) {
+                    app.goForward()
+                }
+                .disabled(!app.canGoForward)
+                .opacity(app.canGoForward ? 1 : 0.35)
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: isChrome ? 0 : 4) {
@@ -276,11 +326,11 @@ struct ChromeTabBar: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(newDocMenuHover ? Color.accentColor : .secondary)
+                    .foregroundStyle(newDocMenuHover ? accent : .secondary)
                     .frame(width: 30, height: 30)
                     .background(
                         RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                            .fill(newDocMenuHover ? Color.accentColor.opacity(0.1) : .clear)
+                            .fill(newDocMenuHover ? accent.opacity(0.1) : .clear)
                     )
                     .contentShape(Rectangle())
             }
@@ -329,11 +379,11 @@ struct ChromeTabBar: View {
         // 뒤 코너에 창의 기본 배경색(흰 박스)이 비쳐 보이지 않는다.
         ZStack {
             Rectangle()
-                .fill(theme == .sonnet ? AnyShapeStyle(SonnetPalette.canvas) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor)))
+                .fill(theme.isBranded ? AnyShapeStyle(theme.canvasColor) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor)))
             if isChrome {
                 // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
-                (theme == .sonnet ? SonnetPalette.sunken : Color.primary.opacity(0.06))
-                if theme == .sonnet {
+                (theme.isBranded ? SonnetPalette.sunken : Color.primary.opacity(0.06))
+                if theme.isBranded {
                     // 앤티크 페이퍼 무드를 강화하는 미세 그레인
                     GrainOverlay(color: SonnetPalette.ink, opacity: 0.045, density: 500)
                 }
@@ -346,6 +396,7 @@ struct ChromeTabBar: View {
 struct TabChip: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
     let tab: OpenTab
     var isFirst: Bool = false
 
@@ -376,7 +427,7 @@ struct TabChip: View {
             HStack(spacing: 6) {
                 Image(systemName: app.tabSymbol(for: tab))
                     .font(.caption)
-                    .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(isSelected ? accent : Color.secondary)
                 Text(app.tabTitle(for: tab))
                     .font(.callout)
                     .lineLimit(1)
@@ -410,7 +461,7 @@ struct TabChip: View {
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { beginRename() }
-        .onTapGesture { app.selectedTabID = tab.id }
+        .onTapGesture { app.selectExistingTab(tab) }
         .onHover { hovering = $0 }
         .contextMenu {
             let l10n = Localizer.shared
@@ -466,6 +517,7 @@ struct TabChipStyle: ViewModifier {
     let quality: RenderQuality
 
     @Environment(\.interfaceTheme) private var theme
+    @Environment(\.resolvedAccent) private var accent
 
     func body(content: Content) -> some View {
         if chrome {
@@ -479,11 +531,11 @@ struct TabChipStyle: ViewModifier {
                     )
                     .fill(chromeFill)
                 )
-                // "지금 여기" 정체성 — 활성 탭 상단에 적갈 액센트 언더라인
+                // "지금 여기" 정체성 — 활성 탭 상단에 강조색 언더라인
                 .overlay(alignment: .top) {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 1, style: .continuous)
-                            .fill(theme == .sonnet ? SonnetPalette.accent : Color.accentColor)
+                            .fill(accent)
                             .frame(height: 2)
                             .padding(.horizontal, 8)
                             .transition(.opacity)
@@ -493,7 +545,7 @@ struct TabChipStyle: ViewModifier {
         } else {
             content
                 .glassCapsule(
-                    tint: isSelected ? Color.accentColor : nil,
+                    tint: isSelected ? accent : nil,
                     interactive: true,
                     quality: quality
                 )
@@ -503,8 +555,8 @@ struct TabChipStyle: ViewModifier {
 
     private var chromeFill: Color {
         // 활성 탭 = 콘텐츠 캔버스색 → 병합되어 보임
-        let active = theme == .sonnet ? SonnetPalette.canvas : Color(nsColor: .windowBackgroundColor)
-        let hover = theme == .sonnet ? SonnetPalette.surface.opacity(0.5) : Color.primary.opacity(0.05)
+        let active = theme.isBranded ? theme.canvasColor : Color(nsColor: .windowBackgroundColor)
+        let hover = theme.isBranded ? SonnetPalette.surface.opacity(0.5) : Color.primary.opacity(0.05)
         if isSelected { return active }
         if hovering { return hover }
         return .clear

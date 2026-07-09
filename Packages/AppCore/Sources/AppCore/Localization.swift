@@ -47,7 +47,7 @@ public enum L10nKey: String, Sendable {
     case effectDotSize, effectPitch, effectColor, followTheme
     case emptyWorkspaceTitle, emptyWorkspaceBody, createFirstProject, emptyCategory
     case adjustCrop
-    case interfaceStyle, themeSonnet, fontLabel, fontPretendard, fontSystem, fontSerif, fontMono, disableGlass
+    case interfaceStyle, themeSonnet, themePilgrimage, fontLabel, fontPretendard, fontSystem, fontSerif, fontMono, disableGlass
     case blockSpacing
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
     case importAny, aiAgent, sonnetAI, askAnything, openAsTab, clearChat
@@ -75,6 +75,17 @@ public enum L10nKey: String, Sendable {
     case dialogueDisplayHeader, dialogueDisplayMethod
     case dialogueDisplayBoth, dialogueDisplayAvatarOnly, dialogueDisplayNameOnly, dialogueDisplayHidden
     case dialogueAvatarSize
+    // 아카이브 확장: 영구삭제 확인 · 휴지통 비우기 · 삭제일 · 기타 카테고리 · 프로젝트 필터 · 다중선택
+    case permanentDelete, permanentDeleteConfirmMessage, permanentDeleteConfirmMessagePlural
+    case emptyTrashAction, emptyTrashConfirmMessage
+    case sortTrashedDate, trashedOn, originalLocation, restoredToWorkspaceRoot
+    case emptyHiddenItems, emptyTrashItems, emptyOtherFiles
+    case hideFinderHint
+    case otherFiles, viewOnlyHint, revealInFinder
+    case allProjects, openProjectArchive
+    case selectedCountFormat, deselectAll, selectAll
+    case showAllFormat
+    case navigateBack, navigateForward
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -230,6 +241,7 @@ public final class Localizer {
         .adjustCrop: [.korean: "크롭 조정…", .japanese: "切り抜きを調整…", .english: "Adjust Crop…"],
         .interfaceStyle: [.korean: "스타일", .japanese: "スタイル", .english: "Style"],
         .themeSonnet: [.korean: "Sonnet", .japanese: "Sonnet", .english: "Sonnet"],
+        .themePilgrimage: [.korean: "Pilgrimage", .japanese: "Pilgrimage", .english: "Pilgrimage"],
         .fontLabel: [.korean: "글꼴", .japanese: "フォント", .english: "Font"],
         .fontPretendard: [.korean: "Pretendard", .japanese: "Pretendard", .english: "Pretendard"],
         .fontSystem: [.korean: "시스템", .japanese: "システム", .english: "System"],
@@ -350,5 +362,29 @@ public final class Localizer {
         .dropHere: [.korean: "여기에 놓기", .japanese: "ここにドロップ", .english: "Drop here"],
         .today: [.korean: "오늘", .japanese: "今日", .english: "Today"],
         .greeting: [.korean: "무엇을 창작해볼까요?", .japanese: "今日は何を創りますか？", .english: "What shall we create?"],
+        .permanentDelete: [.korean: "영구 삭제", .japanese: "完全に削除", .english: "Delete Permanently"],
+        .permanentDeleteConfirmMessage: [.korean: "이 문서를 영구 삭제할까요? 이 작업은 되돌릴 수 없습니다.", .japanese: "このドキュメントを完全に削除しますか？この操作は元に戻せません。", .english: "Permanently delete this document? This cannot be undone."],
+        .permanentDeleteConfirmMessagePlural: [.korean: "선택한 항목을 영구 삭제할까요? 이 작업은 되돌릴 수 없습니다.", .japanese: "選択した項目を完全に削除しますか？この操作は元に戻せません。", .english: "Permanently delete the selected items? This cannot be undone."],
+        .emptyTrashAction: [.korean: "휴지통 비우기", .japanese: "ゴミ箱を空にする", .english: "Empty Trash"],
+        .emptyTrashConfirmMessage: [.korean: "휴지통의 모든 항목을 영구 삭제할까요? 이 작업은 되돌릴 수 없습니다.", .japanese: "ゴミ箱の全項目を完全に削除しますか？この操作は元に戻せません。", .english: "Permanently delete everything in Trash? This cannot be undone."],
+        .sortTrashedDate: [.korean: "삭제된 순", .japanese: "削除日順", .english: "Date Deleted"],
+        .trashedOn: [.korean: "삭제됨", .japanese: "削除済み", .english: "Deleted"],
+        .originalLocation: [.korean: "원래 위치", .japanese: "元の場所", .english: "Original Location"],
+        .restoredToWorkspaceRoot: [.korean: "원래 위치가 사라져 최상위 폴더로 복원했습니다", .japanese: "元の場所が見つからず最上位フォルダに復元しました", .english: "Original location was gone — restored to the workspace root instead"],
+        .emptyHiddenItems: [.korean: "가려진 항목이 없습니다", .japanese: "非表示の項目はありません", .english: "No hidden items"],
+        .emptyTrashItems: [.korean: "휴지통이 비어 있습니다", .japanese: "ゴミ箱は空です", .english: "Trash is empty"],
+        .emptyOtherFiles: [.korean: "기타 파일이 없습니다", .japanese: "その他のファイルはありません", .english: "No other files"],
+        .hideFinderHint: [.korean: "가려진 항목은 Finder에서도 함께 숨겨집니다", .japanese: "非表示にした項目はFinderでも隠れます", .english: "Hidden items are also hidden in Finder"],
+        .otherFiles: [.korean: "기타", .japanese: "その他", .english: "Other"],
+        .viewOnlyHint: [.korean: "보기 전용 — 더블 클릭하면 Finder에서 엽니다", .japanese: "閲覧専用 — ダブルクリックでFinderで開きます", .english: "View only — double-click to open in Finder"],
+        .revealInFinder: [.korean: "Finder에서 보기", .japanese: "Finderで表示", .english: "Reveal in Finder"],
+        .allProjects: [.korean: "전체 프로젝트", .japanese: "すべてのプロジェクト", .english: "All Projects"],
+        .openProjectArchive: [.korean: "프로젝트 아카이브 열기", .japanese: "プロジェクトアーカイブを開く", .english: "Open Project Archive"],
+        .selectedCountFormat: [.korean: "%d개 선택됨", .japanese: "%d件選択中", .english: "%d selected"],
+        .deselectAll: [.korean: "선택 해제", .japanese: "選択解除", .english: "Deselect All"],
+        .selectAll: [.korean: "전체 선택", .japanese: "すべて選択", .english: "Select All"],
+        .showAllFormat: [.korean: "모두 보기 (%d)", .japanese: "すべて表示 (%d)", .english: "Show All (%d)"],
+        .navigateBack: [.korean: "뒤로 이동", .japanese: "戻る", .english: "Back"],
+        .navigateForward: [.korean: "앞으로 이동", .japanese: "進む", .english: "Forward"],
     ]
 }

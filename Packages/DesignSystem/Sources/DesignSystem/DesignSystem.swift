@@ -206,11 +206,11 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
 
     private var flatFill: Color {
         if let tint { return tint.opacity(0.16) }
-        return theme == .sonnet ? SonnetPalette.surface : Color.primary.opacity(0.05)
+        return theme.isBranded ? SonnetPalette.surface : Color.primary.opacity(0.05)
     }
 
     private var borderColor: Color {
-        theme == .sonnet ? SonnetPalette.ink.opacity(0.16) : Color.primary.opacity(0.12)
+        theme.isBranded ? SonnetPalette.ink.opacity(0.16) : Color.primary.opacity(0.12)
     }
 }
 
@@ -453,6 +453,7 @@ public struct ToolbarIconButton: View {
     let action: () -> Void
 
     @State private var hovering = false
+    @Environment(\.resolvedAccent) private var accent
 
     public init(_ systemName: String, help: String, isActive: Bool = false, action: @escaping () -> Void) {
         self.systemName = systemName
@@ -465,11 +466,11 @@ public struct ToolbarIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isActive ? Color.accentColor : (hovering ? Color.accentColor : .secondary))
+                .foregroundStyle(isActive ? accent : (hovering ? accent : .secondary))
                 .frame(width: 30, height: 30)
                 .background(
                     RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                        .fill(isActive ? Color.accentColor.opacity(0.14) : (hovering ? Color.accentColor.opacity(0.1) : .clear))
+                        .fill(isActive ? accent.opacity(0.14) : (hovering ? accent.opacity(0.1) : .clear))
                 )
                 .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous))
         }

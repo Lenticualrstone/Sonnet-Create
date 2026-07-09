@@ -10,6 +10,7 @@ struct ComposerView: View {
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -74,7 +75,7 @@ struct ComposerView: View {
                     .font(.caption.weight(.semibold))
                     .textStateSwap()
             }
-            .foregroundStyle(store.composerMode == .line ? Color.accentColor : Color.secondary)
+            .foregroundStyle(store.composerMode == .line ? accent : Color.secondary)
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
             .background(Capsule().fill(Color.primary.opacity(0.07)))
@@ -123,7 +124,7 @@ struct ComposerView: View {
                         if store.selectedSpeakerIDs.contains(member.id) {
                             Image(systemName: "checkmark")
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(accent)
                         }
                     }
                     .padding(.horizontal, 8)
@@ -151,7 +152,7 @@ struct ComposerView: View {
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(.white)
                 .frame(width: 28, height: 28)
-                .background(Circle().fill(Color.accentColor.opacity(empty ? 0.3 : 1)))
+                .background(Circle().fill(accent.opacity(empty ? 0.3 : 1)))
         }
         .buttonStyle(.plain)
         .animation(DesignTokens.Motion.snappy, value: empty)

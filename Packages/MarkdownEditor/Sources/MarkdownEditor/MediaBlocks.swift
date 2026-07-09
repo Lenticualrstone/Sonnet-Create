@@ -17,6 +17,7 @@ struct ImageBlockView: View {
     @State private var urlDraft = ""
     @State private var dropTargeted = false
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     private var isRemote: Bool {
         block.resourcePath?.hasPrefix("http") ?? false
@@ -26,7 +27,7 @@ struct ImageBlockView: View {
         guard let path = block.resourcePath, !isRemote,
               let url = store.resourceResolver?(path)
         else { return nil }
-        return NSImage(contentsOf: url)
+        return ImageThumbnailCache.thumbnail(for: url, maxPointSize: 900)
     }
 
     var body: some View {
@@ -141,7 +142,7 @@ struct ImageBlockView: View {
     }
 
     private func fitted(_ image: Image) -> some View {
-        let resizable = image.resizable()
+        let resizable = image.resizable().interpolation(.high).antialiased(true)
         return Group {
             if let aspect = block.aspect {
                 resizable.aspectRatio(aspect, contentMode: .fill)
@@ -189,7 +190,7 @@ struct ImageBlockView: View {
         .background(
             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
                 .strokeBorder(
-                    dropTargeted ? Color.accentColor : Color.secondary.opacity(0.4),
+                    dropTargeted ? accent : Color.secondary.opacity(0.4),
                     style: StrokeStyle(lineWidth: dropTargeted ? 2 : 1, dash: [5, 4])
                 )
         )
@@ -289,13 +290,15 @@ struct ImageBlockView: View {
             Group {
                 if isRemote, let path = block.resourcePath, let url = URL(string: path) {
                     AsyncImage(url: url) { image in
-                        image.resizable().aspectRatio(contentMode: .fit)
+                        image.resizable().interpolation(.high).antialiased(true).aspectRatio(contentMode: .fit)
                     } placeholder: {
                         ProgressView()
                     }
                 } else if let nsImage = localImage {
                     Image(nsImage: nsImage)
                         .resizable()
+                        .interpolation(.high)
+                        .antialiased(true)
                         .aspectRatio(contentMode: .fit)
                 }
             }

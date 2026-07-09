@@ -1,21 +1,47 @@
 import AppCore
+import AppKit
 import DesignSystem
 import DocumentKit
 import SwiftUI
 
-/// 파일 아카이브 — 유형별 카테고리 · 락업 리스트 · 아이콘 그리드 · 정렬/보기 도구막대.
-/// 가리기/휴지통 섹션은 인증 게이트(주입)로 보호된다.
+/// 파일 아카이브 — 유형별 카테고리 · 프로젝트 필터 · 락업 리스트 · 아이콘 그리드 · 정렬/보기 도구막대.
+/// 가리기/휴지통 섹션은 인증 게이트(주입)로 보호된다. 리스트뷰에서는 Cmd/Shift 클릭으로 다중 선택이 가능하다.
 public struct ArchiveView: View {
     public enum Category: String, CaseIterable, Identifiable {
-        case all, scenario, mindmap, page, character, hidden, trash
+        case all, scenario, mindmap, page, character, other, hidden, trash
 
         public var id: String { rawValue }
     }
 
     public enum SortOrder: String, CaseIterable, Identifiable {
-        case modified, name, kind
+        case modified, name, kind, trashedDate
 
         public var id: String { rawValue }
+    }
+
+    /// 외부에서 카테고리+프로젝트 필터를 한 번에 지정해 열 때 쓰는 목적지. 두 값을 하나의 옵셔널로
+    /// 묶어야 "프로젝트 필터를 명시적으로 전체(nil)로 되돌리기"와 "요청 없음"을 구분할 수 있다.
+    public struct ArchiveNavigationTarget: Equatable {
+        public var category: Category
+        public var projectID: UUID?
+
+        public init(category: Category, projectID: UUID? = nil) {
+            self.category = category
+            self.projectID = projectID
+        }
+    }
+
+    /// 리스트/그리드에 그려지는 통합 항목 — 문서 또는 보기 전용 기타 파일.
+    enum ArchiveEntry: Identifiable, Equatable {
+        case document(DocumentListItem)
+        case other(OtherFileItem)
+
+        var id: String {
+            switch self {
+            case .document(let item): item.id.uuidString
+            case .other(let item): item.id
+            }
+        }
     }
 
     @Bindable var workspace: WorkspaceStore
@@ -24,16 +50,28 @@ public struct ArchiveView: View {
     let requestUnlock: (String) async -> Bool
     /// 열기 클릭 방식 (설정 연동: true = 싱글 클릭)
     let openOnSingleClick: Bool
-    /// 외부(사이드바 바로가기 등)에서 카테고리를 지정해 열 때 (소비 후 nil로 되돌림)
-    @Binding var externalCategory: Category?
+    /// 외부(사이드바 바로가기, 프로젝트 우클릭 메뉴, 뒤로/앞으로 탐색 등)에서 카테고리+프로젝트를
+    /// 한 번에 지정해 열 때 (소비 후 nil로 되돌림)
+    @Binding var externalTarget: ArchiveNavigationTarget?
     /// 휴지통 이동 요청 — nil이면 즉시 이동, 지정 시 앱이 확인 팝업을 거친다
     let requestTrash: ((DocumentListItem) -> Void)?
+    /// 영구 삭제 요청(단건/다건 공용) — nil이면 즉시 삭제, 지정 시 앱이 확인 팝업을 거친다
+    let requestPermanentDelete: (([DocumentListItem]) -> Void)?
+    /// PrivacyGate가 이미 이번 세션에 잠금 해제된 상태인지 — 참이면 카테고리 전환 시 잠금 화면이 깜빡이지 않는다
+    let isSessionUnlocked: Bool
+    /// 복원 시 원래 위치가 사라져 최상위로 대신 복원됐을 때 호출 (사용자 알림용)
+    let onRestoreFallback: (() -> Void)?
+    /// 카테고리/프로젝트 필터가 바뀔 때마다 호출 — 뒤로/앞으로 탐색 히스토리 기록용
+    let onNavigate: ((Category, UUID?) -> Void)?
 
     @State private var category: Category = .all
     @State private var sortOrder: SortOrder = .modified
     @State private var isGrid = false
     @State private var query = ""
     @State private var unlockGranted = false
+    @State private var projectFilter: UUID?
+    @State private var selection: Set<String> = []
+    @State private var lastSelectedID: String?
 
     @Environment(\.renderQuality) private var quality
 
@@ -42,15 +80,23 @@ public struct ArchiveView: View {
         onOpen: @escaping (DocumentListItem) -> Void,
         requestUnlock: @escaping (String) async -> Bool = { _ in true },
         openOnSingleClick: Bool = true,
-        externalCategory: Binding<Category?> = .constant(nil),
-        requestTrash: ((DocumentListItem) -> Void)? = nil
+        externalTarget: Binding<ArchiveNavigationTarget?> = .constant(nil),
+        requestTrash: ((DocumentListItem) -> Void)? = nil,
+        requestPermanentDelete: (([DocumentListItem]) -> Void)? = nil,
+        isSessionUnlocked: Bool = false,
+        onRestoreFallback: (() -> Void)? = nil,
+        onNavigate: ((Category, UUID?) -> Void)? = nil
     ) {
         self.workspace = workspace
         self.onOpen = onOpen
         self.requestUnlock = requestUnlock
         self.openOnSingleClick = openOnSingleClick
-        self._externalCategory = externalCategory
+        self._externalTarget = externalTarget
         self.requestTrash = requestTrash
+        self.requestPermanentDelete = requestPermanentDelete
+        self.isSessionUnlocked = isSessionUnlocked
+        self.onRestoreFallback = onRestoreFallback
+        self.onNavigate = onNavigate
     }
 
     public var body: some View {
@@ -58,9 +104,23 @@ public struct ArchiveView: View {
         VStack(spacing: 0) {
             toolbar(l10n)
             Divider().opacity(0.4)
+            if category == .hidden, unlockGranted {
+                Text(l10n.t(.hideFinderHint))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, DesignTokens.Spacing.m)
+                    .padding(.top, 4)
+            }
+            selectionBar(l10n)
             if isProtected, !unlockGranted {
                 lockedPlaceholder(l10n)
-            } else if items.isEmpty {
+            } else if category == .all {
+                if overviewSections.isEmpty, otherItems.isEmpty {
+                    emptyPlaceholder(l10n)
+                } else {
+                    overviewView
+                }
+            } else if entries.isEmpty {
                 emptyPlaceholder(l10n)
             } else if isGrid {
                 gridView
@@ -69,8 +129,14 @@ public struct ArchiveView: View {
             }
         }
         .onChange(of: category) { _, newValue in
+            selection = []
+            onNavigate?(category, projectFilter)
             guard newValue == .hidden || newValue == .trash else {
                 unlockGranted = false
+                return
+            }
+            if isSessionUnlocked {
+                unlockGranted = true
                 return
             }
             Task {
@@ -78,14 +144,24 @@ public struct ArchiveView: View {
                 unlockGranted = await requestUnlock(l10n.t(.authReason))
             }
         }
-        .onAppear { consumeExternalCategory() }
-        .onChange(of: externalCategory) { _, _ in consumeExternalCategory() }
+        .onChange(of: isGrid) { _, _ in selection = [] }
+        .onChange(of: projectFilter) { _, _ in
+            selection = []
+            onNavigate?(category, projectFilter)
+        }
+        .onAppear {
+            consumeExternalTarget()
+            if isProtected, isSessionUnlocked { unlockGranted = true }
+        }
+        .onChange(of: externalTarget) { _, _ in consumeExternalTarget() }
+        .animation(DesignTokens.Motion.snappy, value: selection.isEmpty)
     }
 
-    private func consumeExternalCategory() {
-        if let requested = externalCategory {
-            category = requested
-            externalCategory = nil
+    private func consumeExternalTarget() {
+        if let requested = externalTarget {
+            category = requested.category
+            projectFilter = requested.projectID
+            externalTarget = nil
         }
     }
 
@@ -96,14 +172,24 @@ public struct ArchiveView: View {
     // MARK: 필터링/정렬
 
     private var items: [DocumentListItem] {
-        var base: [DocumentListItem] = switch category {
+        documents(for: category)
+    }
+
+    /// 특정 카테고리 기준 문서 목록 (프로젝트 필터/검색/정렬 공용 적용). 개요(전체) 화면이 여러
+    /// 카테고리를 동시에 조회할 수 있도록 `category` 상태와 분리해 파라미터로 받는다.
+    private func documents(for cat: Category) -> [DocumentListItem] {
+        var base: [DocumentListItem] = switch cat {
         case .all: workspace.visibleDocuments
         case .scenario: workspace.visibleDocuments.filter { $0.envelope.kind == .scenario }
         case .mindmap: workspace.visibleDocuments.filter { $0.envelope.kind == .mindmap }
         case .page: workspace.visibleDocuments.filter { $0.envelope.kind == .page && !$0.envelope.isCharacterPage }
         case .character: workspace.visibleDocuments.filter { $0.envelope.isCharacterPage }
+        case .other: []
         case .hidden: workspace.hiddenDocuments
         case .trash: workspace.trashedDocuments
+        }
+        if let projectFilter {
+            base = base.filter { $0.envelope.projectID == projectFilter }
         }
         if !query.isEmpty {
             base = base.filter { $0.envelope.title.localizedCaseInsensitiveContains(query) }
@@ -112,6 +198,40 @@ public struct ArchiveView: View {
         case .modified: base.sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
         case .name: base.sorted { $0.envelope.title.localizedCompare($1.envelope.title) == .orderedAscending }
         case .kind: base.sorted { $0.envelope.kind.rawValue < $1.envelope.kind.rawValue }
+        case .trashedDate: base.sorted { ($0.envelope.trashedAt ?? $0.envelope.modifiedAt) > ($1.envelope.trashedAt ?? $1.envelope.modifiedAt) }
+        }
+    }
+
+    /// '전체' 카테고리에서 종류별로 묶어 보여줄 섹션 목록 (비어있지 않은 것만).
+    private var overviewSections: [(Category, [DocumentListItem])] {
+        [Category.scenario, .mindmap, .page, .character].compactMap { cat in
+            let docs = documents(for: cat)
+            return docs.isEmpty ? nil : (cat, docs)
+        }
+    }
+
+    private var otherItems: [OtherFileItem] {
+        var files = workspace.otherFiles
+        if let projectFilter {
+            files = files.filter { $0.projectID == projectFilter }
+        }
+        if !query.isEmpty {
+            files = files.filter { $0.filename.localizedCaseInsensitiveContains(query) }
+        }
+        return files
+    }
+
+    private var entries: [ArchiveEntry] {
+        if category == .other {
+            return otherItems.map { .other($0) }
+        }
+        return items.map { .document($0) }
+    }
+
+    private var selectedDocuments: [DocumentListItem] {
+        entries.compactMap { entry in
+            guard case .document(let item) = entry, selection.contains(entry.id) else { return nil }
+            return item
         }
     }
 
@@ -122,6 +242,7 @@ public struct ArchiveView: View {
         case .mindmap: l10n.t(.mindmap)
         case .page: l10n.t(.page)
         case .character: l10n.t(.characterPage)
+        case .other: l10n.t(.otherFiles)
         case .hidden: l10n.t(.hiddenItems)
         case .trash: l10n.t(.trashItems)
         }
@@ -137,6 +258,8 @@ public struct ArchiveView: View {
                         Label(categoryLabel(c, l10n), systemImage: "eye.slash").tag(c)
                     } else if c == .trash {
                         Label(categoryLabel(c, l10n), systemImage: "trash").tag(c)
+                    } else if c == .other {
+                        Label(categoryLabel(c, l10n), systemImage: "paperclip").tag(c)
                     } else {
                         Text(categoryLabel(c, l10n)).tag(c)
                     }
@@ -144,6 +267,17 @@ public struct ArchiveView: View {
             }
             .pickerStyle(.menu)
             .fixedSize()
+
+            if !workspace.projects.isEmpty {
+                Picker("", selection: $projectFilter) {
+                    Text(l10n.t(.allProjects)).tag(UUID?.none)
+                    ForEach(workspace.projects) { project in
+                        Text(project.manifest.name).tag(UUID?.some(project.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .fixedSize()
+            }
 
             Spacer()
 
@@ -154,6 +288,7 @@ public struct ArchiveView: View {
                     Text(l10n.t(.sortModified)).tag(SortOrder.modified)
                     Text(l10n.t(.sortName)).tag(SortOrder.name)
                     Text(l10n.t(.sortKind)).tag(SortOrder.kind)
+                    Text(l10n.t(.sortTrashedDate)).tag(SortOrder.trashedDate)
                 }
             } label: {
                 Image(systemName: "arrow.up.arrow.down")
@@ -162,13 +297,113 @@ public struct ArchiveView: View {
             .menuStyle(.borderlessButton)
             .fixedSize()
 
-            ToolbarIconButton(
-                isGrid ? "list.bullet" : "square.grid.2x2",
-                help: isGrid ? l10n.t(.viewList) : l10n.t(.viewGrid)
-            ) { isGrid.toggle() }
+            if !isGrid, category != .other, category != .all, !items.isEmpty {
+                ToolbarIconButton("checkmark.circle", help: l10n.t(.selectAll)) {
+                    selection = Set(items.map { $0.id.uuidString })
+                }
+            }
+
+            if category == .trash, !workspace.trashedDocuments.isEmpty {
+                ToolbarIconButton("trash.slash", help: l10n.t(.emptyTrashAction)) {
+                    let all = workspace.trashedDocuments
+                    if let requestPermanentDelete {
+                        requestPermanentDelete(all)
+                    } else {
+                        workspace.emptyTrash()
+                    }
+                }
+            }
+
+            if category != .all {
+                ToolbarIconButton(
+                    isGrid ? "list.bullet" : "square.grid.2x2",
+                    help: isGrid ? l10n.t(.viewList) : l10n.t(.viewGrid)
+                ) { isGrid.toggle() }
+            }
         }
         .padding(.horizontal, DesignTokens.Spacing.m)
         .padding(.vertical, DesignTokens.Spacing.s)
+    }
+
+    // MARK: 다중 선택 액션바
+
+    @ViewBuilder
+    private func selectionBar(_ l10n: Localizer) -> some View {
+        if !selection.isEmpty {
+            HStack(spacing: DesignTokens.Spacing.s) {
+                Text(String(format: l10n.t(.selectedCountFormat), selection.count))
+                    .font(.callout.weight(.medium))
+                Spacer()
+                if category == .trash {
+                    Button(l10n.t(.restore)) { bulkRestore() }
+                    Button(l10n.t(.permanentDelete), role: .destructive) { bulkPermanentDelete() }
+                } else {
+                    if category == .hidden {
+                        Button(l10n.t(.unhide)) { bulkHide(false) }
+                    } else {
+                        Button(l10n.t(.hide)) { bulkHide(true) }
+                    }
+                    Button(l10n.t(.moveToTrash), role: .destructive) { bulkMoveToTrash() }
+                }
+                Button(l10n.t(.deselectAll)) { selection = [] }
+            }
+            .padding(.horizontal, DesignTokens.Spacing.m)
+            .padding(.vertical, DesignTokens.Spacing.s)
+            .background(Color.primary.opacity(0.05))
+            .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private func bulkHide(_ hidden: Bool) {
+        for item in selectedDocuments { workspace.setHidden(item, hidden: hidden) }
+        selection = []
+    }
+
+    private func bulkMoveToTrash() {
+        for item in selectedDocuments { workspace.moveToTrash(item) }
+        selection = []
+    }
+
+    private func bulkRestore() {
+        var fellBack = false
+        for item in selectedDocuments where workspace.restoreFromTrash(item) { fellBack = true }
+        selection = []
+        if fellBack { onRestoreFallback?() }
+    }
+
+    private func bulkPermanentDelete() {
+        let docs = selectedDocuments
+        selection = []
+        if let requestPermanentDelete {
+            requestPermanentDelete(docs)
+        } else {
+            workspace.deletePermanently(docs)
+        }
+    }
+
+    private func toggleSelection(_ id: String) {
+        if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+        lastSelectedID = id
+    }
+
+    private func extendSelection(to id: String) {
+        guard let last = lastSelectedID,
+              let lastIdx = entries.firstIndex(where: { $0.id == last }),
+              let idx = entries.firstIndex(where: { $0.id == id })
+        else {
+            toggleSelection(id)
+            return
+        }
+        let range = lastIdx <= idx ? lastIdx...idx : idx...lastIdx
+        for entry in entries[range] {
+            if case .document = entry { selection.insert(entry.id) }
+        }
+        lastSelectedID = id
+    }
+
+    private func replaceSelection(with id: String) {
+        selection = [id]
+        lastSelectedID = id
     }
 
     private func lockedPlaceholder(_ l10n: Localizer) -> some View {
@@ -196,21 +431,50 @@ public struct ArchiveView: View {
             Image(systemName: category == .trash ? "trash" : (category == .hidden ? "eye.slash" : "tray"))
                 .font(.system(size: 34))
                 .foregroundStyle(.tertiary)
-            Text(query.isEmpty ? l10n.t(.emptyCategory) : l10n.t(.noRecents))
+            Text(emptyMessage(l10n))
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private func emptyMessage(_ l10n: Localizer) -> String {
+        guard query.isEmpty else { return l10n.t(.noRecents) }
+        switch category {
+        case .hidden: return l10n.t(.emptyHiddenItems)
+        case .trash: return l10n.t(.emptyTrashItems)
+        case .other: return l10n.t(.emptyOtherFiles)
+        default: return l10n.t(.emptyCategory)
+        }
+    }
+
     // MARK: 리스트 (락업)
 
     private var listView: some View {
-        List(items) { item in
-            ArchiveRow(item: item, clickCount: openOnSingleClick ? 1 : 2, onOpen: onOpen)
-                .contextMenu { contextMenu(for: item) }
-                .listRowSeparator(.hidden)
-                .listRowBackground(Color.clear)
+        List {
+            ForEach(entries) { entry in
+                switch entry {
+                case .document(let item):
+                    ArchiveRow(
+                        item: item,
+                        clickCount: openOnSingleClick ? 1 : 2,
+                        isSelected: selection.contains(entry.id),
+                        hasSelection: !selection.isEmpty,
+                        showTrashMeta: category == .trash,
+                        originLabel: category == .trash ? workspace.trashOriginLabel(for: item) : nil,
+                        onOpen: onOpen,
+                        onToggleSelect: { toggleSelection(entry.id) },
+                        onExtendSelect: { extendSelection(to: entry.id) },
+                        onReplaceSelect: { replaceSelection(with: entry.id) }
+                    )
+                    .contextMenu { contextMenu(for: item) }
+                case .other(let file):
+                    OtherFileRow(item: file)
+                        .contextMenu { otherContextMenu(for: file) }
+                }
+            }
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
@@ -221,12 +485,92 @@ public struct ArchiveView: View {
     private var gridView: some View {
         ScrollView {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: DesignTokens.Spacing.m)], spacing: DesignTokens.Spacing.m) {
-                ForEach(items) { item in
-                    ArchiveCard(item: item, clickCount: openOnSingleClick ? 1 : 2, onOpen: onOpen)
+                ForEach(entries) { entry in
+                    switch entry {
+                    case .document(let item):
+                        ArchiveCard(
+                            item: item,
+                            clickCount: openOnSingleClick ? 1 : 2,
+                            showTrashMeta: category == .trash,
+                            originLabel: category == .trash ? workspace.trashOriginLabel(for: item) : nil,
+                            onOpen: onOpen
+                        )
                         .contextMenu { contextMenu(for: item) }
+                    case .other(let file):
+                        OtherFileCard(item: file)
+                            .contextMenu { otherContextMenu(for: file) }
+                    }
                 }
             }
             .padding(DesignTokens.Spacing.m)
+        }
+    }
+
+    // MARK: 개요 ('전체' — 종류별 섹션을 한 화면에)
+
+    private var overviewView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DesignTokens.Spacing.l) {
+                ForEach(overviewSections, id: \.0) { cat, docs in
+                    overviewSection(cat, docs)
+                }
+                if !otherItems.isEmpty {
+                    overviewOtherSection()
+                }
+            }
+            .padding(DesignTokens.Spacing.m)
+        }
+    }
+
+    private static let overviewCap = 8
+
+    private func overviewSection(_ cat: Category, _ docs: [DocumentListItem]) -> some View {
+        let l10n = Localizer.shared
+        return VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+            HStack {
+                Text(categoryLabel(cat, l10n))
+                    .font(.headline)
+                Spacer()
+                Button(String(format: l10n.t(.showAllFormat), docs.count)) { category = cat }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DesignTokens.Spacing.m) {
+                    ForEach(docs.prefix(Self.overviewCap)) { item in
+                        ArchiveCard(item: item, clickCount: openOnSingleClick ? 1 : 2, showTrashMeta: false, originLabel: nil, onOpen: onOpen)
+                            .frame(width: 140)
+                            .contextMenu { contextMenu(for: item) }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private func overviewOtherSection() -> some View {
+        let l10n = Localizer.shared
+        return VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+            HStack {
+                Text(l10n.t(.otherFiles))
+                    .font(.headline)
+                Spacer()
+                Button(String(format: l10n.t(.showAllFormat), otherItems.count)) { category = .other }
+                    .buttonStyle(.plain)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DesignTokens.Spacing.m) {
+                    ForEach(otherItems.prefix(Self.overviewCap)) { file in
+                        OtherFileCard(item: file)
+                            .frame(width: 140)
+                            .contextMenu { otherContextMenu(for: file) }
+                    }
+                }
+                .padding(.vertical, 2)
+            }
         }
     }
 
@@ -236,8 +580,16 @@ public struct ArchiveView: View {
     private func contextMenu(for item: DocumentListItem) -> some View {
         let l10n = Localizer.shared
         if item.envelope.isTrashed {
-            Button(l10n.t(.restore)) { workspace.restoreFromTrash(item) }
-            Button(l10n.t(.delete), role: .destructive) { workspace.deletePermanently(item) }
+            Button(l10n.t(.restore)) {
+                if workspace.restoreFromTrash(item) { onRestoreFallback?() }
+            }
+            Button(l10n.t(.permanentDelete), role: .destructive) {
+                if let requestPermanentDelete {
+                    requestPermanentDelete([item])
+                } else {
+                    workspace.deletePermanently(item)
+                }
+            }
         } else {
             Button(l10n.t(.open)) { onOpen(item) }
             Divider()
@@ -255,6 +607,13 @@ public struct ArchiveView: View {
             }
         }
     }
+
+    @ViewBuilder
+    private func otherContextMenu(for file: OtherFileItem) -> some View {
+        let l10n = Localizer.shared
+        Button(l10n.t(.open)) { NSWorkspace.shared.open(file.url) }
+        Button(l10n.t(.revealInFinder)) { NSWorkspace.shared.activateFileViewerSelecting([file.url]) }
+    }
 }
 
 // MARK: - 행/카드
@@ -262,15 +621,23 @@ public struct ArchiveView: View {
 struct ArchiveRow: View {
     let item: DocumentListItem
     let clickCount: Int
+    let isSelected: Bool
+    let hasSelection: Bool
+    let showTrashMeta: Bool
+    let originLabel: String?
     let onOpen: (DocumentListItem) -> Void
+    let onToggleSelect: () -> Void
+    let onExtendSelect: () -> Void
+    let onReplaceSelect: () -> Void
 
     @State private var hovering = false
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         HStack(spacing: DesignTokens.Spacing.s) {
             Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
                 .font(.title3)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(accent)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.envelope.title)
@@ -281,13 +648,146 @@ struct ArchiveRow: View {
                         Text(project)
                         Text("·")
                     }
-                    Text(item.envelope.modifiedAt, style: .date)
+                    if showTrashMeta, let trashedAt = item.envelope.trashedAt {
+                        Text(Localizer.shared.t(.trashedOn))
+                        Text(trashedAt, style: .relative)
+                    } else {
+                        Text(item.envelope.modifiedAt, style: .date)
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                if showTrashMeta, let originLabel {
+                    Text("\(Localizer.shared.t(.originalLocation)): \(originLabel)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            Spacer()
+            if isSelected {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(accent)
+            }
+            Text("." + item.envelope.kind.fileExtension)
+                .font(.caption2.monospaced())
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
+                .fill(isSelected ? accent.opacity(0.16) : (hovering ? Color.primary.opacity(0.06) : .clear))
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering = $0 }
+        // 별도의 simultaneousGesture로 Cmd/Shift 클릭을 감지하면 같은 뷰에 카운트가 다른
+        // 탭 제스처 인식기 두 개가 경합해 더블클릭/열기 자체가 씹히는 문제가 있었다.
+        // 하나의 제스처 안에서 수정키를 분기해 인식기 경합을 없앤다.
+        .onTapGesture(count: clickCount) {
+            let flags = NSEvent.modifierFlags
+            if flags.contains(.command) {
+                onToggleSelect()
+                return
+            }
+            if flags.contains(.shift) {
+                onExtendSelect()
+                return
+            }
+            if clickCount == 1, hasSelection {
+                onReplaceSelect()
+                return
+            }
+            onOpen(item)
+        }
+        .animation(DesignTokens.Motion.snappy, value: hovering)
+    }
+}
+
+struct ArchiveCard: View {
+    let item: DocumentListItem
+    let clickCount: Int
+    let showTrashMeta: Bool
+    let originLabel: String?
+    let onOpen: (DocumentListItem) -> Void
+
+    @State private var hovering = false
+    @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
+
+    var body: some View {
+        VStack(spacing: DesignTokens.Spacing.s) {
+            Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
+                .font(.system(size: 34))
+                .foregroundStyle(accent)
+                .frame(height: 54)
+            Text(item.envelope.title)
+                .font(.callout.weight(.medium))
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+            if showTrashMeta, let trashedAt = item.envelope.trashedAt {
+                Text(trashedAt, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                if let originLabel {
+                    Text(originLabel)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
+                }
+            } else {
+                Text(item.envelope.modifiedAt, style: .date)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(DesignTokens.Spacing.m)
+        .frame(maxWidth: .infinity)
+        .glassSurface(cornerRadius: DesignTokens.Radius.medium, quality: quality)
+        .scaleEffect(hovering ? 1.03 : 1)
+        .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
+        .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
+        .onHover { hovering = $0 }
+        .onTapGesture(count: clickCount) { onOpen(item) }
+        .animation(DesignTokens.Motion.snappy, value: hovering)
+    }
+}
+
+// MARK: - 기타 파일 (보기 전용)
+
+struct OtherFileRow: View {
+    let item: OtherFileItem
+
+    @State private var hovering = false
+
+    private var symbolName: String {
+        let ext = item.url.pathExtension.lowercased()
+        if ["png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "svg", "tiff", "bmp"].contains(ext) { return "photo" }
+        if ext == "pdf" { return "doc.richtext" }
+        return "doc.text"
+    }
+
+    var body: some View {
+        HStack(spacing: DesignTokens.Spacing.s) {
+            Image(systemName: symbolName)
+                .font(.title3)
+                .foregroundStyle(.secondary)
+                .frame(width: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(item.filename)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    if let project = item.projectName {
+                        Text(project)
+                        Text("·")
+                    }
+                    Text(item.modifiedAt, style: .date)
                 }
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             }
             Spacer()
-            Text("." + item.envelope.kind.fileExtension)
+            Text(ByteCountFormatter.string(fromByteCount: item.fileSize, countStyle: .file))
                 .font(.caption2.monospaced())
                 .foregroundStyle(.tertiary)
         }
@@ -299,30 +799,36 @@ struct ArchiveRow: View {
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture(count: clickCount) { onOpen(item) }
+        .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
+        .help(Localizer.shared.t(.viewOnlyHint))
         .animation(DesignTokens.Motion.snappy, value: hovering)
     }
 }
 
-struct ArchiveCard: View {
-    let item: DocumentListItem
-    let clickCount: Int
-    let onOpen: (DocumentListItem) -> Void
+struct OtherFileCard: View {
+    let item: OtherFileItem
 
     @State private var hovering = false
     @Environment(\.renderQuality) private var quality
 
+    private var symbolName: String {
+        let ext = item.url.pathExtension.lowercased()
+        if ["png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "svg", "tiff", "bmp"].contains(ext) { return "photo" }
+        if ext == "pdf" { return "doc.richtext" }
+        return "doc.text"
+    }
+
     var body: some View {
         VStack(spacing: DesignTokens.Spacing.s) {
-            Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
+            Image(systemName: symbolName)
                 .font(.system(size: 34))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(.secondary)
                 .frame(height: 54)
-            Text(item.envelope.title)
+            Text(item.filename)
                 .font(.callout.weight(.medium))
                 .lineLimit(2)
                 .multilineTextAlignment(.center)
-            Text(item.envelope.modifiedAt, style: .date)
+            Text(item.modifiedAt, style: .date)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -333,7 +839,8 @@ struct ArchiveCard: View {
         .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
         .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
         .onHover { hovering = $0 }
-        .onTapGesture(count: clickCount) { onOpen(item) }
+        .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
+        .help(Localizer.shared.t(.viewOnlyHint))
         .animation(DesignTokens.Motion.snappy, value: hovering)
     }
 }

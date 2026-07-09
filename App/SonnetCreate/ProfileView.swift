@@ -8,6 +8,7 @@ import SwiftUI
 struct ProfileView: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     @State private var nameDraft = ""
 
@@ -77,18 +78,20 @@ struct ProfileView: View {
     @ViewBuilder
     private var profileAvatar: some View {
         let path = app.settings.applied.authorPhotoPath
-        if !path.isEmpty, let image = NSImage(contentsOfFile: path) {
+        if !path.isEmpty, let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: path), maxPointSize: 96) {
             Image(nsImage: image)
                 .resizable()
+                .interpolation(.high)
+                .antialiased(true)
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 96, height: 96)
                 .clipShape(Circle())
         } else {
             ZStack {
-                Circle().fill(Color.accentColor.opacity(0.16))
+                Circle().fill(accent.opacity(0.16))
                 Image(systemName: "person.fill")
                     .font(.system(size: 40, weight: .semibold))
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(accent)
             }
             .frame(width: 96, height: 96)
         }
@@ -108,7 +111,7 @@ struct ProfileView: View {
                 VStack(spacing: 3) {
                     Image(systemName: stat.symbol)
                         .font(.callout)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(accent)
                     Text("\(stat.count)")
                         .font(.title3.weight(.bold))
                         .monospacedDigit()
@@ -130,6 +133,7 @@ struct ProfileView: View {
 /// GitHub식 기여도 히트맵 — 최근 20주, 열=주 / 행=요일, 액센트 5단계.
 struct ContributionGraph: View {
     @Environment(AppState.self) private var app
+    @Environment(\.resolvedAccent) private var accent
 
     private let weeks = 20
     private let cell: CGFloat = 13
@@ -180,10 +184,10 @@ struct ContributionGraph: View {
         switch count {
         case ..<0: .clear                              // 미래
         case 0: SonnetPalette.sunken.opacity(0.7)      // 활동 없음
-        case 1...2: Color.accentColor.opacity(0.25)
-        case 3...5: Color.accentColor.opacity(0.45)
-        case 6...9: Color.accentColor.opacity(0.7)
-        default: Color.accentColor
+        case 1...2: accent.opacity(0.25)
+        case 3...5: accent.opacity(0.45)
+        case 6...9: accent.opacity(0.7)
+        default: accent
         }
     }
 

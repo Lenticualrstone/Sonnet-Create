@@ -46,7 +46,7 @@ struct SidebarLongButtonStyle: ButtonStyle {
     }
 
     private func fill(pressed: Bool) -> Color {
-        if theme == .sonnet {
+        if theme.isBranded {
             if pressed { return SonnetPalette.sunken }
             if hovering { return SonnetPalette.surface }
             return .clear
@@ -61,6 +61,7 @@ struct SidebarLongButtonStyle: ButtonStyle {
 struct SidebarView: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
 
     @State private var showProfileMenu = false
     @State private var tab: SidebarTab = .home
@@ -94,7 +95,7 @@ struct SidebarView: View {
         }
         .background(
             // 메인 콘텐츠(canvas)보다 살짝 가라앉은 톤으로 패널을 구분
-            app.settings.applied.interfaceTheme == .sonnet
+            app.settings.applied.interfaceTheme.isBranded
                 ? AnyShapeStyle(SonnetPalette.sunken)
                 : AnyShapeStyle(.clear)
         )
@@ -125,7 +126,7 @@ struct SidebarView: View {
                             .minimumScaleFactor(0.85)
                             .fixedSize(horizontal: true, vertical: false)
                     }
-                    .foregroundStyle(tab == candidate ? Color.accentColor : Color.secondary)
+                    .foregroundStyle(tab == candidate ? accent : Color.secondary)
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
                     .frame(maxWidth: .infinity)
@@ -133,7 +134,7 @@ struct SidebarView: View {
                         // 탭 사이를 미끄러지듯 이동하는 하이라이트 (matchedGeometryEffect)
                         if tab == candidate {
                             RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(Color.accentColor.opacity(0.12))
+                                .fill(accent.opacity(0.12))
                                 .matchedGeometryEffect(id: "sidebarTabHighlight", in: tabHighlight)
                         }
                     }
@@ -165,7 +166,7 @@ struct SidebarView: View {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: event.symbol)
                         .font(.caption)
-                        .foregroundStyle(Color.accentColor)
+                        .foregroundStyle(accent)
                         .frame(width: 18)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(event.message)
@@ -292,7 +293,7 @@ struct SidebarView: View {
                 GeometryReader { geo in
                     PixelBreathField(
                         columns: fillingColumns(for: geo.size.width),
-                        rows: 3, baseSize: 3, spacing: 3, quality: quality
+                        rows: 3, baseSize: 3, spacing: 3, color: accent, quality: quality
                     )
                 }
                 .frame(height: 3 * 3 + 2 * 3)
@@ -327,14 +328,14 @@ struct SidebarView: View {
                 .background(
                     RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
                         .fill(
-                            app.settings.applied.interfaceTheme == .sonnet
+                            app.settings.applied.interfaceTheme.isBranded
                                 ? AnyShapeStyle(SonnetPalette.surface)
                                 : AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
                         )
-                        // 테마 액센트(적갈)와 이어지도록 얇은 테두리 — 흰 카드가 붕 떠 보이는 느낌 완화
+                        // 강조색과 이어지도록 얇은 테두리 — 흰 카드가 붕 떠 보이는 느낌 완화
                         .overlay(
                             RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
-                                .strokeBorder(SonnetPalette.accent.opacity(0.2), lineWidth: 1)
+                                .strokeBorder(accent.opacity(0.2), lineWidth: 1)
                         )
                         .shadow(color: .black.opacity(0.18), radius: 14, y: 4)
                 )
@@ -380,16 +381,18 @@ struct SidebarView: View {
     @ViewBuilder
     private var profileAvatar: some View {
         let path = app.settings.applied.authorPhotoPath
-        if !path.isEmpty, let image = NSImage(contentsOfFile: path) {
+        if !path.isEmpty, let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: path), maxPointSize: 28) {
             Image(nsImage: image)
                 .resizable()
+                .interpolation(.high)
+                .antialiased(true)
                 .aspectRatio(contentMode: .fill)
                 .frame(width: 28, height: 28)
                 .clipShape(Circle())
         } else {
             Image(systemName: "person.crop.circle.fill")
                 .font(.title2)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(accent)
         }
     }
 }
@@ -398,6 +401,7 @@ struct SidebarView: View {
 /// 별도 플로팅 popover가 아니라 사이드바 레이아웃 안에서 위로 솟구치듯 펼쳐진다(profileFooter 바로 위 삽입).
 struct SidebarProfileMenu: View {
     @Environment(AppState.self) private var app
+    @Environment(\.resolvedAccent) private var accent
     let dismiss: () -> Void
 
     var body: some View {
@@ -405,18 +409,20 @@ struct SidebarProfileMenu: View {
         let s = app.settings.applied
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: DesignTokens.Spacing.s) {
-                if !s.authorPhotoPath.isEmpty, let image = NSImage(contentsOfFile: s.authorPhotoPath) {
+                if !s.authorPhotoPath.isEmpty, let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: s.authorPhotoPath), maxPointSize: 36) {
                     Image(nsImage: image)
                         .resizable()
+                        .interpolation(.high)
+                        .antialiased(true)
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 36, height: 36)
                         .clipShape(Circle())
                 } else {
                     ZStack {
-                        Circle().fill(Color.accentColor.opacity(0.16))
+                        Circle().fill(accent.opacity(0.16))
                         Image(systemName: "person.fill")
                             .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(accent)
                     }
                     .frame(width: 36, height: 36)
                 }
@@ -445,11 +451,11 @@ struct SidebarProfileMenu: View {
                     dismiss()
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 }
-                menuRow(l10n.t(.hiddenItems), symbol: "eye.slash") {
+                menuRow(l10n.t(.hiddenItems), symbol: "eye.slash", count: app.workspace.hiddenDocuments.count) {
                     app.openArchiveTab(category: .hidden)
                     dismiss()
                 }
-                menuRow(l10n.t(.recentlyDeleted), symbol: "trash") {
+                menuRow(l10n.t(.recentlyDeleted), symbol: "trash", count: app.workspace.trashedDocuments.count) {
                     app.openArchiveTab(category: .trash)
                     dismiss()
                 }
@@ -459,14 +465,25 @@ struct SidebarProfileMenu: View {
         }
     }
 
-    private func menuRow(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+    private func menuRow(_ title: String, symbol: String, count: Int = 0, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            Label(title, systemImage: symbol)
-                .font(.callout)
-                .padding(.vertical, 6)
-                .padding(.horizontal, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+            HStack(spacing: 6) {
+                Label(title, systemImage: symbol)
+                    .font(.callout)
+                Spacer(minLength: 4)
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.primary.opacity(0.08)))
+                }
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(SidebarLongButtonStyle())
         .padding(.vertical, 3)
@@ -531,6 +548,8 @@ struct ProjectTreeRow: View {
                 }
                 Button(l10n.t(.exportProject)) { app.exportProject(project) }
                 Button(l10n.t(.deleteProject), role: .destructive) { app.requestDeleteProject(project) }
+                Divider()
+                Button(l10n.t(.openProjectArchive)) { app.openArchiveTab(category: .all, project: project.id) }
                 Divider()
                 Menu(l10n.t(.newDocument)) {
                     Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
@@ -611,6 +630,7 @@ struct SidebarRenamePopover: View {
 
 struct SidebarDocumentRow: View {
     @Environment(AppState.self) private var app
+    @Environment(\.resolvedAccent) private var accent
     let item: DocumentListItem
 
     @State private var hovering = false
@@ -635,7 +655,7 @@ struct SidebarDocumentRow: View {
                     .fontWeight(isActive ? .semibold : .regular)
             } icon: {
                 Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                    .foregroundStyle(Color.accentColor)
+                    .foregroundStyle(accent)
             }
             .font(.callout)
             .padding(.vertical, 6)
@@ -645,7 +665,7 @@ struct SidebarDocumentRow: View {
                 RoundedRectangle(cornerRadius: 7, style: .continuous)
                     .fill(
                         isActive
-                            ? Color.accentColor.opacity(0.18)
+                            ? accent.opacity(0.18)
                             : (hovering ? Color.primary.opacity(0.06) : .clear)
                     )
             )

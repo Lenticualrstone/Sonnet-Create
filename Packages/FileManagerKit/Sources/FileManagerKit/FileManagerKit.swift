@@ -19,6 +19,27 @@ public struct DocumentListItem: Identifiable, Sendable, Equatable {
     }
 }
 
+/// 앱이 문서로 인식하지 못하는 첨부 파일 (프로젝트 resources/ 폴더 · 워크스페이스 루트에 놓인 이미지·PDF·텍스트 등).
+/// 보기 전용 — Finder/기본 앱으로 열람만 가능하고 가리기·휴지통 대상이 아니다.
+public struct OtherFileItem: Identifiable, Sendable, Equatable {
+    public var url: URL
+    public var projectID: UUID?
+    public var projectName: String?
+    public var modifiedAt: Date
+    public var fileSize: Int64
+
+    public var id: String { url.path }
+    public var filename: String { url.lastPathComponent }
+
+    public init(url: URL, projectID: UUID?, projectName: String?, modifiedAt: Date, fileSize: Int64) {
+        self.url = url
+        self.projectID = projectID
+        self.projectName = projectName
+        self.modifiedAt = modifiedAt
+        self.fileSize = fileSize
+    }
+}
+
 /// 워크스페이스 전체(프로젝트/문서)의 스캔·생성·가리기·휴지통을 담당하는 스토어.
 @MainActor
 @Observable
@@ -27,6 +48,8 @@ public final class WorkspaceStore {
     public private(set) var projects: [ProjectFolder] = []
     public private(set) var documents: [DocumentListItem] = []
     public private(set) var recentIDs: [UUID] = []
+    /// 문서로 인식되지 않는 첨부 파일 (기타 카테고리, 보기 전용)
+    public private(set) var otherFiles: [OtherFileItem] = []
 
     private var index: SearchIndex?
     private let watcher = FolderWatcher()
@@ -34,6 +57,12 @@ public final class WorkspaceStore {
 
     private var trashDir: URL { rootURL.appendingPathComponent(".sonnetcreate/Trash", isDirectory: true) }
     private var trashMapURL: URL { rootURL.appendingPathComponent(".sonnetcreate/trash-origins.json") }
+
+    /// '기타' 카테고리에 노출할 뷰어블 확장자 (이미지·PDF·마크다운·텍스트).
+    private static let otherFileExtensions: Set<String> = [
+        "pdf", "png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "svg", "tiff", "bmp",
+        "md", "markdown", "txt", "rtf",
+    ]
 
     public init(rootURL: URL) {
         self.rootURL = rootURL
@@ -66,6 +95,7 @@ public final class WorkspaceStore {
         let fm = FileManager.default
         var foundProjects: [ProjectFolder] = []
         var foundDocs: [DocumentListItem] = []
+        var foundOther: [OtherFileItem] = []
         var bodies: [UUID: String] = [:]
 
         func collectDocument(at url: URL, projectName: String?) {
@@ -79,6 +109,26 @@ public final class WorkspaceStore {
             }
         }
 
+        // 문서로 인식되지 않는 뷰어블 파일 (이미지·PDF·텍스트 등)을 '기타'로 수집한다.
+        // 얕은 스캔만 수행 — 문서 번들 내부의 resources/(임베드 미디어)는 대상이 아니다.
+        func collectOtherFiles(in directory: URL, projectID: UUID?, projectName: String?) {
+            guard let items = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]) else { return }
+            for item in items {
+                let name = item.lastPathComponent
+                if name.hasPrefix(".") { continue }
+                guard Self.otherFileExtensions.contains(item.pathExtension.lowercased()) else { continue }
+                let values = try? item.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey])
+                guard values?.isDirectory != true else { continue }
+                foundOther.append(OtherFileItem(
+                    url: item,
+                    projectID: projectID,
+                    projectName: projectName,
+                    modifiedAt: values?.contentModificationDate ?? Date(),
+                    fileSize: Int64(values?.fileSize ?? 0)
+                ))
+            }
+        }
+
         if let items = try? fm.contentsOfDirectory(at: rootURL, includingPropertiesForKeys: [.isDirectoryKey]) {
             for item in items {
                 let name = item.lastPathComponent
@@ -88,10 +138,12 @@ public final class WorkspaceStore {
                     for docURL in ProjectIO.documentURLs(in: project) {
                         collectDocument(at: docURL, projectName: project.manifest.name)
                     }
+                    collectOtherFiles(in: project.resourcesURL, projectID: project.id, projectName: project.manifest.name)
                 } else {
                     collectDocument(at: item, projectName: nil)
                 }
             }
+            collectOtherFiles(in: rootURL, projectID: nil, projectName: nil)
         }
         // 휴지통 항목도 목록에 포함 (isTrashed 상태로 구분)
         if let trashed = try? fm.contentsOfDirectory(at: trashDir, includingPropertiesForKeys: nil) {
@@ -102,6 +154,7 @@ public final class WorkspaceStore {
 
         projects = foundProjects.sorted { $0.manifest.name < $1.manifest.name }
         documents = foundDocs.sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
+        otherFiles = foundOther.sorted { $0.modifiedAt > $1.modifiedAt }
 
         // SQLite 색인 갱신 (UUID→경로 해석용)
         if let index {
@@ -316,6 +369,7 @@ public final class WorkspaceStore {
         let fm = FileManager.default
         guard var document = try? DocumentPackageIO.read(from: item.url) else { return }
         document.envelope.isTrashed = true
+        document.envelope.trashedAt = Date()
         try? DocumentPackageIO.write(document)
 
         var origins = loadTrashOrigins()
@@ -333,14 +387,20 @@ public final class WorkspaceStore {
         scan()
     }
 
-    public func restoreFromTrash(_ item: DocumentListItem) {
+    /// 휴지통에서 원래 위치로 복원한다. 원래 폴더가 더 이상 존재하지 않으면(예: 프로젝트 삭제됨)
+    /// 워크스페이스 최상위로 대신 복원하고 `true`를 반환한다 — 호출부에서 사용자에게 알릴 수 있도록.
+    @discardableResult
+    public func restoreFromTrash(_ item: DocumentListItem) -> Bool {
         let fm = FileManager.default
         var origins = loadTrashOrigins()
-        let originPath = origins[item.url.lastPathComponent] ?? rootURL.path
+        let recordedPath = origins[item.url.lastPathComponent]
+        let fellBackToRoot = !(recordedPath.map { fm.fileExists(atPath: $0) } ?? false)
+        let originPath = (fellBackToRoot ? nil : recordedPath) ?? rootURL.path
         origins.removeValue(forKey: item.url.lastPathComponent)
 
-        guard var document = try? DocumentPackageIO.read(from: item.url) else { return }
+        guard var document = try? DocumentPackageIO.read(from: item.url) else { return fellBackToRoot }
         document.envelope.isTrashed = false
+        document.envelope.trashedAt = nil
         try? DocumentPackageIO.write(document)
 
         let originDir = URL(fileURLWithPath: originPath, isDirectory: true)
@@ -354,14 +414,40 @@ public final class WorkspaceStore {
         try? fm.moveItem(at: item.url, to: target)
         saveTrashOrigins(origins)
         scan()
+        return fellBackToRoot
     }
 
     public func deletePermanently(_ item: DocumentListItem) {
-        try? FileManager.default.removeItem(at: item.url)
+        deletePermanently([item])
+    }
+
+    /// 여러 항목을 한 번에 영구 삭제한다 (스캔은 1회만 수행).
+    public func deletePermanently(_ items: [DocumentListItem]) {
         var origins = loadTrashOrigins()
-        origins.removeValue(forKey: item.url.lastPathComponent)
+        for item in items {
+            try? FileManager.default.removeItem(at: item.url)
+            origins.removeValue(forKey: item.url.lastPathComponent)
+        }
         saveTrashOrigins(origins)
         scan()
+    }
+
+    /// 휴지통에 있는 모든 항목을 영구 삭제한다.
+    public func emptyTrash() {
+        deletePermanently(trashedDocuments)
+    }
+
+    /// 휴지통 항목의 원래 위치(표시용). 원래 폴더가 속한 프로젝트 이름을 우선 보여주고,
+    /// 프로젝트에 속하지 않았으면 폴더 이름을, 최상위였거나 기록이 없으면 nil을 반환한다.
+    public func trashOriginLabel(for item: DocumentListItem) -> String? {
+        guard item.envelope.isTrashed else { return nil }
+        guard let path = loadTrashOrigins()[item.url.lastPathComponent] else { return nil }
+        let originURL = URL(fileURLWithPath: path)
+        guard originURL != rootURL else { return nil }
+        if let project = projects.first(where: { originURL.path.hasPrefix($0.url.path) }) {
+            return project.manifest.name
+        }
+        return originURL.lastPathComponent
     }
 
     private func loadTrashOrigins() -> [String: String] {

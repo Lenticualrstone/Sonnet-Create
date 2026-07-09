@@ -7,6 +7,7 @@ import SwiftUI
 /// 문서 우측 사이드 패널 — 속성 · 참조 · 백링크.
 struct ReferencePanelView: View {
     @Environment(AppState.self) private var app
+    @Environment(\.resolvedAccent) private var accent
     @Bindable var session: DocumentSession
 
     @State private var backlinks: [DocumentListItem] = []
@@ -97,7 +98,7 @@ struct ReferencePanelView: View {
         return HStack(spacing: 6) {
             Image(systemName: ref.kind == .character ? "person.crop.circle" : "doc")
                 .font(.caption)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(accent)
             Text(item?.envelope.title ?? "…")
                 .font(.callout)
                 .lineLimit(1)

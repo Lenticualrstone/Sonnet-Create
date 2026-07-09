@@ -41,6 +41,7 @@ struct CharacterPageContainer<Notes: View>: View {
     @State private var tab: CharacterPageTab = .profile
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontFamily) private var fontFamily
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         let l10n = Localizer.shared
@@ -57,12 +58,12 @@ struct CharacterPageContainer<Notes: View>: View {
                             Text(l10n.t(candidate.key))
                                 .font(.callout)
                         }
-                        .foregroundStyle(tab == candidate ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(tab == candidate ? accent : Color.secondary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
                         .background(
                             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                                .fill(tab == candidate ? Color.accentColor.opacity(0.12) : .clear)
+                                .fill(tab == candidate ? accent.opacity(0.12) : .clear)
                         )
                         .contentShape(Rectangle())
                     }
@@ -99,6 +100,7 @@ struct CharacterProfileTab: View {
     @State private var showImagePanel = false
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontFamily) private var fontFamily
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         let l10n = Localizer.shared
@@ -114,7 +116,7 @@ struct CharacterProfileTab: View {
                             .overlay(alignment: .bottomTrailing) {
                                 Image(systemName: "pencil.circle.fill")
                                     .font(.title3)
-                                    .foregroundStyle(Color.accentColor)
+                                    .foregroundStyle(accent)
                                     .background(Circle().fill(SonnetPalette.surface))
                             }
                     }
@@ -128,7 +130,7 @@ struct CharacterProfileTab: View {
                         TextField(l10n.t(.characterRole), text: profileField(\.role))
                             .textFieldStyle(.plain)
                             .font(DSFonts.font(size: 15, weight: .medium, family: fontFamily))
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(accent)
                         TextField(l10n.t(.characterSummary), text: profileField(\.summary), axis: .vertical)
                             .textFieldStyle(.plain)
                             .font(DSFonts.font(size: 13, family: fontFamily))
@@ -251,9 +253,11 @@ struct CharacterAvatarView: View {
     var body: some View {
         if let path = profile.imageResourcePath,
            let url = store.resourceResolver?(path),
-           let image = NSImage(contentsOf: url) {
+           let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: size) {
             Image(nsImage: image)
                 .resizable()
+                .interpolation(.high)
+                .antialiased(true)
                 .aspectRatio(contentMode: .fill)
                 .scaleEffect(profile.cropZoom ?? 1)
                 .offset(
@@ -279,6 +283,7 @@ struct CharacterAvatarView: View {
 
 struct CharacterRelationsTab: View {
     @Bindable var store: PageStore
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         let l10n = Localizer.shared
@@ -297,7 +302,7 @@ struct CharacterRelationsTab: View {
                 ForEach(relations) { relation in
                     HStack(spacing: DesignTokens.Spacing.s) {
                         Image(systemName: "person.crop.circle")
-                            .foregroundStyle(Color.accentColor)
+                            .foregroundStyle(accent)
                         Text(catalog.first { $0.id == relation.targetPageID }?.name ?? "…")
                             .font(.callout.weight(.medium))
                         TextField(l10n.t(.relationLabel), text: relationLabelBinding(relation.id))
@@ -378,6 +383,7 @@ struct RelationsRadialView: View {
     @Bindable var store: PageStore
     let relations: [CharacterRelation]
     let catalog: [(id: UUID, name: String)]
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         GeometryReader { geo in
@@ -424,10 +430,10 @@ struct RelationsRadialView: View {
 
                     VStack(spacing: 3) {
                         ZStack {
-                            Circle().fill(Color.accentColor.opacity(0.15))
+                            Circle().fill(accent.opacity(0.15))
                             Image(systemName: "person.fill")
                                 .font(.system(size: 15))
-                                .foregroundStyle(Color.accentColor)
+                                .foregroundStyle(accent)
                         }
                         .frame(width: 40, height: 40)
                         Text(catalog.first { $0.id == relation.targetPageID }?.name ?? "…")
@@ -457,6 +463,7 @@ struct RelationsRadialView: View {
 
 struct CharacterGalleryTab: View {
     @Bindable var store: PageStore
+    @Environment(\.resolvedAccent) private var accent
 
     @State private var enlarged: CharacterGalleryItem?
 
@@ -490,7 +497,7 @@ struct CharacterGalleryTab: View {
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 3)
-                            .background(Capsule().fill(Color.accentColor.opacity(0.15)))
+                            .background(Capsule().fill(accent.opacity(0.15)))
                     }
                     Spacer()
                     Button {
@@ -505,9 +512,11 @@ struct CharacterGalleryTab: View {
                 }
                 .padding(DesignTokens.Spacing.s)
                 if let url = store.resourceResolver?(item.resourcePath),
-                   let image = NSImage(contentsOf: url) {
+                   let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: 900) {
                     Image(nsImage: image)
                         .resizable()
+                        .interpolation(.high)
+                        .antialiased(true)
                         .aspectRatio(contentMode: .fit)
                         .padding([.horizontal, .bottom], DesignTokens.Spacing.m)
                 }
@@ -521,9 +530,11 @@ struct CharacterGalleryTab: View {
     private func galleryCard(_ item: CharacterGalleryItem, l10n: Localizer) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             if let url = store.resourceResolver?(item.resourcePath),
-               let image = NSImage(contentsOf: url) {
+               let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: 260) {
                 Image(nsImage: image)
                     .resizable()
+                    .interpolation(.high)
+                    .antialiased(true)
                     .aspectRatio(contentMode: .fill)
                     .frame(height: 130)
                     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous))
@@ -532,7 +543,7 @@ struct CharacterGalleryTab: View {
             TextField(l10n.t(.phaseTag), text: galleryBinding(item.id, \.phase))
                 .textFieldStyle(.plain)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(accent)
             TextField(l10n.t(.captionLabel), text: galleryBinding(item.id, \.caption))
                 .textFieldStyle(.plain)
                 .font(.caption)
@@ -726,7 +737,7 @@ struct ProfileImagePanel: View {
             // 미리보기 + 크롭 (드래그 팬 / 슬라이더 줌)
             if let path = profile.imageResourcePath,
                let url = store.resourceResolver?(path),
-               let image = NSImage(contentsOf: url) {
+               let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: 600) {
                 ZStack {
                     cropPreview(image).opacity(0.25)
                     cropPreview(image).clipShape(Circle())
@@ -841,6 +852,8 @@ struct ProfileImagePanel: View {
     private func cropPreview(_ image: NSImage) -> some View {
         Image(nsImage: image)
             .resizable()
+            .interpolation(.high)
+            .antialiased(true)
             .aspectRatio(contentMode: .fill)
             .scaleEffect(zoom)
             .offset(offset)
