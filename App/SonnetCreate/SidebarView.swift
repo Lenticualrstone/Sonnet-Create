@@ -22,7 +22,7 @@ enum SidebarTab: String, CaseIterable, Identifiable {
     var labelKey: L10nKey {
         switch self {
         case .home: .home
-        case .agent: .aiAgent
+        case .agent: .sonnetAI
         case .inbox: .inbox
         }
     }
@@ -89,8 +89,7 @@ struct SidebarView: View {
                 inboxList(l10n)
             }
 
-            Divider().opacity(0.4)
-            profileFooter(l10n)
+            profileFloatingCard(l10n)
         }
         .background(
             // 메인 콘텐츠(canvas)보다 살짝 가라앉은 톤으로 패널을 구분
@@ -99,6 +98,7 @@ struct SidebarView: View {
                 : AnyShapeStyle(.clear)
         )
         .animation(DesignTokens.Motion.gentle, value: app.isFullscreen)
+        .animation(DesignTokens.Motion.gentle, value: showProfileMenu)
     }
 
     // MARK: 상단 스트립 (신호등 줄 — 윈도우 모드 전용)
@@ -118,6 +118,10 @@ struct SidebarView: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.trailing, 12)
+                // GeometryReader는 기본적으로 콘텐츠를 topLeading에 붙여
+                // 픽셀 필드가 신호등 줄 상단(window corner)에 바짝 붙어 잘려 보였다.
+                // 30pt 행 안에서 수직 중앙 정렬해 여백을 확보.
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
             }
             .frame(height: 30)
         }
@@ -142,6 +146,9 @@ struct SidebarView: View {
                             .font(.caption)
                         Text(l10n.t(candidate.labelKey))
                             .font(.caption)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .foregroundStyle(tab == candidate ? Color.accentColor : Color.secondary)
                     .padding(.horizontal, 9)
@@ -204,58 +211,65 @@ struct SidebarView: View {
 
     // MARK: 홈 트리 (프로젝트/문서)
 
+    /// List/Section/DisclosureGroup 대신 순수 VStack으로 직접 그린다.
+    /// macOS의 `.listStyle(.sidebar)`는 하위(DisclosureGroup 내부) 행에
+    /// listRowInsets/defaultMinListRowHeight를 거의 무시하고 자체 여백을 강제해서
+    /// 항목 사이 간격이 눈에 띄게 넓어지는 문제가 있었다 — 리스트를 걷어내는 게 근본 해결책.
     private func homeTree(_ l10n: Localizer) -> some View {
         VStack(spacing: 0) {
             archiveButton(l10n)
 
-            List {
-                Section {
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 3) {
+                    projectSectionHeader(l10n)
+
                     ForEach(app.workspace.projects) { project in
                         ProjectTreeRow(project: project)
                     }
-                } header: {
-                    // 헤더 라인에 새 프로젝트/새 문서 아이콘 (인라인 버튼 대체)
-                    HStack(spacing: 10) {
-                        Text(l10n.t(.project))
-                        Spacer()
-                        Menu {
-                            Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario) }
-                            Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap) }
-                            Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page) }
-                            Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character) }
-                        } label: {
-                            Image(systemName: "doc.badge.plus")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
-                        .menuStyle(.borderlessButton)
-                        .menuIndicator(.hidden)
-                        .fixedSize()
-                        .help(l10n.t(.newDocument))
 
-                        Button {
-                            createProject()
-                        } label: {
-                            Image(systemName: "folder.badge.plus")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .help(l10n.t(.newProject))
-                    }
-                    // 가장자리에 바짝 붙지 않도록 여유 확보
-                    .padding(.trailing, 6)
-                }
+                    if !standaloneDocuments.isEmpty {
+                        documentsSectionHeader(l10n)
 
-                Section(l10n.t(.documents)) {
-                    ForEach(standaloneDocuments) { item in
-                        SidebarDocumentRow(item: item)
+                        ForEach(standaloneDocuments) { item in
+                            SidebarDocumentRow(item: item)
+                        }
                     }
                 }
+                .padding(.horizontal, DesignTokens.Spacing.s)
+                .padding(.bottom, DesignTokens.Spacing.s)
             }
-            .listStyle(.sidebar)
-            .scrollContentBackground(.hidden)
         }
+    }
+
+    private func projectSectionHeader(_ l10n: Localizer) -> some View {
+        // '새 문서' 생성은 탭바/도구막대에도 이미 있어 헤더에서는 중복 제거 — 새 프로젝트만 남긴다.
+        HStack(spacing: 10) {
+            Text(l10n.t(.project))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Spacer()
+            Button {
+                createProject()
+            } label: {
+                Image(systemName: "folder.badge.plus")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(l10n.t(.newProject))
+        }
+        .padding(.horizontal, 6)
+        .padding(.top, 8)
+        .padding(.bottom, 3)
+    }
+
+    private func documentsSectionHeader(_ l10n: Localizer) -> some View {
+        Text(l10n.t(.documents))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 6)
+            .padding(.top, 10)
+            .padding(.bottom, 3)
     }
 
     /// 파일 아카이브 — 프로젝트 목록 위 풀폭 버튼.
@@ -327,6 +341,32 @@ struct SidebarView: View {
 
     // MARK: 작업자 프로필
 
+    /// 프로필 행 + (열려있다면) 위로 솟구치는 메뉴를 하나의 불투명 카드로 묶는다.
+    /// 사이드바 자체가 반투명/가라앉은 톤이라 이전엔 메뉴가 올라올 때 뒤쪽 리스트 글씨가
+    /// 그대로 비쳐 보였다 — 이 영역만 사이드바에서 살짝 띄운(inset) 불투명 플로팅 카드로 분리.
+    private func profileFloatingCard(_ l10n: Localizer) -> some View {
+        VStack(spacing: 0) {
+            if showProfileMenu {
+                SidebarProfileMenu(dismiss: { showProfileMenu = false })
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                Divider().opacity(0.35)
+            }
+            profileFooter(l10n)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(
+                    app.settings.applied.interfaceTheme == .sonnet
+                        ? AnyShapeStyle(SonnetPalette.surface)
+                        : AnyShapeStyle(Color(nsColor: .windowBackgroundColor))
+                )
+                .shadow(color: .black.opacity(0.16), radius: 12, y: 3)
+        )
+        .padding(.horizontal, DesignTokens.Spacing.s)
+        .padding(.bottom, DesignTokens.Spacing.s)
+        .padding(.top, 2)
+    }
+
     private func profileFooter(_ l10n: Localizer) -> some View {
         HStack(spacing: DesignTokens.Spacing.s) {
             profileAvatar
@@ -349,10 +389,7 @@ struct SidebarView: View {
         }
         .padding(DesignTokens.Spacing.m)
         .contentShape(Rectangle())
-        .onTapGesture { showProfileMenu = true }
-        .popover(isPresented: $showProfileMenu, arrowEdge: .top) {
-            SidebarProfileMenu()
-        }
+        .onTapGesture { showProfileMenu.toggle() }
     }
 
     @ViewBuilder
@@ -372,30 +409,31 @@ struct SidebarView: View {
     }
 }
 
-/// 프로필 클릭 팝업 — 사진/이름/소개 미리보기 + 프로필 보기·설정·가려진 항목·최근 지워진 항목.
+/// 프로필 행 인라인 패널 — 사진/이름/소개 미리보기 + 프로필 보기·설정·가려진 항목·최근 지워진 항목.
+/// 별도 플로팅 popover가 아니라 사이드바 레이아웃 안에서 위로 솟구치듯 펼쳐진다(profileFooter 바로 위 삽입).
 struct SidebarProfileMenu: View {
     @Environment(AppState.self) private var app
-    @Environment(\.dismiss) private var dismiss
+    let dismiss: () -> Void
 
     var body: some View {
         let l10n = Localizer.shared
         let s = app.settings.applied
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.m) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: DesignTokens.Spacing.s) {
                 if !s.authorPhotoPath.isEmpty, let image = NSImage(contentsOfFile: s.authorPhotoPath) {
                     Image(nsImage: image)
                         .resizable()
                         .aspectRatio(contentMode: .fill)
-                        .frame(width: 44, height: 44)
+                        .frame(width: 36, height: 36)
                         .clipShape(Circle())
                 } else {
                     ZStack {
                         Circle().fill(Color.accentColor.opacity(0.16))
                         Image(systemName: "person.fill")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(Color.accentColor)
                     }
-                    .frame(width: 44, height: 44)
+                    .frame(width: 36, height: 36)
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(s.authorName.isEmpty ? l10n.t(.profile) : s.authorName)
@@ -405,14 +443,15 @@ struct SidebarProfileMenu: View {
                         Text(s.authorBio)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                            .lineLimit(2)
+                            .lineLimit(1)
                     }
                 }
+                Spacer(minLength: 0)
             }
+            .padding(.horizontal, DesignTokens.Spacing.m)
+            .padding(.top, DesignTokens.Spacing.s)
 
-            Divider()
-
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 menuRow(l10n.t(.viewProfile), symbol: "person.crop.circle") {
                     app.openProfileTab()
                     dismiss()
@@ -421,7 +460,6 @@ struct SidebarProfileMenu: View {
                     dismiss()
                     NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
                 }
-                Divider()
                 menuRow(l10n.t(.hiddenItems), symbol: "eye.slash") {
                     app.openArchiveTab(category: .hidden)
                     dismiss()
@@ -431,19 +469,21 @@ struct SidebarProfileMenu: View {
                     dismiss()
                 }
             }
+            .padding(.horizontal, DesignTokens.Spacing.s)
+            .padding(.bottom, 4)
         }
-        .padding(DesignTokens.Spacing.m)
-        .frame(width: 250)
     }
 
     private func menuRow(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Label(title, systemImage: symbol)
                 .font(.callout)
+                .padding(.vertical, 6)
+                .padding(.horizontal, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SidebarLongButtonStyle())
         .padding(.vertical, 3)
     }
 }
@@ -457,66 +497,110 @@ struct ProjectTreeRow: View {
     @State private var expanded = true
     @State private var renaming = false
     @State private var draftName = ""
+    @State private var hovering = false
+
+    private var docs: [DocumentListItem] {
+        app.workspace.visibleDocuments.filter { $0.envelope.projectID == project.id }
+    }
 
     var body: some View {
         let l10n = Localizer.shared
-        DisclosureGroup(isExpanded: $expanded) {
-            let docs = app.workspace.visibleDocuments.filter { $0.envelope.projectID == project.id }
-            let characters = docs.filter { $0.envelope.isCharacterPage }
-            let others = docs.filter { !$0.envelope.isCharacterPage }
+        let characters = docs.filter { $0.envelope.isCharacterPage }
+        let others = docs.filter { !$0.envelope.isCharacterPage }
 
-            ForEach(characters) { item in
-                SidebarDocumentRow(item: item)
-            }
-            ForEach(others) { item in
-                SidebarDocumentRow(item: item)
-            }
-
-            Menu {
-                Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
-                Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap, in: project) }
-                Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page, in: project) }
-                Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character, in: project) }
+        VStack(alignment: .leading, spacing: 3) {
+            // 폴더 행 — DisclosureGroup 대신 직접 그린 토글. 시스템 DisclosureGroup은
+            // contextMenu/popover의 앵커가 펼쳐진 하위 콘텐츠까지 포함돼 이름 변경 팝오버가
+            // 엉뚱한 위치에 뜨는 문제가 있었고, 이 행 하나에만 정확히 스코프하기 위함.
+            Button {
+                withAnimation(DesignTokens.Motion.snappy) { expanded.toggle() }
             } label: {
-                // 흰 글씨 문제: 시스템 accent 대비색이 적용되지 않도록 잉크색을 명시
-                HStack(spacing: 4) {
-                    Image(systemName: "plus")
-                        .font(.caption2)
-                    Text(l10n.t(.newDocument))
-                        .font(.caption)
+                HStack(spacing: 6) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(expanded ? 90 : 0))
+                        .frame(width: 10)
+                    Label(project.manifest.name, systemImage: "folder.fill")
+                        .font(.callout.weight(.medium))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
                 }
-                .foregroundStyle(SonnetPalette.inkMuted)
+                .padding(.vertical, 9)
+                .padding(.horizontal, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(hovering ? Color.primary.opacity(0.06) : .clear)
+                )
+                .contentShape(Rectangle())
             }
-            .menuStyle(.borderlessButton)
-            .menuIndicator(.hidden)
-            .tint(SonnetPalette.inkMuted)
-        } label: {
-            Label(project.manifest.name, systemImage: "folder.fill")
-                .font(.callout.weight(.medium))
+            .buttonStyle(.plain)
+            .onHover { hovering = $0 }
+            .contextMenu {
+                Button(l10n.t(.rename)) {
+                    draftName = project.manifest.name
+                    // contextMenu가 닫히는 애니메이션 도중 popover를 열면 앵커 뷰가
+                    // 아직 윈도우 계층에서 확정되지 않아 NSPopover가 크래시한다 (macOS 26).
+                    DispatchQueue.main.async { renaming = true }
+                }
+                Button(l10n.t(.exportProject)) { app.exportProject(project) }
+                Button(l10n.t(.deleteProject), role: .destructive) { app.requestDeleteProject(project) }
+                Divider()
+                Menu(l10n.t(.newDocument)) {
+                    Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
+                    Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap, in: project) }
+                    Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page, in: project) }
+                    Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character, in: project) }
+                }
+            }
+            .popover(isPresented: $renaming, arrowEdge: .trailing) {
+                SidebarRenamePopover(draft: $draftName) {
+                    app.workspace.renameProject(project, to: draftName)
+                    renaming = false
+                }
+            }
+
+            if expanded {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(characters) { item in
+                        SidebarDocumentRow(item: item)
+                    }
+                    ForEach(others) { item in
+                        SidebarDocumentRow(item: item)
+                    }
+
+                    // 시스템 Menu 컨트롤은 자체 청 마진이 있어 위 VStack의 spacing이
+                    // 온전히 반영되지 않는다 — 상단 여백을 명시적으로 줘 다른 행과 간격을 맞춘다.
+                    Menu {
+                        Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
+                        Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap, in: project) }
+                        Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page, in: project) }
+                        Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character, in: project) }
+                    } label: {
+                        // 흰 글씨 문제: 시스템 accent 대비색이 적용되지 않도록 잉크색을 명시
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus")
+                                .font(.caption2)
+                            Text(l10n.t(.newDocument))
+                                .font(.caption)
+                        }
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .padding(.vertical, 3)
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .tint(SonnetPalette.inkMuted)
+                    .fixedSize()
+                    .padding(.top, 3)
+                }
+                .padding(.leading, 16)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .contextMenu {
-            Button(l10n.t(.rename)) {
-                draftName = project.manifest.name
-                // contextMenu가 닫히는 애니메이션 도중 popover를 열면 앵커 뷰가
-                // 아직 윈도우 계층에서 확정되지 않아 NSPopover가 크래시한다 (macOS 26).
-                DispatchQueue.main.async { renaming = true }
-            }
-            Button(l10n.t(.exportProject)) { app.exportProject(project) }
-            Button(l10n.t(.deleteProject), role: .destructive) { app.requestDeleteProject(project) }
-            Divider()
-            Menu(l10n.t(.newDocument)) {
-                Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
-                Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap, in: project) }
-                Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page, in: project) }
-                Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character, in: project) }
-            }
-        }
-        .popover(isPresented: $renaming, arrowEdge: .trailing) {
-            SidebarRenamePopover(draft: $draftName) {
-                app.workspace.renameProject(project, to: draftName)
-                renaming = false
-            }
-        }
+        // 프로젝트 간 간격을 다른 항목(3pt)보다 넓게 — 바깥 LazyVStack의 3pt spacing에
+        // 이 여백이 더해져 프로젝트-프로젝트 사이는 총 6~7pt가 된다.
+        .padding(.bottom, 4)
     }
 }
 
@@ -569,7 +653,7 @@ struct SidebarDocumentRow: View {
                     .foregroundStyle(Color.accentColor)
             }
             .font(.callout)
-            .padding(.vertical, 5)
+            .padding(.vertical, 6)
             .padding(.horizontal, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(

@@ -28,15 +28,20 @@ struct PageBlockRow: View {
 
             content
         }
+        // Notion처럼 줄 전체가 호버/클릭 대상이 되도록 — 이게 없으면 텍스트가 짧을 때
+        // 글자 바로 옆까지만 반응해서 "빈 공간을 눌러도 편집이 안 되는" 느낌을 준다.
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, verticalPadding)
         .padding(.trailing, 6)
         .background(
             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                .fill(hovering ? Color.primary.opacity(0.035) : .clear)
+                .fill(hovering ? Color.primary.opacity(0.05) : .clear)
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .animation(DesignTokens.Motion.snappy, value: hovering)
+        // 호버 피드백은 즉각적이어야 한다 — 기존 snappy 스프링(0.28초)은 마우스를 올렸을 때
+        // 거터/배경이 한 박자 늦게 나타나는 느낌을 줬다. 거의 즉시 반응하도록 빠르게.
+        .animation(.easeOut(duration: 0.08), value: hovering)
         // 주의: 여기에 popover를 붙이면 List 레이아웃 패스 중 NSPopover 예외로 크래시한다.
         // 슬래시 메뉴는 PageEditorView의 하단 팔레트 오버레이로 렌더링된다.
     }
@@ -153,6 +158,7 @@ struct PageBlockRow: View {
             textField
                 .font(.system(.callout, design: .monospaced))
                 .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
                         .fill(Color.primary.opacity(0.06))
@@ -160,6 +166,7 @@ struct PageBlockRow: View {
         case .callout:
             textField
                 .padding(8)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .glassSurface(cornerRadius: DesignTokens.Radius.small, tint: .accentColor, quality: quality)
         default:
             textField
@@ -181,6 +188,10 @@ struct PageBlockRow: View {
         .strikethrough(block.kind == .task && block.isChecked)
         .foregroundStyle(textColor)
         .focused(focusedBlockID, equals: block.id)
+        // 텍스트가 짧아도 줄 전체가 클릭 대상이 되도록 폭을 채운다 — 빈 공간을 눌러도
+        // 커서가 가장 가까운 위치(대개 줄 끝)로 들어가는 Notion식 동작.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .onKeyPress { press in
             handleKey(press)
         }
@@ -243,6 +254,8 @@ struct PageBlockRow: View {
         }
     }
 
+    /// 헤딩처럼 항상 힌트를 보여준다 — 포커스 여부와 무관하게 빈 블록도 "여기 누르면
+    /// 편집할 수 있다"는 걸 알 수 있어야 클릭해볼 이유가 생긴다.
     private var placeholder: String {
         let l10n = Localizer.shared
         switch block.kind {
@@ -250,7 +263,7 @@ struct PageBlockRow: View {
         case .heading2: return l10n.t(.blockHeading2)
         case .heading3: return l10n.t(.blockHeading3)
         case .code: return "code"
-        default: return focusedBlockID.wrappedValue == block.id ? l10n.t(.slashHint) : ""
+        default: return l10n.t(.slashHint)
         }
     }
 

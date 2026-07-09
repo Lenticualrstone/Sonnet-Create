@@ -267,9 +267,9 @@ public struct SettingsRootView: View {
                 Slider(value: $store.draft.lineSpacingScale, in: 0.8...1.6, step: 0.1)
             }
             Picker(l10n.t(.blockSpacing), selection: $store.draft.blockSpacing) {
-                Text(l10n.t(.spacingCompact)).tag(4.0)
-                Text(l10n.t(.spacingMedium)).tag(9.0)
-                Text(l10n.t(.spacingWide)).tag(14.0)
+                Text(l10n.t(.spacingCompact)).tag(6.0)
+                Text(l10n.t(.spacingMedium)).tag(12.0)
+                Text(l10n.t(.spacingWide)).tag(20.0)
             }
             .pickerStyle(.segmented)
 
@@ -278,6 +278,21 @@ public struct SettingsRootView: View {
                 Text(l10n.t(.positionRight)).tag(true)
             }
             .pickerStyle(.segmented)
+
+            Section(l10n.t(.dialogueDisplayHeader)) {
+                Picker(l10n.t(.dialogueDisplayMethod), selection: $store.draft.dialogueDisplayRaw) {
+                    Text(l10n.t(.dialogueDisplayBoth)).tag("avatarAndName")
+                    Text(l10n.t(.dialogueDisplayAvatarOnly)).tag("avatarOnly")
+                    Text(l10n.t(.dialogueDisplayNameOnly)).tag("nameOnly")
+                    Text(l10n.t(.dialogueDisplayHidden)).tag("hidden")
+                }
+                .pickerStyle(.segmented)
+
+                LabeledContent(l10n.t(.dialogueAvatarSize)) {
+                    Slider(value: $store.draft.dialogueAvatarSize, in: 20...52, step: 2)
+                }
+                .disabled(store.draft.dialogueDisplayRaw == "nameOnly" || store.draft.dialogueDisplayRaw == "hidden")
+            }
 
             Section {
                 Text("본문 미리보기 — The quick brown fox / 다람쥐 헌 쳇바퀴에 타고파")

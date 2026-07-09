@@ -119,6 +119,14 @@ private struct ContentBlockSpacingKey: EnvironmentKey {
     static let defaultValue: Double = 7.0
 }
 
+private struct DialogueDisplayStyleKey: EnvironmentKey {
+    static let defaultValue: String = "avatarAndName"
+}
+
+private struct DialogueAvatarSizeKey: EnvironmentKey {
+    static let defaultValue: Double = 34.0
+}
+
 public extension EnvironmentValues {
     var renderQuality: RenderQuality {
         get { self[RenderQualityKey.self] }
@@ -141,6 +149,19 @@ public extension EnvironmentValues {
     var contentBlockSpacing: Double {
         get { self[ContentBlockSpacingKey.self] }
         set { self[ContentBlockSpacingKey.self] = newValue }
+    }
+
+    /// 설정 > 에디터의 시나리오 대사 블록 캐릭터 표시 방식
+    /// "avatarAndName" | "avatarOnly" | "nameOnly" | "hidden"
+    var dialogueDisplayStyle: String {
+        get { self[DialogueDisplayStyleKey.self] }
+        set { self[DialogueDisplayStyleKey.self] = newValue }
+    }
+
+    /// 설정 > 에디터의 시나리오 대사 블록 캐릭터 프로필(아바타) 크기 (pt)
+    var dialogueAvatarSize: Double {
+        get { self[DialogueAvatarSizeKey.self] }
+        set { self[DialogueAvatarSizeKey.self] = newValue }
     }
 }
 
@@ -444,11 +465,11 @@ public struct ToolbarIconButton: View {
         Button(action: action) {
             Image(systemName: systemName)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(isActive ? Color.accentColor : .secondary)
+                .foregroundStyle(isActive ? Color.accentColor : (hovering ? Color.accentColor : .secondary))
                 .frame(width: 30, height: 30)
                 .background(
                     RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                        .fill(hovering || isActive ? Color.primary.opacity(0.08) : .clear)
+                        .fill(isActive ? Color.accentColor.opacity(0.14) : (hovering ? Color.accentColor.opacity(0.1) : .clear))
                 )
                 .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous))
         }

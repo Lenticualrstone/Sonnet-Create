@@ -35,6 +35,8 @@ struct SonnetCreateApp: App {
                 .dynamicTypeSize(Self.typeSize(for: appState.settings.applied.uiScale))
                 .environment(\.contentFontFamily, appState.settings.applied.fontFamily)
                 .environment(\.contentBlockSpacing, appState.settings.applied.blockSpacing)
+                .environment(\.dialogueDisplayStyle, appState.settings.applied.dialogueDisplayRaw)
+                .environment(\.dialogueAvatarSize, appState.settings.applied.dialogueAvatarSize)
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
                 .font(DSFonts.font(size: 13, family: appState.settings.applied.fontFamily))

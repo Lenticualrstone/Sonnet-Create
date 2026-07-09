@@ -17,7 +17,9 @@ struct MainWindowView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             SidebarView()
-                .navigationSplitViewColumnWidth(min: 220, ideal: 244, max: 320)
+                // min을 260으로 올려 홈/Sonnet AI/수신함 3개 탭의 아이콘+텍스트가
+                // 줄바꿈되지 않고 한 줄에 들어갈 최소 폭을 항상 보장한다.
+                .navigationSplitViewColumnWidth(min: 260, ideal: 264, max: 340)
                 // 사이드바 상단의 시스템 툴바(백색 박스 원인) 제거
                 .toolbar(removing: .sidebarToggle)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
@@ -208,11 +210,22 @@ struct ChromeTabBar: View {
     /// 사이드바가 접혀 신호등이 이 바 위에 겹칠 때의 좌측 여백 (전체화면에서는 불필요)
     var needsTrafficLightInset = false
 
+    @State private var newDocMenuHover = false
+
     private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
 
     var body: some View {
         let l10n = Localizer.shared
         HStack(spacing: isChrome ? 0 : 6) {
+            // 브랜드 앵커 — 사이드바가 접혀 신호등과 겹칠 땐 숨겨 공간을 확보
+            if !needsTrafficLightInset {
+                Image(systemName: "feather")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme == .sonnet ? SonnetPalette.accent : Color.accentColor)
+                    .padding(.leading, 12)
+                    .padding(.trailing, 2)
+            }
+
             // 사이드바 토글 (시스템 툴바 제거에 따른 대체)
             ToolbarIconButton(
                 "sidebar.left",
@@ -256,14 +269,20 @@ struct ChromeTabBar: View {
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(newDocMenuHover ? Color.accentColor : .secondary)
                     .frame(width: 30, height: 30)
+                    .background(
+                        RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
+                            .fill(newDocMenuHover ? Color.accentColor.opacity(0.1) : .clear)
+                    )
                     .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
             .help(l10n.t(.newDocument))
+            .onHover { newDocMenuHover = $0 }
+            .animation(DesignTokens.Motion.snappy, value: newDocMenuHover)
 
             Spacer(minLength: 0)
 
@@ -300,8 +319,14 @@ struct ChromeTabBar: View {
     private var barBackground: some View {
         if isChrome {
             // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
-            (theme == .sonnet ? SonnetPalette.sunken : Color.primary.opacity(0.06))
-                .ignoresSafeArea(edges: .top)
+            ZStack {
+                (theme == .sonnet ? SonnetPalette.sunken : Color.primary.opacity(0.06))
+                if theme == .sonnet {
+                    // 앤티크 페이퍼 무드를 강화하는 미세 그레인
+                    GrainOverlay(color: SonnetPalette.ink, opacity: 0.045, density: 500)
+                }
+            }
+            .ignoresSafeArea(edges: .top)
         } else {
             Color.clear
         }
@@ -444,6 +469,16 @@ struct TabChipStyle: ViewModifier {
                     )
                     .fill(chromeFill)
                 )
+                // "지금 여기" 정체성 — 활성 탭 상단에 적갈 액센트 언더라인
+                .overlay(alignment: .top) {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 1, style: .continuous)
+                            .fill(theme == .sonnet ? SonnetPalette.accent : Color.accentColor)
+                            .frame(height: 2)
+                            .padding(.horizontal, 8)
+                            .transition(.opacity)
+                    }
+                }
                 .opacity(isSelected ? 1 : 0.85)
         } else {
             content

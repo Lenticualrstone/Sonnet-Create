@@ -1,4 +1,5 @@
 import AppCore
+import AppKit
 import DesignSystem
 import DocumentKit
 import SwiftUI
@@ -16,13 +17,7 @@ struct ProfileView: View {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.l) {
                 // 헤더 — 아바타 + 이름(즉시 저장)
                 HStack(spacing: DesignTokens.Spacing.l) {
-                    ZStack {
-                        Circle().fill(Color.accentColor.opacity(0.16))
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 40, weight: .semibold))
-                            .foregroundStyle(Color.accentColor)
-                    }
-                    .frame(width: 96, height: 96)
+                    profileAvatar
 
                     VStack(alignment: .leading, spacing: 6) {
                         TextField(l10n.t(.profile), text: $nameDraft)
@@ -76,6 +71,27 @@ struct ProfileView: View {
     private func commitName() {
         app.settings.draft.authorName = nameDraft
         app.settings.save()
+    }
+
+    /// 설정에 저장된 프로필 사진(authorPhotoPath)이 있으면 표시 — 사이드바 아바타와 동일한 소스.
+    @ViewBuilder
+    private var profileAvatar: some View {
+        let path = app.settings.applied.authorPhotoPath
+        if !path.isEmpty, let image = NSImage(contentsOfFile: path) {
+            Image(nsImage: image)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 96, height: 96)
+                .clipShape(Circle())
+        } else {
+            ZStack {
+                Circle().fill(Color.accentColor.opacity(0.16))
+                Image(systemName: "person.fill")
+                    .font(.system(size: 40, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+            .frame(width: 96, height: 96)
+        }
     }
 
     private func statsRow(_ l10n: Localizer) -> some View {

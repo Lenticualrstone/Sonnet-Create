@@ -165,6 +165,43 @@ public struct PixelBreathField: View {
     }
 }
 
+// MARK: - 그레인 텍스처
+
+/// 앤티크 페이퍼 무드를 강화하는 미세 그레인 오버레이. 정적(비애니메이션), 결정적 패턴.
+public struct GrainOverlay: View {
+    let color: Color
+    let opacity: Double
+    let density: Int
+
+    public init(color: Color = .black, opacity: Double = 0.05, density: Int = 700) {
+        self.color = color
+        self.opacity = opacity
+        self.density = density
+    }
+
+    private func unit(_ index: Int, salt: Int) -> Double {
+        let hash: Int = (index &* 2_654_435_761 &+ salt &* 97) % 1000
+        return Double(abs(hash)) / 1000.0
+    }
+
+    public var body: some View {
+        Canvas { context, size in
+            guard size.width > 0, size.height > 0 else { return }
+            for i in 0..<density {
+                let x = unit(i, salt: 1) * size.width
+                let y = unit(i, salt: 2) * size.height
+                let a = 0.15 + unit(i, salt: 3) * 0.7
+                context.fill(
+                    Path(CGRect(x: x, y: y, width: 1, height: 1)),
+                    with: .color(color.opacity(a * opacity))
+                )
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 private struct ContentFontFamilyKey: EnvironmentKey {
     static let defaultValue: FontFamily = .pretendard
 }

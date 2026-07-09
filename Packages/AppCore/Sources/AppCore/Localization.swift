@@ -50,7 +50,7 @@ public enum L10nKey: String, Sendable {
     case interfaceStyle, themeSonnet, fontLabel, fontPretendard, fontSystem, fontSerif, fontMono, disableGlass
     case blockSpacing
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
-    case importAny, aiAgent, askAnything, openAsTab, clearChat
+    case importAny, aiAgent, sonnetAI, askAnything, openAsTab, clearChat
     case touchBarSupport, touchBarFunctions
     case profileTab, notesTab, relationsTab, galleryTab, voiceTab
     case addField, fieldName, fieldValue, addRelation, relationLabel
@@ -72,6 +72,9 @@ public enum L10nKey: String, Sendable {
     case slashHint, exportMarkdown, importMarkdown
     case saveStateSaved, saveStateSaving, saveStateUnsaved, saveStateError
     case emptyEditorHint, doubleClickToCreate, dropHere, today, greeting
+    case dialogueDisplayHeader, dialogueDisplayMethod
+    case dialogueDisplayBoth, dialogueDisplayAvatarOnly, dialogueDisplayNameOnly, dialogueDisplayHidden
+    case dialogueAvatarSize
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -243,6 +246,8 @@ public final class Localizer {
         .positionRight: [.korean: "오른쪽", .japanese: "右", .english: "Right"],
         .importAny: [.korean: "프로젝트/파일 불러오기", .japanese: "プロジェクト/ファイルを読み込む", .english: "Import Project/File"],
         .aiAgent: [.korean: "AI 에이전트", .japanese: "AIエージェント", .english: "AI Agent"],
+        // 브랜드명이라 언어별로 옮기지 않고 그대로 사용
+        .sonnetAI: [.korean: "Sonnet AI", .japanese: "Sonnet AI", .english: "Sonnet AI"],
         .askAnything: [.korean: "무엇이든 물어보세요…", .japanese: "何でも聞いてください…", .english: "Ask anything…"],
         .openAsTab: [.korean: "탭으로 열기", .japanese: "タブで開く", .english: "Open as Tab"],
         .clearChat: [.korean: "대화 지우기", .japanese: "会話をクリア", .english: "Clear Chat"],
@@ -280,6 +285,13 @@ public final class Localizer {
         .spacingCompact: [.korean: "좁게", .japanese: "狭い", .english: "Compact"],
         .spacingMedium: [.korean: "중간", .japanese: "中", .english: "Medium"],
         .spacingWide: [.korean: "넓게", .japanese: "広い", .english: "Wide"],
+        .dialogueDisplayHeader: [.korean: "대사 블록 캐릭터 표시", .japanese: "セリフブロックのキャラクター表示", .english: "Dialogue Character Display"],
+        .dialogueDisplayMethod: [.korean: "표시 방법", .japanese: "表示方法", .english: "Display Method"],
+        .dialogueDisplayBoth: [.korean: "프로필+이름", .japanese: "プロフィール+名前", .english: "Avatar + Name"],
+        .dialogueDisplayAvatarOnly: [.korean: "프로필만", .japanese: "プロフィールのみ", .english: "Avatar Only"],
+        .dialogueDisplayNameOnly: [.korean: "이름만", .japanese: "名前のみ", .english: "Name Only"],
+        .dialogueDisplayHidden: [.korean: "숨김", .japanese: "非表示", .english: "Hidden"],
+        .dialogueAvatarSize: [.korean: "캐릭터 프로필 크기", .japanese: "キャラクタープロフィールのサイズ", .english: "Character Avatar Size"],
         .inbox: [.korean: "수신함", .japanese: "受信トレイ", .english: "Inbox"],
         .eventImported: [.korean: "가져옴", .japanese: "読み込み", .english: "Imported"],
         .eventExported: [.korean: "내보냄", .japanese: "書き出し", .english: "Exported"],
