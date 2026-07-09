@@ -71,10 +71,8 @@ struct SidebarView: View {
     var body: some View {
         let l10n = Localizer.shared
         VStack(spacing: 0) {
-            // 신호등(닫기/최소화/확대) 영역 — 윈도우 모드에서만 예약, 전체화면에는 없음.
-            // 윈도우 모드에서는 이 줄에 픽셀 필드가 함께 들어간다 (전체화면에서는 시계 위로 이동).
-            topStrip
-
+            // 신호등 예약은 이제 프로그램 공통 헤더(ChromeTabBar)가 전담한다 — 사이드바는
+            // 그 헤더 바로 아래에서 시작하므로 별도의 상단 여백 줄이 필요 없다.
             infoHeader
 
             sidebarTabPicker(l10n)
@@ -101,34 +99,7 @@ struct SidebarView: View {
                 : AnyShapeStyle(.clear)
         )
         .overlay(alignment: .bottom) { profileMenuOverlay }
-        .animation(DesignTokens.Motion.gentle, value: app.isFullscreen)
         .animation(DesignTokens.Motion.gentle, value: showProfileMenu)
-    }
-
-    // MARK: 상단 스트립 (신호등 줄 — 윈도우 모드 전용)
-
-    @ViewBuilder
-    private var topStrip: some View {
-        if app.isFullscreen {
-            Spacer().frame(height: 10)
-        } else {
-            GeometryReader { geo in
-                HStack(spacing: 8) {
-                    Spacer().frame(width: 72) // 신호등 예약 폭
-                    PixelBreathField(
-                        columns: fillingColumns(for: geo.size.width - 72 - 12),
-                        rows: 3, baseSize: 3, spacing: 3, quality: quality
-                    )
-                    Spacer(minLength: 0)
-                }
-                .padding(.trailing, 12)
-                // GeometryReader는 기본적으로 콘텐츠를 topLeading에 붙여
-                // 픽셀 필드가 신호등 줄 상단(window corner)에 바짝 붙어 잘려 보였다.
-                // 30pt 행 안에서 수직 중앙 정렬해 여백을 확보.
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-            }
-            .frame(height: 30)
-        }
     }
 
     /// 주어진 폭을 채우는 데 필요한 픽셀 열 개수 (셀+간격 기준).
@@ -315,16 +286,16 @@ struct SidebarView: View {
     private var infoHeader: some View {
         TimelineView(.everyMinute) { context in
             VStack(alignment: .leading, spacing: 8) {
-                // 전체화면에서만: 픽셀 필드가 시계 위로 내려와 사이드바 폭을 가득 채운다.
-                if app.isFullscreen {
-                    GeometryReader { geo in
-                        PixelBreathField(
-                            columns: fillingColumns(for: geo.size.width),
-                            rows: 3, baseSize: 3, spacing: 3, quality: quality
-                        )
-                    }
-                    .frame(height: 3 * 3 + 2 * 3)
+                // 픽셀 필드가 시계 위에서 사이드바 폭을 가득 채운다 — 예전엔 전체화면 전용,
+                // 윈도우 모드는 신호등 옆 별도 줄(topStrip)에 있었지만 그 줄이 사라지며
+                // 창모드/전체화면 공통으로 통합됐다.
+                GeometryReader { geo in
+                    PixelBreathField(
+                        columns: fillingColumns(for: geo.size.width),
+                        rows: 3, baseSize: 3, spacing: 3, quality: quality
+                    )
                 }
+                .frame(height: 3 * 3 + 2 * 3)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(context.date, format: .dateTime.weekday(.wide).month().day())
                         .font(.caption)
@@ -338,7 +309,7 @@ struct SidebarView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, DesignTokens.Spacing.m)
-            .padding(.top, app.isFullscreen ? DesignTokens.Spacing.s : 0)
+            .padding(.top, DesignTokens.Spacing.s)
             .padding(.bottom, DesignTokens.Spacing.s)
         }
     }
