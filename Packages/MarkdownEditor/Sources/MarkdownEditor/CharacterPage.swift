@@ -42,6 +42,9 @@ struct CharacterPageContainer<Notes: View>: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontFamily) private var fontFamily
     @Environment(\.resolvedAccent) private var accent
+    @Environment(\.readOnlyMode) private var readOnlyMode
+
+    private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
 
     var body: some View {
         let l10n = Localizer.shared
@@ -75,6 +78,8 @@ struct CharacterPageContainer<Notes: View>: View {
             .padding(.vertical, 6)
             Divider().opacity(0.35)
 
+            // 읽기 전용 모드: 탭 전환·스크롤은 살리고 각 탭의 편집 표면만
+            // 스크롤 콘텐츠 계층에서 잠근다 (각 탭 내부에서 처리).
             switch tab {
             case .profile:
                 CharacterProfileTab(store: store, title: $title)
@@ -148,6 +153,7 @@ struct CharacterProfileTab: View {
             .padding(DesignTokens.Spacing.l)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
+            .modifier(ReadOnlyContentLock())
         }
         .sheet(isPresented: $showImagePanel) {
             ProfileImagePanel(store: store)
@@ -360,6 +366,7 @@ struct CharacterRelationsTab: View {
             .padding(DesignTokens.Spacing.l)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
+            .modifier(ReadOnlyContentLock())
         }
     }
 
@@ -488,6 +495,7 @@ struct CharacterGalleryTab: View {
             .padding(DesignTokens.Spacing.l)
             .frame(maxWidth: 760, alignment: .leading)
             .frame(maxWidth: .infinity)
+            .modifier(ReadOnlyContentLock())
         }
         .sheet(item: $enlarged) { item in
             VStack(spacing: 0) {
@@ -632,6 +640,7 @@ struct CharacterVoiceTab: View {
             .padding(DesignTokens.Spacing.l)
             .frame(maxWidth: 720, alignment: .leading)
             .frame(maxWidth: .infinity)
+            .modifier(ReadOnlyContentLock())
         }
     }
 
@@ -889,5 +898,17 @@ struct ProfileImagePanel: View {
         }
         offset = .zero
         zoom = 1
+    }
+}
+
+/// 읽기 전용 모드에서 탭의 편집 표면을 잠근다 — 스크롤 자체는 부모 ScrollView가
+/// 히트테스트 가능한 상태로 남아 그대로 동작한다.
+private struct ReadOnlyContentLock: ViewModifier {
+    @Environment(\.readOnlyMode) private var readOnlyMode
+
+    func body(content: Content) -> some View {
+        content
+            .allowsHitTesting(readOnlyMode?.wrappedValue != true)
+            .opacity(readOnlyMode?.wrappedValue == true ? 0.92 : 1)
     }
 }

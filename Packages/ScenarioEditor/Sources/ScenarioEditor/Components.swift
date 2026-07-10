@@ -270,6 +270,9 @@ struct CharacterInspectorView: View {
 
     @State private var newName = ""
     @Environment(\.resolvedAccent) private var accent
+    @Environment(\.readOnlyMode) private var readOnlyMode
+
+    private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
 
     var body: some View {
         let l10n = Localizer.shared
@@ -278,7 +281,9 @@ struct CharacterInspectorView: View {
                 Text(l10n.t(.characters))
                     .font(.headline)
                 Spacer()
-                importMenu(l10n)
+                if !isReadOnly {
+                    importMenu(l10n)
+                }
             }
             .padding(DesignTokens.Spacing.m)
 
@@ -290,6 +295,8 @@ struct CharacterInspectorView: View {
                         onOpen: onOpenCharacterPage,
                         onCreatePage: onCreateCharacterPage
                     )
+                    .allowsHitTesting(!isReadOnly)
+                    .moveDisabled(isReadOnly)
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
                 }
@@ -312,6 +319,8 @@ struct CharacterInspectorView: View {
                 .disabled(newName.isEmpty)
             }
             .padding(DesignTokens.Spacing.s)
+            .allowsHitTesting(!isReadOnly)
+            .opacity(isReadOnly ? 0.4 : 1)
         }
     }
 

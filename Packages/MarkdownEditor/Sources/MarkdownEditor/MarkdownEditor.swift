@@ -16,6 +16,9 @@ public struct PageEditorView: View {
     @FocusState private var focusedBlockID: UUID?
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontFamily) private var fontFamily
+    @Environment(\.readOnlyMode) private var readOnlyMode
+
+    private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
 
     /// 빈 블록 위에서 백스페이스 — SwiftUI의 `.onKeyPress`가 SwiftUI 레이어 문제.
     /// 필드가 완전히 비어있으면 AppKit이 "지울 게 없다"며 이벤트를 자체적으로 삼켜
@@ -76,6 +79,7 @@ public struct PageEditorView: View {
         guard backspaceMonitor == nil else { return }
         backspaceMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
             guard event.keyCode == 51,
+                  !isReadOnly,
                   let focusedID = focusedBlockID,
                   let block = store.block(id: focusedID),
                   block.text.isEmpty
@@ -160,6 +164,7 @@ public struct PageEditorView: View {
                             .padding(.bottom, 6)
                             .padding(.leading, 44) // 블록 거터와 정렬
                             .modifier(CenteredColumn())
+                            .disabled(isReadOnly)
                     }
 
                     // 나란히(2단) 배치: sideBySide 블록은 다음 블록과 한 행으로 묶는다
@@ -180,6 +185,7 @@ public struct PageEditorView: View {
                         }
                         .modifier(CenteredColumn())
                         .id(item.id)
+                        .allowsHitTesting(!isReadOnly)
                     }
 
                     Color.clear
@@ -187,6 +193,7 @@ public struct PageEditorView: View {
                         .frame(maxWidth: .infinity)
                         .contentShape(Rectangle())
                         .onTapGesture {
+                            guard !isReadOnly else { return }
                             if let last = store.content.blocks.last {
                                 if last.text.isEmpty, last.kind == .paragraph {
                                     store.focusRequest = last.id
@@ -197,7 +204,8 @@ public struct PageEditorView: View {
                         }
                         // 문서 맨 끝으로 드래그해서 놓으면 마지막 블록 뒤로 옮긴다.
                         .dropDestination(for: String.self) { items, _ in
-                            guard let raw = items.first, let draggedID = UUID(uuidString: raw) else { return false }
+                            guard !isReadOnly,
+                                  let raw = items.first, let draggedID = UUID(uuidString: raw) else { return false }
                             store.moveBlockToEnd(draggedID)
                             return true
                         }
@@ -212,21 +220,27 @@ public struct PageEditorView: View {
             BreadcrumbView(breadcrumb)
             Spacer()
 
+            ReadOnlyBadge()
+
             ToolbarIconButton("arrow.uturn.backward", help: l10n.t(.undo)) { store.undo() }
-                .disabled(!store.canUndo)
-                .opacity(store.canUndo ? 1 : 0.35)
+                .disabled(!store.canUndo || isReadOnly)
+                .opacity(store.canUndo && !isReadOnly ? 1 : 0.35)
             ToolbarIconButton("arrow.uturn.forward", help: l10n.t(.redo)) { store.redo() }
-                .disabled(!store.canRedo)
-                .opacity(store.canRedo ? 1 : 0.35)
+                .disabled(!store.canRedo || isReadOnly)
+                .opacity(store.canRedo && !isReadOnly ? 1 : 0.35)
 
             SaveStatusBadge(state: saveState, label: l10n.t(saveState.labelKey), action: onManualSave)
+
+            ReadOnlyToggle()
 
             Menu {
                 Button(l10n.t(.exportMarkdown)) { exportMarkdown() }
                 Button(l10n.t(.exportHTML)) { exportHTML() }
                 Button(l10n.t(.exportPDF)) { exportPDF() }
-                Divider()
-                Button(l10n.t(.importMarkdown)) { importMarkdown() }
+                if !isReadOnly {
+                    Divider()
+                    Button(l10n.t(.importMarkdown)) { importMarkdown() }
+                }
             } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 13, weight: .medium))

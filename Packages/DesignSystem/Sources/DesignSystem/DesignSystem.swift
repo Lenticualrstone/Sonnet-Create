@@ -480,3 +480,51 @@ public struct ToolbarIconButton: View {
         .help(help)
     }
 }
+
+/// 읽기 전용 뷰어 모드 토글 — 호스트가 `\.readOnlyMode` 바인딩을 주입한 경우에만
+/// 렌더링된다. 세 에디터 툴바가 공유한다.
+public struct ReadOnlyToggle: View {
+    @Environment(\.readOnlyMode) private var readOnlyMode
+
+    public init() {}
+
+    public var body: some View {
+        if let readOnlyMode {
+            let l10n = Localizer.shared
+            let isOn = readOnlyMode.wrappedValue
+            ToolbarIconButton(
+                isOn ? "lock.fill" : "lock.open",
+                help: l10n.t(isOn ? .readOnlyOff : .readOnlyOn),
+                isActive: isOn
+            ) {
+                withAnimation(DesignTokens.Motion.gentle) {
+                    readOnlyMode.wrappedValue.toggle()
+                }
+            }
+        }
+    }
+}
+
+/// 읽기 전용 상태 캡슐 배지 — 툴바에서 토글 옆에 표시해 현재 모드를 명확히 한다.
+public struct ReadOnlyBadge: View {
+    @Environment(\.readOnlyMode) private var readOnlyMode
+    @Environment(\.resolvedAccent) private var accent
+
+    public init() {}
+
+    public var body: some View {
+        if readOnlyMode?.wrappedValue == true {
+            HStack(spacing: 4) {
+                Image(systemName: "eye")
+                    .font(.caption2)
+                Text(Localizer.shared.t(.readOnlyMode))
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(accent)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(accent.opacity(0.12)))
+            .transition(.opacity.combined(with: .scale(scale: 0.9)))
+        }
+    }
+}

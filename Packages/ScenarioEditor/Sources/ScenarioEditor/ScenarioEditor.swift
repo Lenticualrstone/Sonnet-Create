@@ -18,6 +18,9 @@ public struct ScenarioEditorView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentBlockSpacing) private var blockSpacing
     @Environment(\.resolvedAccent) private var accent
+    @Environment(\.readOnlyMode) private var readOnlyMode
+
+    private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
 
     public init(
         store: ScenarioStore,
@@ -84,20 +87,26 @@ public struct ScenarioEditorView: View {
 
             Spacer()
 
+            ReadOnlyBadge()
+
             ToolbarIconButton("arrow.uturn.backward", help: l10n.t(.undo)) { store.undo() }
-                .disabled(!store.canUndo)
-                .opacity(store.canUndo ? 1 : 0.35)
+                .disabled(!store.canUndo || isReadOnly)
+                .opacity(store.canUndo && !isReadOnly ? 1 : 0.35)
             ToolbarIconButton("arrow.uturn.forward", help: l10n.t(.redo)) { store.redo() }
-                .disabled(!store.canRedo)
-                .opacity(store.canRedo ? 1 : 0.35)
+                .disabled(!store.canRedo || isReadOnly)
+                .opacity(store.canRedo && !isReadOnly ? 1 : 0.35)
 
             SaveStatusBadge(state: saveState, label: l10n.t(saveState.labelKey), action: onManualSave)
+
+            ReadOnlyToggle()
 
             ToolbarIconButton(
                 "sparkles",
                 help: l10n.t(.aiCompose),
                 isActive: store.aiEnabled
             ) { store.aiEnabled.toggle() }
+                .disabled(isReadOnly)
+                .opacity(isReadOnly ? 0.35 : 1)
 
             SearchCapsule(text: $store.searchQuery, placeholder: l10n.t(.searchInDocument), quality: quality)
         }
@@ -132,16 +141,18 @@ public struct ScenarioEditorView: View {
                     }
                 }
             }
-            Divider()
-            Button(l10n.t(.newBranch)) {
-                store.createBranch(
-                    after: store.activeBranchID == nil ? store.content.blocks.last : nil,
-                    name: "\(l10n.t(.branch)) \(store.content.branches.count + 1)"
-                )
-            }
-            if let branch = store.activeBranch {
-                Button(l10n.t(.delete), role: .destructive) {
-                    store.deleteBranch(branch.id)
+            if !isReadOnly {
+                Divider()
+                Button(l10n.t(.newBranch)) {
+                    store.createBranch(
+                        after: store.activeBranchID == nil ? store.content.blocks.last : nil,
+                        name: "\(l10n.t(.branch)) \(store.content.branches.count + 1)"
+                    )
+                }
+                if let branch = store.activeBranch {
+                    Button(l10n.t(.delete), role: .destructive) {
+                        store.deleteBranch(branch.id)
+                    }
                 }
             }
         } label: {
@@ -219,6 +230,8 @@ public struct ScenarioEditorView: View {
                     ForEach(store.visibleBlocks) { block in
                         ScenarioBlockRow(store: store, block: block)
                             .id(block.id)
+                            .allowsHitTesting(!isReadOnly)
+                            .moveDisabled(isReadOnly)
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                             .listRowInsets(EdgeInsets(
@@ -245,14 +258,17 @@ public struct ScenarioEditorView: View {
                 }
             }
 
-            VStack(spacing: DesignTokens.Spacing.s) {
-                if store.aiEnabled, !store.pendingSuggestions.isEmpty || store.isGenerating {
-                    SuggestionStrip(store: store)
+            if !isReadOnly {
+                VStack(spacing: DesignTokens.Spacing.s) {
+                    if store.aiEnabled, !store.pendingSuggestions.isEmpty || store.isGenerating {
+                        SuggestionStrip(store: store)
+                    }
+                    ComposerView(store: store)
                 }
-                ComposerView(store: store)
+                .padding(.horizontal, DesignTokens.Spacing.l)
+                .padding(.bottom, DesignTokens.Spacing.m)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-            .padding(.horizontal, DesignTokens.Spacing.l)
-            .padding(.bottom, DesignTokens.Spacing.m)
         }
     }
 }

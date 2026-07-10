@@ -57,6 +57,7 @@ public enum L10nKey: String, Sendable {
     case addImage, phaseTag, captionLabel
     case voiceTone, voiceTaboo, voiceSamples, addVoiceCard, addSample
     case appearances, linesCountFormat, editProfileImage
+    case readOnlyMode, readOnlyOn, readOnlyOff
     case settingsAppearance, settingsEditor
     case deleteProject, trashConfirmMessage, projectDeleteMessage
     case profilePage, contributions, activityEmpty
@@ -190,6 +191,9 @@ public final class Localizer {
         .searchInDocument: [.korean: "문서 내 검색", .japanese: "ドキュメント内検索", .english: "Search in Document"],
         .inspector: [.korean: "인스펙터", .japanese: "インスペクタ", .english: "Inspector"],
         .aiCompose: [.korean: "AI 자동 작성", .japanese: "AI自動作成", .english: "AI Compose"],
+        .readOnlyMode: [.korean: "읽기 전용", .japanese: "読み取り専用", .english: "Read-only"],
+        .readOnlyOn: [.korean: "읽기 전용 켜기", .japanese: "読み取り専用をオン", .english: "Lock Editing"],
+        .readOnlyOff: [.korean: "읽기 전용 끄기", .japanese: "読み取り専用をオフ", .english: "Unlock Editing"],
         .aiSuggesting: [.korean: "AI가 이어쓰는 중…", .japanese: "AIが続きを作成中…", .english: "AI is drafting…"],
         .acceptAll: [.korean: "모두 반영", .japanese: "すべて反映", .english: "Accept All"],
         .dismissAll: [.korean: "모두 무시", .japanese: "すべて破棄", .english: "Dismiss All"],

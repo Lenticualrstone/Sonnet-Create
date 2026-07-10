@@ -570,6 +570,12 @@ struct DocumentHostView: View {
     @Bindable var session: DocumentSession
 
     var body: some View {
+        editorView
+            .environment(\.readOnlyMode, $session.isReadOnly)
+    }
+
+    @ViewBuilder
+    private var editorView: some View {
         switch session.editor {
         case .scenario(let store):
             ScenarioEditorView(

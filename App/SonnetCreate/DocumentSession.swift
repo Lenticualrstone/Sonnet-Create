@@ -23,6 +23,8 @@ final class DocumentSession {
     private(set) var saveState: SaveState
 
     var autosaveEnabled = true
+    /// 읽기 전용 뷰어 모드 — 세션(탭) 단위로 켜고 끈다. 파일에는 저장하지 않는다.
+    var isReadOnly = false
     /// 저장 후(제목 변경 등) 워크스페이스 재스캔 트리거
     var onSaved: (() -> Void)?
 
@@ -103,6 +105,9 @@ final class DocumentSession {
     }
 
     private func markDirty() {
+        // 읽기 전용 모드에서는 편집 UI가 모두 잠기므로 여기 도달할 일이 없어야
+        // 하지만, 만약 우회 경로로 변경이 들어와도 더티 처리하지 않는다.
+        guard !isReadOnly else { return }
         hasChanged = true
         saveState = .unsaved
         guard autosaveEnabled else { return }

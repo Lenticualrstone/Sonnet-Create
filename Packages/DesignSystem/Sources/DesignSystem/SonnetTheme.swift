@@ -242,6 +242,10 @@ private struct ResolvedAccentKey: EnvironmentKey {
     static let defaultValue: Color = .accentColor
 }
 
+private struct ReadOnlyModeKey: EnvironmentKey {
+    static let defaultValue: Binding<Bool>? = nil
+}
+
 public extension EnvironmentValues {
     var contentFontFamily: FontFamily {
         get { self[ContentFontFamilyKey.self] }
@@ -265,5 +269,12 @@ public extension EnvironmentValues {
     var resolvedAccent: Color {
         get { self[ResolvedAccentKey.self] }
         set { self[ResolvedAccentKey.self] = newValue }
+    }
+
+    /// 읽기 전용 뷰어 모드 — 문서 세션이 바인딩을 주입하면 에디터가 툴바 토글을
+    /// 노출하고 편집 표면을 잠근다. nil이면 이 기능을 지원하지 않는 호스트.
+    var readOnlyMode: Binding<Bool>? {
+        get { self[ReadOnlyModeKey.self] }
+        set { self[ReadOnlyModeKey.self] = newValue }
     }
 }

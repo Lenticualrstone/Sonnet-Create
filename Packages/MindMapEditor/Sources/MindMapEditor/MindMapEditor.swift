@@ -20,6 +20,9 @@ public struct MindMapEditorView: View {
 
     @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
+    @Environment(\.readOnlyMode) private var readOnlyMode
+
+    private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
 
     public init(
         store: MindMapStore,
@@ -44,7 +47,7 @@ public struct MindMapEditorView: View {
             Divider().opacity(0.4)
             HStack(spacing: 0) {
                 canvas(l10n)
-                if showInspector, store.selectedNode != nil {
+                if showInspector, store.selectedNode != nil, !isReadOnly {
                     Divider().opacity(0.4)
                     MindMapInspectorView(store: store, onOpenDocument: onOpenDocument)
                         .frame(width: 260)
@@ -83,26 +86,32 @@ public struct MindMapEditorView: View {
             BreadcrumbView(breadcrumb)
             Spacer()
 
+            ReadOnlyBadge()
+
             ToolbarIconButton("arrow.uturn.backward", help: l10n.t(.undo)) { store.undo() }
-                .disabled(!store.canUndo)
-                .opacity(store.canUndo ? 1 : 0.35)
+                .disabled(!store.canUndo || isReadOnly)
+                .opacity(store.canUndo && !isReadOnly ? 1 : 0.35)
             ToolbarIconButton("arrow.uturn.forward", help: l10n.t(.redo)) { store.redo() }
-                .disabled(!store.canRedo)
-                .opacity(store.canRedo ? 1 : 0.35)
+                .disabled(!store.canRedo || isReadOnly)
+                .opacity(store.canRedo && !isReadOnly ? 1 : 0.35)
 
             SaveStatusBadge(state: saveState, label: l10n.t(saveState.labelKey), action: onManualSave)
 
-            Menu {
-                Button(l10n.t(.nodeText)) { addNodeAtCenter(.text) }
-                Button(l10n.t(.nodePage)) { addNodeAtCenter(.page) }
-                Button(l10n.t(.nodeImage)) { addNodeAtCenter(.image) }
-                Button(l10n.t(.nodeFile)) { addNodeAtCenter(.file) }
-            } label: {
-                Label(l10n.t(.addNode), systemImage: "plus")
-                    .font(.caption.weight(.semibold))
+            ReadOnlyToggle()
+
+            if !isReadOnly {
+                Menu {
+                    Button(l10n.t(.nodeText)) { addNodeAtCenter(.text) }
+                    Button(l10n.t(.nodePage)) { addNodeAtCenter(.page) }
+                    Button(l10n.t(.nodeImage)) { addNodeAtCenter(.image) }
+                    Button(l10n.t(.nodeFile)) { addNodeAtCenter(.file) }
+                } label: {
+                    Label(l10n.t(.addNode), systemImage: "plus")
+                        .font(.caption.weight(.semibold))
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
 
             HStack(spacing: 2) {
                 ToolbarIconButton("minus.magnifyingglass", help: "-") { setZoom(zoom / 1.25) }
@@ -170,7 +179,8 @@ public struct MindMapEditorView: View {
                 // 포트 드래그 프리뷰 라인
                 connectionPreview(size: size)
 
-                // 노드
+                // 노드 — 읽기 전용에서는 드래그/편집/선택을 모두 잠근다
+                // (팬·줌은 배경 dotGrid 제스처와 simultaneousGesture라 계속 동작)
                 ForEach(store.content.nodes) { node in
                     MindMapNodeView(
                         store: store,
@@ -186,6 +196,7 @@ public struct MindMapEditorView: View {
                             resolveDrop(at: point, in: size)
                         }
                     )
+                    .allowsHitTesting(!isReadOnly)
                 }
 
                 // 연결 모드 힌트 (컨텍스트 메뉴로 시작한 경우)
@@ -299,6 +310,7 @@ public struct MindMapEditorView: View {
     private func doubleTapGesture(size: CGSize) -> some Gesture {
         SpatialTapGesture(count: 2)
             .onEnded { value in
+                guard !isReadOnly else { return }
                 let point = toCanvas(value.location, in: size)
                 store.addNode(kind: .text, title: Localizer.shared.t(.nodeText), at: point)
             }
