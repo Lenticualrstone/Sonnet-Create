@@ -538,7 +538,11 @@ struct CharacterGalleryTab: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(height: 130)
                     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous))
-                    .onTapGesture { enlarged = item }
+                    .onTapGesture {
+                        // 갤러리 그리드 ForEach 안 — 항목 삭제/삽입과 겹치면 앵커가
+                        // 확정되기 전에 시트가 열려 크래시할 수 있다 (macOS 26). 한 틱 지연.
+                        DispatchQueue.main.async { enlarged = item }
+                    }
             }
             TextField(l10n.t(.phaseTag), text: galleryBinding(item.id, \.phase))
                 .textFieldStyle(.plain)
@@ -555,7 +559,9 @@ struct CharacterGalleryTab: View {
                 .fill(SonnetPalette.surface)
         )
         .contextMenu {
-            Button(l10n.t(.enlarge)) { enlarged = item }
+            Button(l10n.t(.enlarge)) {
+                DispatchQueue.main.async { enlarged = item }
+            }
             Button(l10n.t(.delete), role: .destructive) {
                 store.updateProfile { $0.gallery?.removeAll { $0.id == item.id } }
             }
