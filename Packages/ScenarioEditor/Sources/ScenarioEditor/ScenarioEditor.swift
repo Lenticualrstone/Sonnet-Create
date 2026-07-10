@@ -382,9 +382,20 @@ public struct ScenarioEditorView: View {
 
     // MARK: 리허설 컨트롤/엔진
 
+    /// 마지막 블록까지 등장을 마친 상태.
+    private var rehearsalFinished: Bool {
+        guard let count = rehearsalCount else { return false }
+        return count >= store.visibleBlocks.count
+    }
+
     @ViewBuilder
     private func rehearsalControls(_ l10n: Localizer) -> some View {
         if isRehearsing {
+            // 진행 표시 — 현재/전체 블록
+            Text("\(min(rehearsalCount ?? 0, store.visibleBlocks.count))/\(store.visibleBlocks.count)")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+
             Button {
                 cycleRehearsalSpeed()
             } label: {
@@ -398,11 +409,16 @@ public struct ScenarioEditorView: View {
             .buttonStyle(.plain)
             .help(l10n.t(.rehearsalSpeed))
 
-            ToolbarIconButton(
-                rehearsalPaused ? "play.fill" : "pause.fill",
-                help: l10n.t(rehearsalPaused ? .rehearsalResume : .rehearsalPause) + " (⌘R)"
-            ) { rehearsalPaused.toggle() }
-                .keyboardShortcut("r", modifiers: .command)
+            if rehearsalFinished {
+                ToolbarIconButton("gobackward", help: l10n.t(.rehearsal) + " (⌘R)") { startRehearsal() }
+                    .keyboardShortcut("r", modifiers: .command)
+            } else {
+                ToolbarIconButton(
+                    rehearsalPaused ? "play.fill" : "pause.fill",
+                    help: l10n.t(rehearsalPaused ? .rehearsalResume : .rehearsalPause) + " (⌘R)"
+                ) { rehearsalPaused.toggle() }
+                    .keyboardShortcut("r", modifiers: .command)
+            }
 
             ToolbarIconButton("stop.fill", help: l10n.t(.rehearsalStop) + " (⎋)") { stopRehearsal() }
                 .keyboardShortcut(.escape, modifiers: [])
@@ -451,7 +467,9 @@ public struct ScenarioEditorView: View {
     }
 
     /// 텍스트 길이에 비례한 등장 간격 — 실제 대화 리듬처럼 느껴지는 값.
+    /// 구분선(장면 전환)은 텍스트가 없어도 한 호흡 길게 쉰다.
     private func rehearsalDelay(for block: ScenarioBlock) -> Double {
+        if block.kind == .divider { return 1.4 / rehearsalSpeed }
         let base: Double = block.kind == .line ? 0.55 : 0.4
         let perChar: Double = block.kind == .line ? 0.032 : 0.018
         return min(3.2, base + Double(block.text.count) * perChar) / rehearsalSpeed
