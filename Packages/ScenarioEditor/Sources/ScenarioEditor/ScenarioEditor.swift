@@ -22,6 +22,30 @@ public struct ScenarioEditorView: View {
 
     private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
 
+    // MARK: 리허설 (읽기 전용 모드 전용) — 블록이 대화 리플레이처럼 하나씩 등장
+
+    @State private var rehearsalCount: Int?
+    @State private var rehearsalPaused = false
+    @State private var rehearsalSpeed: Double = 1
+    @State private var rehearsalTask: Task<Void, Never>?
+
+    private var isRehearsing: Bool { rehearsalCount != nil }
+
+    /// 리허설 중에는 진행분까지만, 평소에는 전체.
+    private var displayedBlocks: [ScenarioBlock] {
+        if let count = rehearsalCount { return Array(store.visibleBlocks.prefix(count)) }
+        return store.visibleBlocks
+    }
+
+    /// 다음에 등장할 대사 블록의 화자 이름 (타이핑 인디케이터 라벨).
+    private var nextRehearsalSpeakers: String? {
+        guard let count = rehearsalCount, count < store.visibleBlocks.count else { return nil }
+        let block = store.visibleBlocks[count]
+        guard block.kind == .line else { return nil }
+        let names = block.speakerIDs.compactMap { id in store.content.cast.first { $0.id == id }?.name }
+        return names.isEmpty ? nil : names.joined(separator: ", ")
+    }
+
     public init(
         store: ScenarioStore,
         breadcrumb: [String],
@@ -60,6 +84,10 @@ public struct ScenarioEditorView: View {
             }
         }
         .animation(DesignTokens.Motion.gentle, value: showInspector)
+        .onChange(of: isReadOnly) { _, locked in
+            if !locked { stopRehearsal() }
+        }
+        .onDisappear { stopRehearsal() }
     }
 
     private var inspector: some View {
@@ -99,6 +127,10 @@ public struct ScenarioEditorView: View {
             SaveStatusBadge(state: saveState, label: l10n.t(saveState.labelKey), action: onManualSave)
 
             ReadOnlyToggle()
+
+            if isReadOnly {
+                rehearsalControls(l10n)
+            }
 
             ToolbarIconButton(
                 "sparkles",
@@ -227,7 +259,7 @@ public struct ScenarioEditorView: View {
                             .listRowSeparator(.hidden)
                             .listRowBackground(Color.clear)
                     }
-                    ForEach(store.visibleBlocks) { block in
+                    ForEach(displayedBlocks) { block in
                         ScenarioBlockRow(store: store, block: block)
                             .id(block.id)
                             .allowsHitTesting(!isReadOnly)
@@ -256,6 +288,20 @@ public struct ScenarioEditorView: View {
                         }
                     }
                 }
+                .onChange(of: rehearsalCount) {
+                    if let last = displayedBlocks.last {
+                        withAnimation(DesignTokens.Motion.arrival) {
+                            proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
+                }
+            }
+
+            // 리허설 타이핑 인디케이터 — 다음 블록을 '입력 중'인 것처럼 보여준다
+            if isRehearsing, !rehearsalPaused, let count = rehearsalCount, count < store.visibleBlocks.count {
+                RehearsalTypingIndicator(name: nextRehearsalSpeakers)
+                    .padding(.bottom, DesignTokens.Spacing.l)
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
 
             if !isReadOnly {
@@ -270,5 +316,115 @@ public struct ScenarioEditorView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+    }
+
+    // MARK: 리허설 컨트롤/엔진
+
+    @ViewBuilder
+    private func rehearsalControls(_ l10n: Localizer) -> some View {
+        if isRehearsing {
+            Button {
+                cycleRehearsalSpeed()
+            } label: {
+                Text(speedLabel)
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(accent)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Capsule().fill(accent.opacity(0.12)))
+            }
+            .buttonStyle(.plain)
+            .help(l10n.t(.rehearsalSpeed))
+
+            ToolbarIconButton(
+                rehearsalPaused ? "play.fill" : "pause.fill",
+                help: l10n.t(rehearsalPaused ? .rehearsalResume : .rehearsalPause)
+            ) { rehearsalPaused.toggle() }
+
+            ToolbarIconButton("stop.fill", help: l10n.t(.rehearsalStop)) { stopRehearsal() }
+        } else {
+            ToolbarIconButton("play.circle", help: l10n.t(.rehearsal)) { startRehearsal() }
+                .disabled(store.visibleBlocks.isEmpty)
+                .opacity(store.visibleBlocks.isEmpty ? 0.35 : 1)
+        }
+    }
+
+    private var speedLabel: String {
+        rehearsalSpeed == 1 ? "1×" : String(format: "%.1f×", rehearsalSpeed)
+    }
+
+    private func cycleRehearsalSpeed() {
+        let steps: [Double] = [0.5, 1, 1.5, 2]
+        let index = steps.firstIndex(of: rehearsalSpeed) ?? 1
+        rehearsalSpeed = steps[(index + 1) % steps.count]
+    }
+
+    private func startRehearsal() {
+        rehearsalTask?.cancel()
+        rehearsalPaused = false
+        withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = 0 }
+        rehearsalTask = Task {
+            var index = 0
+            while index < store.visibleBlocks.count, !Task.isCancelled {
+                let block = store.visibleBlocks[index]
+                try? await Task.sleep(for: .seconds(rehearsalDelay(for: block)))
+                while rehearsalPaused, !Task.isCancelled {
+                    try? await Task.sleep(for: .milliseconds(120))
+                }
+                guard !Task.isCancelled else { return }
+                withAnimation(DesignTokens.Motion.arrival) { rehearsalCount = index + 1 }
+                index += 1
+            }
+        }
+    }
+
+    private func stopRehearsal() {
+        rehearsalTask?.cancel()
+        rehearsalTask = nil
+        rehearsalPaused = false
+        withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = nil }
+    }
+
+    /// 텍스트 길이에 비례한 등장 간격 — 실제 대화 리듬처럼 느껴지는 값.
+    private func rehearsalDelay(for block: ScenarioBlock) -> Double {
+        let base: Double = block.kind == .line ? 0.55 : 0.4
+        let perChar: Double = block.kind == .line ? 0.032 : 0.018
+        return min(3.2, base + Double(block.text.count) * perChar) / rehearsalSpeed
+    }
+}
+
+/// 리허설 중 '입력 중…' 버블 — 화자 이름 + 파동치는 점 3개.
+private struct RehearsalTypingIndicator: View {
+    let name: String?
+
+    @State private var pulsing = false
+    @Environment(\.resolvedAccent) private var accent
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let name {
+                Text(name)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 4) {
+                ForEach(0..<3, id: \.self) { index in
+                    Circle()
+                        .fill(accent.opacity(0.75))
+                        .frame(width: 6, height: 6)
+                        .scaleEffect(pulsing ? 1 : 0.55)
+                        .animation(
+                            .easeInOut(duration: 0.5)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * 0.16),
+                            value: pulsing
+                        )
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
+        .background(Capsule().fill(Color.primary.opacity(0.07)))
+        .onAppear { pulsing = true }
     }
 }

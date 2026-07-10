@@ -60,6 +60,7 @@ public enum L10nKey: String, Sendable {
     case voiceTone, voiceTaboo, voiceSamples, addVoiceCard, addSample
     case appearances, linesCountFormat, editProfileImage
     case readOnlyMode, readOnlyOn, readOnlyOff
+    case rehearsal, rehearsalPause, rehearsalResume, rehearsalStop, rehearsalSpeed
     case settingsAppearance, settingsEditor
     case deleteProject, trashConfirmMessage, projectDeleteMessage
     case profilePage, contributions, activityEmpty
@@ -196,6 +197,11 @@ public final class Localizer {
         .readOnlyMode: [.korean: "읽기 전용", .japanese: "読み取り専用", .english: "Read-only"],
         .readOnlyOn: [.korean: "읽기 전용 켜기", .japanese: "読み取り専用をオン", .english: "Lock Editing"],
         .readOnlyOff: [.korean: "읽기 전용 끄기", .japanese: "読み取り専用をオフ", .english: "Unlock Editing"],
+        .rehearsal: [.korean: "리허설", .japanese: "リハーサル", .english: "Rehearsal"],
+        .rehearsalPause: [.korean: "일시 정지", .japanese: "一時停止", .english: "Pause"],
+        .rehearsalResume: [.korean: "재개", .japanese: "再開", .english: "Resume"],
+        .rehearsalStop: [.korean: "정지", .japanese: "停止", .english: "Stop"],
+        .rehearsalSpeed: [.korean: "재생 속도", .japanese: "再生速度", .english: "Playback Speed"],
         .aiSuggesting: [.korean: "AI가 이어쓰는 중…", .japanese: "AIが続きを作成中…", .english: "AI is drafting…"],
         .acceptAll: [.korean: "모두 반영", .japanese: "すべて反映", .english: "Accept All"],
         .dismissAll: [.korean: "모두 무시", .japanese: "すべて破棄", .english: "Dismiss All"],
