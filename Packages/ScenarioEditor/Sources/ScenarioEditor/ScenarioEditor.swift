@@ -31,6 +31,25 @@ public struct ScenarioEditorView: View {
 
     private var isRehearsing: Bool { rehearsalCount != nil }
 
+    // MARK: 검색 점프 탐색
+
+    @State private var searchMatchIndex = 0
+    /// blockArea의 ScrollViewReader가 구독하는 스크롤 목표.
+    @State private var searchScrollTarget: UUID?
+
+    /// 현재 일치 위치로 포커스를 옮기고 스크롤을 요청한다.
+    private func focusSearchMatch(_ index: Int) {
+        let matches = store.searchMatchIDs
+        guard !matches.isEmpty else {
+            store.searchFocusID = nil
+            return
+        }
+        let wrapped = ((index % matches.count) + matches.count) % matches.count
+        searchMatchIndex = wrapped
+        store.searchFocusID = matches[wrapped]
+        searchScrollTarget = matches[wrapped]
+    }
+
     /// 리허설 중에는 진행분까지만, 평소에는 전체.
     private var displayedBlocks: [ScenarioBlock] {
         if let count = rehearsalCount { return Array(store.visibleBlocks.prefix(count)) }
@@ -140,7 +159,28 @@ public struct ScenarioEditorView: View {
                 .disabled(isReadOnly)
                 .opacity(isReadOnly ? 0.35 : 1)
 
+            if !store.searchQuery.isEmpty {
+                let matches = store.searchMatchIDs
+                HStack(spacing: 2) {
+                    Text(matches.isEmpty ? "0" : "\(searchMatchIndex + 1)/\(matches.count)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(matches.isEmpty ? .tertiary : .secondary)
+                    ToolbarIconButton("chevron.up", help: "↑") {
+                        focusSearchMatch(searchMatchIndex - 1)
+                    }
+                    .disabled(matches.isEmpty)
+                    ToolbarIconButton("chevron.down", help: "↓") {
+                        focusSearchMatch(searchMatchIndex + 1)
+                    }
+                    .disabled(matches.isEmpty)
+                }
+                .transition(.opacity)
+            }
+
             SearchCapsule(text: $store.searchQuery, placeholder: l10n.t(.searchInDocument), quality: quality)
+                .onChange(of: store.searchQuery) {
+                    focusSearchMatch(0)
+                }
         }
         .padding(.horizontal, DesignTokens.Spacing.m)
         .padding(.vertical, DesignTokens.Spacing.s)
@@ -292,6 +332,13 @@ public struct ScenarioEditorView: View {
                     if let last = displayedBlocks.last {
                         withAnimation(DesignTokens.Motion.arrival) {
                             proxy.scrollTo(last.id, anchor: .bottom)
+                        }
+                    }
+                }
+                .onChange(of: searchScrollTarget) { _, target in
+                    if let target {
+                        withAnimation(DesignTokens.Motion.gentle) {
+                            proxy.scrollTo(target, anchor: .center)
                         }
                     }
                 }

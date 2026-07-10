@@ -41,6 +41,7 @@ struct ScenarioBlockRow: View {
     @Environment(\.contentFontFamily) private var fontFamily
     @Environment(\.dialogueDisplayStyle) private var displayStyle
     @Environment(\.dialogueAvatarSize) private var avatarSize
+    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
         let l10n = Localizer.shared
@@ -78,6 +79,11 @@ struct ScenarioBlockRow: View {
             Divider()
             Button(l10n.t(.delete), role: .destructive) { store.deleteBlock(block.id) }
         }
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
+                .strokeBorder(accent.opacity(0.55), lineWidth: 1.5)
+                .opacity(store.searchFocusID == block.id ? 1 : 0)
+        )
         .opacity(store.editingBlockID == block.id ? 0.4 : 1)
         .transition(.asymmetric(
             insertion: .move(edge: .bottom).combined(with: .opacity),
@@ -135,10 +141,22 @@ struct ScenarioBlockRow: View {
     }
 
     private var markdownText: AttributedString {
-        (try? AttributedString(
+        var attributed = (try? AttributedString(
             markdown: block.text,
             options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         )) ?? AttributedString(block.text)
+
+        // 검색 일치 구간 하이라이트 (대소문자·발음 구별 없이 전 구간)
+        let query = store.searchQuery
+        if !query.isEmpty {
+            var start = attributed.startIndex
+            while start < attributed.endIndex,
+                  let range = attributed[start...].range(of: query, options: [.caseInsensitive, .diacriticInsensitive]) {
+                attributed[range].backgroundColor = .yellow.opacity(0.45)
+                start = range.upperBound
+            }
+        }
+        return attributed
     }
 
     private func speakerLabel(_ speakers: [CastMember]) -> String {

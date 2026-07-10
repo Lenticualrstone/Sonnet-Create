@@ -170,10 +170,22 @@ public final class ScenarioStore {
 
     // MARK: 블록
 
+    /// 에디터 표준 ⌘F처럼 검색은 목록을 필터링하지 않고 점프 탐색한다 —
+    /// 채팅형 흐름의 맥락(앞뒤 블록)을 유지한 채 일치 위치만 하이라이트/이동.
     public var visibleBlocks: [ScenarioBlock] {
-        guard !searchQuery.isEmpty else { return activeBlocks }
-        return activeBlocks.filter { $0.text.localizedCaseInsensitiveContains(searchQuery) }
+        activeBlocks
     }
+
+    /// 검색어와 일치하는 블록 ID 목록 (문서 순서).
+    public var searchMatchIDs: [UUID] {
+        guard !searchQuery.isEmpty else { return [] }
+        return activeBlocks
+            .filter { $0.text.localizedCaseInsensitiveContains(searchQuery) }
+            .map(\.id)
+    }
+
+    /// 현재 포커스된 검색 일치 블록 — 행이 강조 링을 그리는 데 쓴다.
+    public var searchFocusID: UUID?
 
     /// 입력기 제출. 빈 텍스트면 shake만 발동하고 false 반환.
     @discardableResult
