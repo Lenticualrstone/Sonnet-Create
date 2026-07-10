@@ -129,9 +129,10 @@ public struct MindMapEditorView: View {
                 }
             }
 
-            ToolbarIconButton("sidebar.right", help: l10n.t(.inspector), isActive: showInspector) {
+            ToolbarIconButton("sidebar.right", help: l10n.t(.inspector) + " (⌥⌘I)", isActive: showInspector) {
                 showInspector.toggle()
             }
+            .keyboardShortcut("i", modifiers: [.command, .option])
         }
         .padding(.horizontal, DesignTokens.Spacing.m)
         .padding(.vertical, DesignTokens.Spacing.s)

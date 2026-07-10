@@ -34,6 +34,7 @@ public struct ScenarioEditorView: View {
     // MARK: 검색 점프 탐색
 
     @State private var searchMatchIndex = 0
+    @FocusState private var searchFocused: Bool
     /// blockArea의 ScrollViewReader가 구독하는 스크롤 목표.
     @State private var searchScrollTarget: UUID?
 
@@ -124,9 +125,10 @@ public struct ScenarioEditorView: View {
         HStack(spacing: DesignTokens.Spacing.s) {
             ToolbarIconButton(
                 "sidebar.left",
-                help: l10n.t(.characters),
+                help: l10n.t(.characters) + " (⌥⌘I)",
                 isActive: showInspector
             ) { showInspector.toggle() }
+                .keyboardShortcut("i", modifiers: [.command, .option])
 
             BreadcrumbView(breadcrumb)
 
@@ -177,10 +179,23 @@ public struct ScenarioEditorView: View {
                 .transition(.opacity)
             }
 
-            SearchCapsule(text: $store.searchQuery, placeholder: l10n.t(.searchInDocument), quality: quality)
-                .onChange(of: store.searchQuery) {
-                    focusSearchMatch(0)
-                }
+            SearchCapsule(
+                text: $store.searchQuery,
+                placeholder: l10n.t(.searchInDocument),
+                quality: quality,
+                focusBinding: $searchFocused
+            )
+            .onChange(of: store.searchQuery) {
+                focusSearchMatch(0)
+            }
+
+            // ⌘F — 문서 내 검색 포커스 (보이지 않는 단축키 버튼)
+            Button("") { searchFocused = true }
+                .keyboardShortcut("f", modifiers: .command)
+                .buttonStyle(.plain)
+                .frame(width: 0, height: 0)
+                .opacity(0)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, DesignTokens.Spacing.m)
         .padding(.vertical, DesignTokens.Spacing.s)
@@ -385,12 +400,15 @@ public struct ScenarioEditorView: View {
 
             ToolbarIconButton(
                 rehearsalPaused ? "play.fill" : "pause.fill",
-                help: l10n.t(rehearsalPaused ? .rehearsalResume : .rehearsalPause)
+                help: l10n.t(rehearsalPaused ? .rehearsalResume : .rehearsalPause) + " (⌘R)"
             ) { rehearsalPaused.toggle() }
+                .keyboardShortcut("r", modifiers: .command)
 
-            ToolbarIconButton("stop.fill", help: l10n.t(.rehearsalStop)) { stopRehearsal() }
+            ToolbarIconButton("stop.fill", help: l10n.t(.rehearsalStop) + " (⎋)") { stopRehearsal() }
+                .keyboardShortcut(.escape, modifiers: [])
         } else {
-            ToolbarIconButton("play.circle", help: l10n.t(.rehearsal)) { startRehearsal() }
+            ToolbarIconButton("play.circle", help: l10n.t(.rehearsal) + " (⌘R)") { startRehearsal() }
+                .keyboardShortcut("r", modifiers: .command)
                 .disabled(store.visibleBlocks.isEmpty)
                 .opacity(store.visibleBlocks.isEmpty ? 0.35 : 1)
         }

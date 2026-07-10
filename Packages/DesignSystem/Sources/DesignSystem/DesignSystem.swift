@@ -412,11 +412,19 @@ public struct SearchCapsule: View {
     @Binding var text: String
     let placeholder: String
     let quality: RenderQuality
+    /// 외부 ⌘F 등에서 포커스를 넣어줄 수 있는 선택적 바인딩.
+    let focusBinding: FocusState<Bool>.Binding?
 
-    public init(text: Binding<String>, placeholder: String, quality: RenderQuality = .standard) {
+    public init(
+        text: Binding<String>,
+        placeholder: String,
+        quality: RenderQuality = .standard,
+        focusBinding: FocusState<Bool>.Binding? = nil
+    ) {
         _text = text
         self.placeholder = placeholder
         self.quality = quality
+        self.focusBinding = focusBinding
     }
 
     public var body: some View {
@@ -424,9 +432,7 @@ public struct SearchCapsule: View {
             Image(systemName: "magnifyingglass")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            TextField(placeholder, text: $text)
-                .textFieldStyle(.plain)
-                .font(.callout)
+            searchField
             if !text.isEmpty {
                 Button {
                     text = ""
@@ -442,6 +448,20 @@ public struct SearchCapsule: View {
         .padding(.vertical, 5)
         .glassCapsule(quality: quality)
         .frame(maxWidth: 220)
+    }
+
+    @ViewBuilder
+    private var searchField: some View {
+        if let focusBinding {
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+                .font(.callout)
+                .focused(focusBinding)
+        } else {
+            TextField(placeholder, text: $text)
+                .textFieldStyle(.plain)
+                .font(.callout)
+        }
     }
 }
 
@@ -494,13 +514,14 @@ public struct ReadOnlyToggle: View {
             let isOn = readOnlyMode.wrappedValue
             ToolbarIconButton(
                 isOn ? "lock.fill" : "lock.open",
-                help: l10n.t(isOn ? .readOnlyOff : .readOnlyOn),
+                help: l10n.t(isOn ? .readOnlyOff : .readOnlyOn) + " (⇧⌘L)",
                 isActive: isOn
             ) {
                 withAnimation(DesignTokens.Motion.gentle) {
                     readOnlyMode.wrappedValue.toggle()
                 }
             }
+            .keyboardShortcut("l", modifiers: [.command, .shift])
         }
     }
 }
