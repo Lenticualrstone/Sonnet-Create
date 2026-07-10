@@ -8,10 +8,11 @@ import SwiftUI
 enum PageExport {
     // MARK: HTML
 
+    // swiftlint:disable line_length
     /// 로컬 이미지는 base64로 임베드해 단일 파일로 만든다.
     static func html(title: String, blocks: [PageBlock], resolver: ((String) -> URL?)?) -> String {
         var body: [String] = []
-        var listStack: String? = nil // "ul" | "ol"
+        var listStack: String? // "ul" | "ol"
 
         func closeList() {
             if let tag = listStack {
@@ -31,12 +32,18 @@ enum PageExport {
         for block in blocks {
             let text = escape(block.text)
             switch block.kind {
-            case .heading1: closeList(); body.append("<h1>\(text)</h1>")
-            case .heading2: closeList(); body.append("<h2>\(text)</h2>")
-            case .heading3: closeList(); body.append("<h3>\(text)</h3>")
-            case .paragraph: closeList(); body.append("<p>\(text)</p>")
-            case .bulleted: openList("ul"); body.append("<li>\(text)</li>")
-            case .numbered: openList("ol"); body.append("<li>\(text)</li>")
+            case .heading1: closeList()
+                body.append("<h1>\(text)</h1>")
+            case .heading2: closeList()
+                body.append("<h2>\(text)</h2>")
+            case .heading3: closeList()
+                body.append("<h3>\(text)</h3>")
+            case .paragraph: closeList()
+                body.append("<p>\(text)</p>")
+            case .bulleted: openList("ul")
+                body.append("<li>\(text)</li>")
+            case .numbered: openList("ol")
+                body.append("<li>\(text)</li>")
             case .task:
                 openList("ul")
                 let checked = block.isChecked ? " checked" : ""
@@ -44,10 +51,14 @@ enum PageExport {
             case .toggle:
                 closeList()
                 body.append("<details open><summary>\(text)</summary></details>")
-            case .quote: closeList(); body.append("<blockquote>\(text)</blockquote>")
-            case .callout: closeList(); body.append("<div class=\"callout\">💡 \(text)</div>")
-            case .code: closeList(); body.append("<pre><code>\(text)</code></pre>")
-            case .divider: closeList(); body.append("<hr>")
+            case .quote: closeList()
+                body.append("<blockquote>\(text)</blockquote>")
+            case .callout: closeList()
+                body.append("<div class=\"callout\">💡 \(text)</div>")
+            case .code: closeList()
+                body.append("<pre><code>\(text)</code></pre>")
+            case .divider: closeList()
+                body.append("<hr>")
             case .image:
                 closeList()
                 if let src = imageSource(block, resolver: resolver) {
@@ -93,6 +104,8 @@ enum PageExport {
         </html>
         """
     }
+
+    // swiftlint:enable line_length
 
     private static func escape(_ s: String) -> String {
         s.replacingOccurrences(of: "&", with: "&amp;")

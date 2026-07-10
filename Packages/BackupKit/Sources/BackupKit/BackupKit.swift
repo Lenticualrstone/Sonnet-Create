@@ -4,7 +4,7 @@ import Foundation
 
 /// 타임라인 백업 한 시점.
 public struct BackupRecord: Identifiable, Sendable, Equatable {
-    public let id: String   // 폴더명 (yyyyMMdd-HHmmss)
+    public let id: String // 폴더명 (yyyyMMdd-HHmmss)
     public let date: Date
     public let url: URL
 
@@ -103,7 +103,7 @@ public struct BackupManager: Sendable {
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             throw NSError(domain: "BackupKit", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "프로젝트 압축에 실패했습니다."
+                NSLocalizedDescriptionKey: "프로젝트 압축에 실패했습니다.",
             ])
         }
     }
@@ -123,7 +123,7 @@ public struct BackupManager: Sendable {
         unzip.waitUntilExit()
         guard unzip.terminationStatus == 0 else {
             throw NSError(domain: "BackupKit", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "패키지 압축 해제에 실패했습니다."
+                NSLocalizedDescriptionKey: "패키지 압축 해제에 실패했습니다.",
             ])
         }
 
@@ -133,7 +133,7 @@ public struct BackupManager: Sendable {
             fm.fileExists(atPath: $0.appendingPathComponent("project.json").path)
         }), let loaded = ProjectIO.load(from: projectRoot) else {
             throw NSError(domain: "BackupKit", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "유효한 프로젝트 매니페스트를 찾지 못했습니다."
+                NSLocalizedDescriptionKey: "유효한 프로젝트 매니페스트를 찾지 못했습니다.",
             ])
         }
 

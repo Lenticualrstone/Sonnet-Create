@@ -1,3 +1,5 @@
+// 로컬라이제이션 사전은 언어별 한 줄 표기가 가독성에 유리하다 — 줄 길이 규칙 제외.
+// swiftlint:disable line_length
 import Foundation
 import Observation
 

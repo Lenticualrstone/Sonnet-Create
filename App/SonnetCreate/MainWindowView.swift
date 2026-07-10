@@ -89,7 +89,9 @@ struct MainWindowView: View {
             }
             Button(Localizer.shared.t(.cancel), role: .cancel) {}
         } message: { items in
-            Text(items.count > 1 ? Localizer.shared.t(.permanentDeleteConfirmMessagePlural) : Localizer.shared.t(.permanentDeleteConfirmMessage))
+            Text(items.count > 1
+                ? Localizer.shared.t(.permanentDeleteConfirmMessagePlural)
+                : Localizer.shared.t(.permanentDeleteConfirmMessage))
         }
         // 프로젝트 삭제 확인
         .confirmationDialog(
@@ -382,7 +384,7 @@ struct ChromeTabBar: View {
                 .fill(theme.isBranded ? AnyShapeStyle(theme.canvasColor) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor)))
             if isChrome {
                 // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
-                (theme.isBranded ? SonnetPalette.sunken : Color.primary.opacity(0.06))
+                theme.isBranded ? SonnetPalette.sunken : Color.primary.opacity(0.06)
                 if theme.isBranded {
                     // 앤티크 페이퍼 무드를 강화하는 미세 그레인
                     GrainOverlay(color: SonnetPalette.ink, opacity: 0.045, density: 500)

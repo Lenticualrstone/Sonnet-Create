@@ -45,10 +45,10 @@ var ariaProfile = CharacterProfile(
 ariaProfile.fields = [
     CharacterField(name: "나이", value: "19"),
     CharacterField(name: "소속", value: "루멘 지도 길드"),
-    CharacterField(name: "말버릇", value: "\"일단 가보고 정하죠.\"")
+    CharacterField(name: "말버릇", value: "\"일단 가보고 정하죠.\""),
 ]
 ariaProfile.relations = [
-    CharacterRelation(targetPageID: kyle.envelope.id, label: "동료이자 감시자")
+    CharacterRelation(targetPageID: kyle.envelope.id, label: "동료이자 감시자"),
 ]
 ariaProfile.voice = CharacterVoice(
     tone: "짧고 단정적. 확신이 없을 때만 말끝을 흐린다.",
@@ -66,10 +66,10 @@ var kyleProfile = CharacterProfile(
 )
 kyleProfile.fields = [
     CharacterField(name: "나이", value: "24"),
-    CharacterField(name: "소속", value: "전직 성벽 경비대")
+    CharacterField(name: "소속", value: "전직 성벽 경비대"),
 ]
 kyleProfile.relations = [
-    CharacterRelation(targetPageID: aria.envelope.id, label: "말리면서도 결국 따라가는 사이")
+    CharacterRelation(targetPageID: aria.envelope.id, label: "말리면서도 결국 따라가는 사이"),
 ]
 kyle.content = .page(PageContent(blocks: [], profile: kyleProfile))
 try DocumentPackageIO.write(kyle)
@@ -117,7 +117,7 @@ scenario.content = .scenario(ScenarioContent(
 ))
 scenario.refs = ReferenceGraph(outgoing: [
     .init(target: aria.envelope.id, kind: .character),
-    .init(target: kyle.envelope.id, kind: .character)
+    .init(target: kyle.envelope.id, kind: .character),
 ])
 try DocumentPackageIO.write(scenario)
 
@@ -144,11 +144,11 @@ mindmap.content = .mindmap(MindMapContent(
     nodes: [cityNode, gateNode, scenarioNode],
     edges: [
         MindMapEdge(fromID: cityNode.id, toID: gateNode.id, caption: "반나절 거리"),
-        MindMapEdge(fromID: gateNode.id, toID: scenarioNode.id, caption: "이야기가 시작되는 곳")
+        MindMapEdge(fromID: gateNode.id, toID: scenarioNode.id, caption: "이야기가 시작되는 곳"),
     ]
 ))
 mindmap.refs = ReferenceGraph(outgoing: [
-    .init(target: scenario.envelope.id, kind: .link)
+    .init(target: scenario.envelope.id, kind: .link),
 ])
 try DocumentPackageIO.write(mindmap)
 
@@ -180,7 +180,7 @@ let guideBlocks: [PageBlock] = [
     block(.toggle, "토글 블록 — 눌러서 펼치는 보조 설명에 사용하세요."),
     block(.table, "", tableData: [["문서 유형", "확장자"], ["시나리오", ".scen"], ["마인드맵", ".scno"], ["페이지", ".scpa"]]),
     block(.divider, ""),
-    block(.paragraph, "이 페이지를 포함해 튜토리얼 프로젝트 전체를 지워도 좋습니다 — 새 프로젝트는 홈 화면에서 언제든 다시 만들 수 있습니다.")
+    block(.paragraph, "이 페이지를 포함해 튜토리얼 프로젝트 전체를 지워도 좋습니다 — 새 프로젝트는 홈 화면에서 언제든 다시 만들 수 있습니다."),
 ]
 
 guideDoc.content = .page(PageContent(blocks: guideBlocks))

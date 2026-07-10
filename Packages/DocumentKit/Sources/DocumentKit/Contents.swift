@@ -30,9 +30,9 @@ public struct CastMember: Identifiable, Codable, Sendable, Equatable, Hashable {
 }
 
 public enum ScenarioBlockKind: String, Codable, Sendable {
-    case line        // 대사
+    case line // 대사
     case instruction // 지침
-    case divider     // 구분선 (장면 전환 등)
+    case divider // 구분선 (장면 전환 등)
 }
 
 public struct ScenarioBlock: Identifiable, Codable, Sendable, Equatable {

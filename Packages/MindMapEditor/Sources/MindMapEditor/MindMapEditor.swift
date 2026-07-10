@@ -36,8 +36,8 @@ public struct MindMapEditorView: View {
         self.saveState = saveState
         self.onManualSave = onManualSave
         self.onOpenDocument = onOpenDocument
-        self._zoom = State(initialValue: store.content.zoom)
-        self._offset = State(initialValue: CGSize(width: store.content.offsetX, height: store.content.offsetY))
+        _zoom = State(initialValue: store.content.zoom)
+        _offset = State(initialValue: CGSize(width: store.content.offsetX, height: store.content.offsetY))
     }
 
     public var body: some View {

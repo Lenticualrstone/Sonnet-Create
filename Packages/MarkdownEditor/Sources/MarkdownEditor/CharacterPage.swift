@@ -396,7 +396,7 @@ struct RelationsRadialView: View {
             ZStack {
                 // 연결선 + 라벨
                 Canvas { context, _ in
-                    for (index, _) in relations.enumerated() {
+                    for index in relations.indices {
                         let angle = angleFor(index)
                         let point = CGPoint(
                             x: center.x + cos(angle) * radius,

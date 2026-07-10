@@ -10,9 +10,9 @@ public enum DocumentFormatVersion {
 
 /// 문서 종류. 각 에디터가 독립 확장자를 가진다 (상호 변환 없음).
 public enum DocumentKind: String, Codable, CaseIterable, Sendable, Identifiable {
-    case scenario   // 채팅형 시나리오
-    case mindmap    // 노드 연결형 마인드맵
-    case page       // 블록형 마크다운 페이지 (캐릭터 페이지 포함)
+    case scenario // 채팅형 시나리오
+    case mindmap // 노드 연결형 마인드맵
+    case page // 블록형 마크다운 페이지 (캐릭터 페이지 포함)
 
     public var id: String { rawValue }
 

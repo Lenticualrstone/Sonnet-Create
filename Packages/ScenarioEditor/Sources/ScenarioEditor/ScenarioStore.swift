@@ -6,7 +6,7 @@ import Observation
 
 /// 프로젝트 캐릭터 페이지에서 캐스트로 가져올 수 있는 항목.
 public struct ImportableCharacter: Identifiable, Sendable {
-    public let id: UUID   // 캐릭터 페이지 문서 UUID
+    public let id: UUID // 캐릭터 페이지 문서 UUID
     public let name: String
     public let role: String
     public let symbolName: String
@@ -318,7 +318,7 @@ public final class ScenarioStore {
             pendingSuggestions = suggested.prefix(10).map { suggestion in
                 let speaker = content.cast.first {
                     $0.name.localizedCaseInsensitiveContains(suggestion.speakerName ?? "")
-                    && !(suggestion.speakerName ?? "").isEmpty
+                        && !(suggestion.speakerName ?? "").isEmpty
                 }
                 return ScenarioBlock(
                     kind: suggestion.isInstruction ? .instruction : .line,

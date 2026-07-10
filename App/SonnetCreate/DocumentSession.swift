@@ -48,7 +48,7 @@ final class DocumentSession {
     init(document: LoadedDocument, isPersisted: Bool) {
         self.document = document
         self.isPersisted = isPersisted
-        self.saveState = isPersisted ? .savedAuto : .unsaved
+        saveState = isPersisted ? .savedAuto : .unsaved
         switch document.content {
         case .scenario(let content):
             let store = ScenarioStore(content: content)

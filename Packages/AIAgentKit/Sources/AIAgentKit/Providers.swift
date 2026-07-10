@@ -36,7 +36,7 @@ public struct AppleOnDeviceProvider: AIProvider {
         )
         #else
         throw NSError(domain: "AIAgentKit", code: 10, userInfo: [
-            NSLocalizedDescriptionKey: "이 시스템에서는 온디바이스 모델을 사용할 수 없습니다."
+            NSLocalizedDescriptionKey: "이 시스템에서는 온디바이스 모델을 사용할 수 없습니다.",
         ])
         #endif
     }
@@ -51,7 +51,7 @@ public struct AppleOnDeviceProvider: AIProvider {
         return response.content
         #else
         throw NSError(domain: "AIAgentKit", code: 11, userInfo: [
-            NSLocalizedDescriptionKey: "이 시스템에서는 온디바이스 모델을 사용할 수 없습니다."
+            NSLocalizedDescriptionKey: "이 시스템에서는 온디바이스 모델을 사용할 수 없습니다.",
         ])
         #endif
     }
@@ -95,7 +95,7 @@ public struct AnthropicProvider: AIProvider {
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let message = String(data: data, encoding: .utf8) ?? "unknown"
             throw NSError(domain: "AIAgentKit", code: 20, userInfo: [
-                NSLocalizedDescriptionKey: "Anthropic API 오류: \(message)"
+                NSLocalizedDescriptionKey: "Anthropic API 오류: \(message)",
             ])
         }
         guard
@@ -129,7 +129,7 @@ public struct AnthropicProvider: AIProvider {
         guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
             let message = String(data: data, encoding: .utf8) ?? "unknown"
             throw NSError(domain: "AIAgentKit", code: 21, userInfo: [
-                NSLocalizedDescriptionKey: "Anthropic API 오류: \(message.prefix(200))"
+                NSLocalizedDescriptionKey: "Anthropic API 오류: \(message.prefix(200))",
             ])
         }
         guard

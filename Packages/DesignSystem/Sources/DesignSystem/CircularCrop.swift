@@ -55,9 +55,9 @@ public struct CircularCropEditor: View {
         onCommit: @escaping () -> Void = {}
     ) {
         self.image = image
-        self._zoom = zoom
-        self._offsetX = offsetX
-        self._offsetY = offsetY
+        _zoom = zoom
+        _offsetX = offsetX
+        _offsetY = offsetY
         self.diameter = diameter
         self.onCommit = onCommit
     }

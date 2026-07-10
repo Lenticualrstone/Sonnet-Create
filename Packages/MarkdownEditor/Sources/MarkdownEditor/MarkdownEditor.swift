@@ -33,7 +33,7 @@ public struct PageEditorView: View {
         onManualSave: @escaping () -> Void
     ) {
         self.store = store
-        self._title = title
+        _title = title
         self.breadcrumb = breadcrumb
         self.saveState = saveState
         self.onManualSave = onManualSave

@@ -414,7 +414,7 @@ public struct SearchCapsule: View {
     let quality: RenderQuality
 
     public init(text: Binding<String>, placeholder: String, quality: RenderQuality = .standard) {
-        self._text = text
+        _text = text
         self.placeholder = placeholder
         self.quality = quality
     }

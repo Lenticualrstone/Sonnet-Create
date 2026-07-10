@@ -91,7 +91,7 @@ public struct ArchiveView: View {
         self.onOpen = onOpen
         self.requestUnlock = requestUnlock
         self.openOnSingleClick = openOnSingleClick
-        self._externalTarget = externalTarget
+        _externalTarget = externalTarget
         self.requestTrash = requestTrash
         self.requestPermanentDelete = requestPermanentDelete
         self.isSessionUnlocked = isSessionUnlocked
@@ -198,7 +198,8 @@ public struct ArchiveView: View {
         case .modified: base.sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
         case .name: base.sorted { $0.envelope.title.localizedCompare($1.envelope.title) == .orderedAscending }
         case .kind: base.sorted { $0.envelope.kind.rawValue < $1.envelope.kind.rawValue }
-        case .trashedDate: base.sorted { ($0.envelope.trashedAt ?? $0.envelope.modifiedAt) > ($1.envelope.trashedAt ?? $1.envelope.modifiedAt) }
+        case .trashedDate:
+            base.sorted { ($0.envelope.trashedAt ?? $0.envelope.modifiedAt) > ($1.envelope.trashedAt ?? $1.envelope.modifiedAt) }
         }
     }
 
@@ -539,9 +540,12 @@ public struct ArchiveView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: DesignTokens.Spacing.m) {
                     ForEach(docs.prefix(Self.overviewCap)) { item in
-                        ArchiveCard(item: item, clickCount: openOnSingleClick ? 1 : 2, showTrashMeta: false, originLabel: nil, onOpen: onOpen)
-                            .frame(width: 140)
-                            .contextMenu { contextMenu(for: item) }
+                        ArchiveCard(
+                            item: item, clickCount: openOnSingleClick ? 1 : 2,
+                            showTrashMeta: false, originLabel: nil, onOpen: onOpen
+                        )
+                        .frame(width: 140)
+                        .contextMenu { contextMenu(for: item) }
                     }
                 }
                 .padding(.vertical, 2)

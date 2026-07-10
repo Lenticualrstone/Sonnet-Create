@@ -63,8 +63,8 @@ struct InboxEvent: Identifiable, Codable {
     let message: String
 
     init(symbol: String, message: String) {
-        self.id = UUID()
-        self.date = Date()
+        id = UUID()
+        date = Date()
         self.symbol = symbol
         self.message = message
     }
@@ -703,10 +703,11 @@ final class AppState {
         panel.allowsMultipleSelection = true
         panel.message = Localizer.shared.t(.importAny)
         guard panel.runModal() == .OK else { return }
-        for url in panel.urls {
-            if importItem(at: url) {
-                notify(symbol: "square.and.arrow.down", message: "\(Localizer.shared.t(.eventImported)): \(url.lastPathComponent)")
-            }
+        for url in panel.urls where importItem(at: url) {
+            notify(
+                symbol: "square.and.arrow.down",
+                message: "\(Localizer.shared.t(.eventImported)): \(url.lastPathComponent)"
+            )
         }
         workspace.scan()
     }

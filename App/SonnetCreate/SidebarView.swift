@@ -409,7 +409,8 @@ struct SidebarProfileMenu: View {
         let s = app.settings.applied
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: DesignTokens.Spacing.s) {
-                if !s.authorPhotoPath.isEmpty, let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: s.authorPhotoPath), maxPointSize: 36) {
+                if !s.authorPhotoPath.isEmpty,
+                   let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: s.authorPhotoPath), maxPointSize: 36) {
                     CroppedCircleImage(
                         image: image,
                         zoom: s.authorCropZoom,

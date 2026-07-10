@@ -112,7 +112,10 @@ public final class WorkspaceStore {
         // 문서로 인식되지 않는 뷰어블 파일 (이미지·PDF·텍스트 등)을 '기타'로 수집한다.
         // 얕은 스캔만 수행 — 문서 번들 내부의 resources/(임베드 미디어)는 대상이 아니다.
         func collectOtherFiles(in directory: URL, projectID: UUID?, projectName: String?) {
-            guard let items = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]) else { return }
+            guard let items = try? fm.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey]
+            ) else { return }
             for item in items {
                 let name = item.lastPathComponent
                 if name.hasPrefix(".") { continue }

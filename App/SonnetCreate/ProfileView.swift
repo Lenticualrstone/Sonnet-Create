@@ -144,15 +144,15 @@ struct ContributionGraph: View {
         let today = calendar.startOfDay(for: Date())
         // 이번 주 일요일로 정렬 (GitHub 관례: 일요일 시작)
         let weekday = calendar.component(.weekday, from: today) // 1 = 일
-        let thisSunday = calendar.date(byAdding: .day, value: -(weekday - 1), to: today)!
-        let firstSunday = calendar.date(byAdding: .weekOfYear, value: -(weeks - 1), to: thisSunday)!
+        let thisSunday = calendar.date(byAdding: .day, value: -(weekday - 1), to: today) ?? today
+        let firstSunday = calendar.date(byAdding: .weekOfYear, value: -(weeks - 1), to: thisSunday) ?? thisSunday
 
         return VStack(alignment: .leading, spacing: 4) {
             HStack(alignment: .top, spacing: spacing) {
                 ForEach(0..<weeks, id: \.self) { week in
                     VStack(spacing: spacing) {
                         ForEach(0..<7, id: \.self) { day in
-                            let date = calendar.date(byAdding: .day, value: week * 7 + day, to: firstSunday)!
+                            let date = calendar.date(byAdding: .day, value: week * 7 + day, to: firstSunday) ?? today
                             let isFuture = date > today
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
                                 .fill(color(for: isFuture ? -1 : app.activityCount(on: date)))
@@ -182,8 +182,8 @@ struct ContributionGraph: View {
 
     private func color(for count: Int) -> Color {
         switch count {
-        case ..<0: .clear                              // 미래
-        case 0: SonnetPalette.sunken.opacity(0.7)      // 활동 없음
+        case ..<0: .clear // 미래
+        case 0: SonnetPalette.sunken.opacity(0.7) // 활동 없음
         case 1...2: accent.opacity(0.25)
         case 3...5: accent.opacity(0.45)
         case 6...9: accent.opacity(0.7)

@@ -1,0 +1,30 @@
+# Sonnet Create — swiftformat 설정
+# 기존 코드 스타일(4칸 들여쓰기, 단일행 guard/if, SwiftUI 관용구)을 기준선으로 삼는
+# 보수적 구성. 목표는 대량 리포맷이 아니라 새/수정 코드의 위생 유지다.
+
+--swiftversion 6.0
+
+# 경로
+--exclude **/.build, dist
+
+# 들여쓰기
+--indent 4
+
+# 위생 규칙만 켠다
+--ranges no-space
+--commas always
+--semicolons never
+--trimwhitespace always
+--stripunusedargs closure-only
+--self remove
+
+# 기존 스타일과 충돌하는 재작성 규칙은 끈다
+--disable wrap, wrapIfStatementBodies, wrapPropertyBodies, wrapLoopBodies, \
+          wrapMultilineStatementBraces, environmentEntry, hoistPatternLet, \
+          redundantSwiftUIGroup, docComments, blankLinesBetweenScopes, \
+          conditionalAssignment, redundantThrows, redundantAsync, sortImports, \
+          organizeDeclarations, extensionAccessControl, redundantType, andOperator, \
+          redundantReturn, preferForLoop, opaqueGenericParameters, \
+          wrapFunctionBodies, preferKeyPath, preferCountWhere, redundantViewBuilder, \
+          modifierOrder, hoistTry, blankLinesAroundMark
+--ifdef no-indent
