@@ -28,6 +28,7 @@
 		C583879B0B6F94558BFF19A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 58A12D2048D706809356DC2A /* Assets.xcassets */; };
 		CE45AB899CBA391F2CACB07F /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97888449FE61B870DCDF0F5 /* AppState.swift */; };
 		CFEF4DEACF5E17DD4C225A7E /* DocumentKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8493861596FEF81117D079D6 /* DocumentKit */; };
+		DE91361733956BCE990D585A /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F664E7ACD2C4618DF9D5834 /* CommandPaletteView.swift */; };
 		DEDBCA2FAA6C5AACAAD3ADE0 /* SonnetCreateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */; };
 		E9C53E46E0FA962C9C0A994F /* FileManagerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2009A9936B231F52033452B6 /* FileManagerKit */; };
 		F3A9288811842CF2CEF9F518 /* BackupKit in Frameworks */ = {isa = PBXBuildFile; productRef = F258D05B19638E682FD5109D /* BackupKit */; };
@@ -46,6 +47,7 @@
 		4C3C3A0D346929F536465572 /* RenderingKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = RenderingKit; path = ../Packages/RenderingKit; sourceTree = SOURCE_ROOT; };
 		56B7230F4536E4571918BEE9 /* AIAgentKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AIAgentKit; path = ../Packages/AIAgentKit; sourceTree = SOURCE_ROOT; };
 		58A12D2048D706809356DC2A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5F664E7ACD2C4618DF9D5834 /* CommandPaletteView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandPaletteView.swift; sourceTree = "<group>"; };
 		64D0C47C0D78C6FF8AB2C623 /* DocumentKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DocumentKit; path = ../Packages/DocumentKit; sourceTree = SOURCE_ROOT; };
 		732C34C9124878FB3421665B /* TouchBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchBarController.swift; sourceTree = "<group>"; };
 		7858C36D928A18AE009A7109 /* DocumentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSession.swift; sourceTree = "<group>"; };
@@ -97,6 +99,7 @@
 				F97888449FE61B870DCDF0F5 /* AppState.swift */,
 				58A12D2048D706809356DC2A /* Assets.xcassets */,
 				3A17E86B8424F8306FD4B021 /* BackupTimelineView.swift */,
+				5F664E7ACD2C4618DF9D5834 /* CommandPaletteView.swift */,
 				7858C36D928A18AE009A7109 /* DocumentSession.swift */,
 				8D11BB4282BA195D4F440C97 /* HomeView.swift */,
 				B272B5B24C1D05E090A56FDE /* MainWindowView.swift */,
@@ -249,6 +252,7 @@
 				73C1957625A8EF96EE98588F /* AppKitTweaks.swift in Sources */,
 				CE45AB899CBA391F2CACB07F /* AppState.swift in Sources */,
 				376249414C17B9E064AD94FD /* BackupTimelineView.swift in Sources */,
+				DE91361733956BCE990D585A /* CommandPaletteView.swift in Sources */,
 				AF49D942F7AC3E75387EBE40 /* DocumentSession.swift in Sources */,
 				0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */,
 				C494EDD5B6181E2B58C3A896 /* MainWindowView.swift in Sources */,

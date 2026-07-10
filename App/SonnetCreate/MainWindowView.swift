@@ -13,6 +13,7 @@ struct MainWindowView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.colorScheme) private var colorScheme
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var showCommandPalette = false
 
     var body: some View {
         // 헤더는 사이드바/콘텐츠 그 어느 쪽에도 귀속되지 않는 프로그램 전체의 유일한
@@ -49,6 +50,21 @@ struct MainWindowView: View {
         // 전체화면에서는 그대로 두어야 한다 — 무조건 ignoresSafeArea하면
         // 전체화면의 (더 큰) 상단 안전영역만큼 헤더가 화면 밖으로 밀려나 사라진다.
         .modifier(TopChromeExtension(active: !app.isFullscreen))
+        // ⌘K 커맨드 팔레트 — 어디서든 문서 점프/빠른 명령
+        .overlay {
+            if showCommandPalette {
+                CommandPaletteView(isPresented: $showCommandPalette)
+            }
+        }
+        .background {
+            Button("") {
+                withAnimation(DesignTokens.Motion.snappy) { showCommandPalette.toggle() }
+            }
+            .keyboardShortcut("k", modifiers: .command)
+            .buttonStyle(.plain)
+            .opacity(0)
+            .accessibilityHidden(true)
+        }
         .navigationTitle("")
         // 크롬(버튼/탭/툴바)의 안내 텍스트가 커서로 선택되는 것을 방지.
         // 본문 텍스트 선택이 필요한 곳(시나리오 블록 등)은 개별적으로 다시 활성화한다.
