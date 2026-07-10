@@ -110,49 +110,129 @@ enum PageExport {
 
     // MARK: PDF
 
-    /// ImageRenderer 기반 PDF (v1: 한 장의 긴 페이지).
+    /// A4 다중 페이지 PDF — 블록별 높이를 측정해 그리디로 페이지를 채운다.
+    /// 단일 블록이 페이지 콘텐츠 높이를 넘으면 그 블록만 실은 페이지에서 잘린다
+    /// (본문 블록은 Enter 분할 단위라 실사용에서는 이미지/표 정도만 해당).
     @MainActor
     static func pdf(title: String, blocks: [PageBlock], resolver: ((String) -> URL?)?) -> Data? {
-        let renderer = ImageRenderer(
-            content: ExportRenderView(title: title, blocks: blocks, resolver: resolver)
-                .frame(width: 700)
-        )
-        renderer.proposedSize = ProposedViewSize(width: 700, height: nil)
+        let pageSize = CGSize(width: 595.2, height: 841.8) // A4 (pt)
+        let margin: CGFloat = 48
+        let contentWidth = pageSize.width - margin * 2
+        let contentHeight = pageSize.height - margin * 2
+        let spacing: CGFloat = 10
 
-        let data = NSMutableData()
-        renderer.render { size, render in
-            var mediaBox = CGRect(origin: .zero, size: CGSize(width: size.width, height: max(size.height, 100)))
-            guard let consumer = CGDataConsumer(data: data as CFMutableData),
-                  let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil)
-            else { return }
-            context.beginPDFPage(nil)
-            render(context)
-            context.endPDFPage()
-            context.closePDF()
+        func measure(_ view: some View) -> CGFloat {
+            let controller = NSHostingController(rootView: view.frame(width: contentWidth))
+            return controller.sizeThatFits(
+                in: CGSize(width: contentWidth, height: .greatestFiniteMagnitude)
+            ).height
         }
+
+        // 1) 측정 — 제목은 첫 페이지 상단에 고정
+        let titleHeight = measure(ExportTitleView(title: title))
+        let blockHeights = blocks.map { measure(ExportBlockView(block: $0, resolver: resolver)) }
+
+        // 2) 그리디 페이지 채우기
+        var pages: [[Int]] = []
+        var current: [Int] = []
+        var used: CGFloat = titleHeight
+        for (index, height) in blockHeights.enumerated() {
+            if used > 0, used + spacing + height > contentHeight {
+                pages.append(current)
+                current = []
+                used = 0
+            }
+            current.append(index)
+            used += used > 0 ? spacing + height : height
+        }
+        pages.append(current)
+
+        // 3) 페이지 단위 렌더링
+        let data = NSMutableData()
+        var mediaBox = CGRect(origin: .zero, size: pageSize)
+        guard let consumer = CGDataConsumer(data: data as CFMutableData),
+              let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil)
+        else { return nil }
+
+        for (pageIndex, indices) in pages.enumerated() {
+            let renderer = ImageRenderer(content: ExportPageView(
+                title: pageIndex == 0 ? title : nil,
+                blocks: indices.map { blocks[$0] },
+                resolver: resolver,
+                pageNumber: pageIndex + 1,
+                pageCount: pages.count,
+                pageSize: pageSize,
+                margin: margin
+            ))
+            renderer.proposedSize = ProposedViewSize(pageSize)
+            context.beginPDFPage(nil)
+            renderer.render { _, render in render(context) }
+            context.endPDFPage()
+        }
+        context.closePDF()
         return data.length > 0 ? data as Data : nil
     }
 }
 
-/// PDF 렌더링 전용의 단순 정적 뷰 (TextField 없이 Text만).
-private struct ExportRenderView: View {
-    let title: String
+/// PDF 페이지 한 장 — 여백을 포함한 A4 전체를 그린다 (TextField 없이 Text만).
+private struct ExportPageView: View {
+    let title: String?
     let blocks: [PageBlock]
     let resolver: ((String) -> URL?)?
+    let pageNumber: Int
+    let pageCount: Int
+    let pageSize: CGSize
+    let margin: CGFloat
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title)
-                .font(.system(size: 28, weight: .bold))
-                .padding(.bottom, 8)
+            if let title {
+                ExportTitleView(title: title)
+            }
             ForEach(blocks) { block in
-                blockView(block)
+                ExportBlockView(block: block, resolver: resolver)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(
+            width: pageSize.width - margin * 2,
+            height: pageSize.height - margin * 2,
+            alignment: .topLeading
+        )
+        .padding(margin)
+        .background(Color.white)
+        .overlay(alignment: .bottom) {
+            if pageCount > 1 {
+                Text("\(pageNumber) / \(pageCount)")
+                    .font(.system(size: 9))
+                    .foregroundStyle(Color.gray)
+                    .padding(.bottom, margin / 2)
             }
         }
-        .padding(36)
-        .background(Color.white)
         .foregroundStyle(Color.black)
         .environment(\.colorScheme, .light)
+    }
+}
+
+private struct ExportTitleView: View {
+    let title: String
+
+    var body: some View {
+        Text(title)
+            .font(.system(size: 28, weight: .bold))
+            .foregroundStyle(Color.black)
+            .padding(.bottom, 8)
+    }
+}
+
+/// 블록 하나의 정적 렌더링 — 페이지 채우기 측정과 실제 그리기가 같은 뷰를 쓴다.
+private struct ExportBlockView: View {
+    let block: PageBlock
+    let resolver: ((String) -> URL?)?
+
+    var body: some View {
+        blockView(block)
+            .foregroundStyle(Color.black)
     }
 
     @ViewBuilder
