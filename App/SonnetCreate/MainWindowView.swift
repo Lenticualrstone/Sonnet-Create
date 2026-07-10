@@ -297,14 +297,25 @@ struct ChromeTabBar: View {
                 .opacity(app.canGoForward ? 1 : 0.35)
             }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: isChrome ? 0 : 4) {
-                    ForEach(Array(app.tabs.enumerated()), id: \.element.id) { index, tab in
-                        TabChip(tab: tab, isFirst: index == 0)
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: isChrome ? 0 : 4) {
+                        ForEach(Array(app.tabs.enumerated()), id: \.element.id) { index, tab in
+                            TabChip(tab: tab, isFirst: index == 0)
+                                .id(tab.id)
+                        }
+                    }
+                    .padding(.leading, isChrome ? 6 : 4)
+                    .padding(.top, isChrome ? 5 : 3)
+                }
+                // 탭이 많아 가려질 때 선택 탭을 항상 시야로 데려온다
+                .onChange(of: app.selectedTabID) { _, selected in
+                    if let selected {
+                        withAnimation(DesignTokens.Motion.gentle) {
+                            proxy.scrollTo(selected, anchor: .trailing)
+                        }
                     }
                 }
-                .padding(.leading, isChrome ? 6 : 4)
-                .padding(.top, isChrome ? 5 : 3)
             }
 
             // 새 문서 종류 선택 메뉴
@@ -417,6 +428,11 @@ struct TabChip: View {
         return nil
     }
 
+    private var hasUnsavedChanges: Bool {
+        guard let state = documentSession?.saveState else { return false }
+        return state == .unsaved || state == .saving
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             // 비활성 탭 사이 세로 구분선 (chrome-tabs 시그니처)
@@ -436,20 +452,30 @@ struct TabChip: View {
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                Button {
-                    app.closeTab(tab)
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 17, height: 17)
-                        .background(
-                            Circle().fill(Color.primary.opacity(hovering ? 0.09 : 0))
-                        )
-                        .contentShape(Circle())
+                // 미저장 표시 — 브라우저 관례처럼 호버 전에는 점, 호버하면 닫기 버튼
+                ZStack {
+                    if hasUnsavedChanges, !hovering {
+                        Circle()
+                            .fill(accent.opacity(0.85))
+                            .frame(width: 7, height: 7)
+                            .transition(.opacity.combined(with: .scale(scale: 0.5)))
+                    }
+                    Button {
+                        app.closeTab(tab)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 17, height: 17)
+                            .background(
+                                Circle().fill(Color.primary.opacity(hovering ? 0.09 : 0))
+                            )
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(hovering ? 1 : (isSelected && !hasUnsavedChanges ? 1 : 0))
                 }
-                .buttonStyle(.plain)
-                .opacity(hovering || isSelected ? 1 : 0)
+                .frame(width: 17, height: 17)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, isChrome ? 7 : 5)
