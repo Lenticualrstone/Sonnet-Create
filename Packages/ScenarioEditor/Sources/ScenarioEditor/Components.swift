@@ -171,7 +171,16 @@ struct SpeakerCluster: View {
                     }
                 }
                 .frame(width: avatarSize + CGFloat(min(speakers.count, 3) - 1) * stackOffset, alignment: .leading)
-                .onHover { showPopover = $0 }
+                .onHover { hovering in
+                    if hovering {
+                        // 이 클러스터는 List/ForEach 블록 행 안에 있다 — 다른 트리거로
+                        // 블록 배열이 바뀌는 도중 popover를 열면 앵커 뷰가 아직 확정되지
+                        // 않아 NSPopover가 크래시할 수 있다 (macOS 26). 한 틱 지연해서 연다.
+                        DispatchQueue.main.async { showPopover = true }
+                    } else {
+                        showPopover = false
+                    }
+                }
                 .popover(isPresented: $showPopover, arrowEdge: .top) {
                     VStack(alignment: .leading, spacing: 6) {
                         ForEach(speakers) { member in

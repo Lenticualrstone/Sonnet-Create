@@ -19,6 +19,13 @@ struct ImageBlockView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
 
+    /// 이 뷰는 LazyVStack/ForEach 블록 목록 안에서 재구성될 수 있다 — 탭/컨텍스트메뉴에서
+    /// 바로 showViewer=true를 주면 앵커 뷰가 아직 윈도우 계층에서 확정되지 않아
+    /// sheet/popover가 NSPopover 크래시를 일으킬 수 있다 (macOS 26). 한 틱 지연해서 연다.
+    private func openViewer() {
+        DispatchQueue.main.async { showViewer = true }
+    }
+
     private var isRemote: Bool {
         block.resourcePath?.hasPrefix("http") ?? false
     }
@@ -40,7 +47,7 @@ struct ImageBlockView: View {
                     imageContent
                         .frame(maxHeight: 380)
                         .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
-                        .onTapGesture { showViewer = true }
+                        .onTapGesture { openViewer() }
                     // 캡션 (block.text)
                     TextField(
                         l10n.t(.captionLabel),
@@ -60,7 +67,7 @@ struct ImageBlockView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: frameAlignment)
                 .contextMenu {
-                    Button(l10n.t(.enlarge)) { showViewer = true }
+                    Button(l10n.t(.enlarge)) { openViewer() }
                     Menu(l10n.t(.aspectOriginal)) {
                         Button(l10n.t(.aspectOriginal)) { setAspect(nil) }
                         Button("16:9") { setAspect(16.0 / 9.0) }
@@ -172,7 +179,11 @@ struct ImageBlockView: View {
                 Label(l10n.t(.chooseImage), systemImage: "photo.badge.plus")
             }
             Button {
-                showURLField.toggle()
+                if showURLField {
+                    showURLField = false
+                } else {
+                    DispatchQueue.main.async { showURLField = true }
+                }
             } label: {
                 Label(l10n.t(.embedURL), systemImage: "link")
             }
