@@ -661,7 +661,10 @@ struct CharacterVoiceTab: View {
                     TextField("", text: sampleBinding(index))
                         .textFieldStyle(.roundedBorder)
                     Button {
-                        store.updateProfile { $0.voice?.samples.remove(at: index) }
+                        store.updateProfile { profile in
+                            guard profile.voice?.samples.indices.contains(index) == true else { return }
+                            profile.voice?.samples.remove(at: index)
+                        }
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.tertiary)
