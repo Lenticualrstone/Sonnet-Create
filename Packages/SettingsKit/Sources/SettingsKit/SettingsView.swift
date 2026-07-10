@@ -10,6 +10,7 @@ public struct SettingsRootView: View {
     /// 백업 타임라인 등 앱 수준 액션 (일반 탭에 노출)
     let backupTimelineView: AnyView?
     @Environment(\.resolvedAccent) private var accent
+    @State private var showCropEditor = false
 
     public init(store: SettingsStore, backupTimelineView: AnyView? = nil) {
         self.store = store
@@ -81,10 +82,17 @@ public struct SettingsRootView: View {
                     }
                 }
                 if !store.draft.authorPhotoPath.isEmpty {
-                    Button(l10n.t(.removePhoto), role: .destructive) {
-                        store.draft.authorPhotoPath = ""
+                    HStack(spacing: DesignTokens.Spacing.s) {
+                        Button(l10n.t(.adjustCrop)) {
+                            showCropEditor = true
+                        }
+                        .controlSize(.small)
+                        Button(l10n.t(.removePhoto), role: .destructive) {
+                            store.draft.authorPhotoPath = ""
+                            resetCrop()
+                        }
+                        .controlSize(.small)
                     }
-                    .controlSize(.small)
                 }
             }
 
@@ -116,19 +124,49 @@ public struct SettingsRootView: View {
             }
         }
         .formStyle(.grouped)
+        .sheet(isPresented: $showCropEditor) {
+            VStack(spacing: DesignTokens.Spacing.m) {
+                Text(l10n.t(.adjustCrop))
+                    .font(.headline)
+                if let image = ImageThumbnailCache.thumbnail(
+                    for: URL(fileURLWithPath: store.draft.authorPhotoPath), maxPointSize: 600
+                ) {
+                    CircularCropEditor(
+                        image: image,
+                        zoom: $store.draft.authorCropZoom,
+                        offsetX: $store.draft.authorCropOffsetX,
+                        offsetY: $store.draft.authorCropOffsetY
+                    )
+                }
+                HStack {
+                    Spacer()
+                    Button(l10n.t(.done)) { showCropEditor = false }
+                        .buttonStyle(.borderedProminent)
+                        .keyboardShortcut(.escape, modifiers: [])
+                }
+            }
+            .padding(DesignTokens.Spacing.l)
+            .frame(width: 300)
+        }
+    }
+
+    private func resetCrop() {
+        store.draft.authorCropZoom = 1
+        store.draft.authorCropOffsetX = 0
+        store.draft.authorCropOffsetY = 0
     }
 
     @ViewBuilder
     private var profileAvatar: some View {
         if !store.draft.authorPhotoPath.isEmpty,
            let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: store.draft.authorPhotoPath), maxPointSize: 56) {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 56, height: 56)
-                .clipShape(Circle())
+            CroppedCircleImage(
+                image: image,
+                zoom: store.draft.authorCropZoom,
+                offsetX: store.draft.authorCropOffsetX,
+                offsetY: store.draft.authorCropOffsetY,
+                size: 56
+            )
         } else {
             ZStack {
                 Circle().fill(accent.opacity(0.16))
@@ -157,6 +195,7 @@ public struct SettingsRootView: View {
         do {
             try FileManager.default.copyItem(at: url, to: target)
             store.draft.authorPhotoPath = target.path
+            resetCrop()
         } catch {}
     }
 

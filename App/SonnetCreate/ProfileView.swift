@@ -79,13 +79,13 @@ struct ProfileView: View {
     private var profileAvatar: some View {
         let path = app.settings.applied.authorPhotoPath
         if !path.isEmpty, let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: path), maxPointSize: 96) {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 96, height: 96)
-                .clipShape(Circle())
+            CroppedCircleImage(
+                image: image,
+                zoom: app.settings.applied.authorCropZoom,
+                offsetX: app.settings.applied.authorCropOffsetX,
+                offsetY: app.settings.applied.authorCropOffsetY,
+                size: 96
+            )
         } else {
             ZStack {
                 Circle().fill(accent.opacity(0.16))

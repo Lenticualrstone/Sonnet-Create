@@ -15,6 +15,10 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var authorPhotoPath: String = ""
     /// 짧은 자기소개
     public var authorBio: String = ""
+    /// 프로필 사진 원형 크롭 — 줌(1~3)과 지름 대비 비율 오프셋 (캐릭터 크롭과 동일 체계)
+    public var authorCropZoom: Double = 1
+    public var authorCropOffsetX: Double = 0
+    public var authorCropOffsetY: Double = 0
     /// 아카이브에서 항목을 여는 클릭 방식 (true = 싱글 클릭)
     public var openOnSingleClick: Bool = true
 
@@ -74,6 +78,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         authorName = try c.decodeIfPresent(String.self, forKey: .authorName) ?? d.authorName
         authorPhotoPath = try c.decodeIfPresent(String.self, forKey: .authorPhotoPath) ?? d.authorPhotoPath
         authorBio = try c.decodeIfPresent(String.self, forKey: .authorBio) ?? d.authorBio
+        authorCropZoom = try c.decodeIfPresent(Double.self, forKey: .authorCropZoom) ?? d.authorCropZoom
+        authorCropOffsetX = try c.decodeIfPresent(Double.self, forKey: .authorCropOffsetX) ?? d.authorCropOffsetX
+        authorCropOffsetY = try c.decodeIfPresent(Double.self, forKey: .authorCropOffsetY) ?? d.authorCropOffsetY
         openOnSingleClick = try c.decodeIfPresent(Bool.self, forKey: .openOnSingleClick) ?? d.openOnSingleClick
         interfaceTheme = try c.decodeIfPresent(InterfaceTheme.self, forKey: .interfaceTheme) ?? d.interfaceTheme
         themeMode = try c.decodeIfPresent(ThemeMode.self, forKey: .themeMode) ?? d.themeMode

@@ -260,19 +260,14 @@ struct CharacterAvatarView: View {
         if let path = profile.imageResourcePath,
            let url = store.resourceResolver?(path),
            let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: size) {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .aspectRatio(contentMode: .fill)
-                .scaleEffect(profile.cropZoom ?? 1)
-                .offset(
-                    x: (profile.cropOffsetX ?? 0) * size,
-                    y: (profile.cropOffsetY ?? 0) * size
-                )
-                .frame(width: size, height: size)
-                .clipShape(Circle())
-                .overlay(Circle().strokeBorder(Color(hex: profile.accentHex).opacity(0.6), lineWidth: 2.5))
+            CroppedCircleImage(
+                image: image,
+                zoom: profile.cropZoom ?? 1,
+                offsetX: profile.cropOffsetX ?? 0,
+                offsetY: profile.cropOffsetY ?? 0,
+                size: size
+            )
+            .overlay(Circle().strokeBorder(Color(hex: profile.accentHex).opacity(0.6), lineWidth: 2.5))
         } else {
             ZStack {
                 Circle().fill(Color(hex: profile.accentHex).opacity(0.22))
@@ -729,9 +724,9 @@ struct CharacterVoiceTab: View {
 struct ProfileImagePanel: View {
     @Bindable var store: PageStore
 
-    @State private var offset: CGSize = .zero
+    @State private var offsetX: Double = 0
+    @State private var offsetY: Double = 0
     @State private var zoom: Double = 1
-    @State private var dragBase: CGSize?
     @Environment(\.dismiss) private var dismiss
 
     private let diameter: CGFloat = 200
@@ -753,38 +748,13 @@ struct ProfileImagePanel: View {
             if let path = profile.imageResourcePath,
                let url = store.resourceResolver?(path),
                let image = ImageThumbnailCache.thumbnail(for: url, maxPointSize: 600) {
-                ZStack {
-                    cropPreview(image).opacity(0.25)
-                    cropPreview(image).clipShape(Circle())
-                    Circle()
-                        .strokeBorder(.white.opacity(0.85), lineWidth: 2)
-                        .frame(width: diameter, height: diameter)
-                }
-                .frame(width: diameter, height: diameter)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture()
-                        .onChanged { value in
-                            if dragBase == nil { dragBase = offset }
-                            guard let base = dragBase else { return }
-                            offset = CGSize(
-                                width: base.width + value.translation.width,
-                                height: base.height + value.translation.height
-                            )
-                        }
-                        .onEnded { _ in
-                            dragBase = nil
-                            commitCrop()
-                        }
-                )
-                HStack(spacing: DesignTokens.Spacing.s) {
-                    Image(systemName: "minus.magnifyingglass").foregroundStyle(.secondary)
-                    Slider(value: $zoom, in: 1...3) { editing in
-                        if !editing { commitCrop() }
-                    }
-                    Image(systemName: "plus.magnifyingglass").foregroundStyle(.secondary)
-                }
-                .frame(width: diameter)
+                CircularCropEditor(
+                    image: image,
+                    zoom: $zoom,
+                    offsetX: $offsetX,
+                    offsetY: $offsetY,
+                    diameter: diameter
+                ) { commitCrop() }
             } else {
                 CharacterAvatarView(store: store, profile: profile, size: diameter)
             }
@@ -857,28 +827,15 @@ struct ProfileImagePanel: View {
         .onAppear {
             let profile = store.content.profile ?? CharacterProfile()
             zoom = profile.cropZoom ?? 1
-            offset = CGSize(
-                width: (profile.cropOffsetX ?? 0) * diameter,
-                height: (profile.cropOffsetY ?? 0) * diameter
-            )
+            offsetX = profile.cropOffsetX ?? 0
+            offsetY = profile.cropOffsetY ?? 0
         }
-    }
-
-    private func cropPreview(_ image: NSImage) -> some View {
-        Image(nsImage: image)
-            .resizable()
-            .interpolation(.high)
-            .antialiased(true)
-            .aspectRatio(contentMode: .fill)
-            .scaleEffect(zoom)
-            .offset(offset)
-            .frame(width: diameter, height: diameter)
     }
 
     private func commitCrop() {
         store.updateProfile {
-            $0.cropOffsetX = offset.width / diameter
-            $0.cropOffsetY = offset.height / diameter
+            $0.cropOffsetX = offsetX
+            $0.cropOffsetY = offsetY
             $0.cropZoom = zoom
         }
     }
@@ -896,7 +853,8 @@ struct ProfileImagePanel: View {
             $0.cropOffsetY = nil
             $0.cropZoom = nil
         }
-        offset = .zero
+        offsetX = 0
+        offsetY = 0
         zoom = 1
     }
 }

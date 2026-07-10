@@ -382,13 +382,13 @@ struct SidebarView: View {
     private var profileAvatar: some View {
         let path = app.settings.applied.authorPhotoPath
         if !path.isEmpty, let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: path), maxPointSize: 28) {
-            Image(nsImage: image)
-                .resizable()
-                .interpolation(.high)
-                .antialiased(true)
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 28, height: 28)
-                .clipShape(Circle())
+            CroppedCircleImage(
+                image: image,
+                zoom: app.settings.applied.authorCropZoom,
+                offsetX: app.settings.applied.authorCropOffsetX,
+                offsetY: app.settings.applied.authorCropOffsetY,
+                size: 28
+            )
         } else {
             Image(systemName: "person.crop.circle.fill")
                 .font(.title2)
@@ -410,13 +410,13 @@ struct SidebarProfileMenu: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: DesignTokens.Spacing.s) {
                 if !s.authorPhotoPath.isEmpty, let image = ImageThumbnailCache.thumbnail(for: URL(fileURLWithPath: s.authorPhotoPath), maxPointSize: 36) {
-                    Image(nsImage: image)
-                        .resizable()
-                        .interpolation(.high)
-                        .antialiased(true)
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 36, height: 36)
-                        .clipShape(Circle())
+                    CroppedCircleImage(
+                        image: image,
+                        zoom: s.authorCropZoom,
+                        offsetX: s.authorCropOffsetX,
+                        offsetY: s.authorCropOffsetY,
+                        size: 36
+                    )
                 } else {
                     ZStack {
                         Circle().fill(accent.opacity(0.16))
