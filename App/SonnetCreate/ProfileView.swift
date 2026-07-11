@@ -53,7 +53,7 @@ struct ProfileView: View {
                     Label(l10n.t(.contributions), systemImage: "square.grid.4x3.fill")
                         .font(.headline)
                     ContributionGraph()
-                    if app.activity.isEmpty {
+                    if app.stats.activity.isEmpty {
                         Text(l10n.t(.activityEmpty))
                             .font(.caption)
                             .foregroundStyle(.tertiary)
@@ -101,10 +101,10 @@ struct ProfileView: View {
     }
 
     private func writingGoalCard(_ l10n: Localizer) -> some View {
-        let today = app.todayWriting
+        let today = app.stats.todayWriting
         let goal = max(1, Int(app.settings.applied.dailyWritingGoal))
         let progress = min(1.0, Double(today) / Double(goal))
-        let streak = app.writingStreak
+        let streak = app.stats.writingStreak
 
         return VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
             HStack {
@@ -210,9 +210,9 @@ struct ContributionGraph: View {
                             let date = calendar.date(byAdding: .day, value: week * 7 + day, to: firstSunday) ?? today
                             let isFuture = date > today
                             RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                .fill(color(for: isFuture ? -1 : app.activityCount(on: date)))
+                                .fill(color(for: isFuture ? -1 : app.stats.activityCount(on: date)))
                                 .frame(width: cell, height: cell)
-                                .help(isFuture ? "" : "\(formatted(date)) — \(app.activityCount(on: date))")
+                                .help(isFuture ? "" : "\(formatted(date)) — \(app.stats.activityCount(on: date))")
                         }
                     }
                 }
