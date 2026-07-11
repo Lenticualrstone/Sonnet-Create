@@ -127,6 +127,18 @@ private struct DialogueAvatarSizeKey: EnvironmentKey {
     static let defaultValue: Double = 34.0
 }
 
+private struct PageFocusModeKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private struct PageTypewriterModeKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+private struct MindmapAutoOpenInspectorKey: EnvironmentKey {
+    static let defaultValue = true
+}
+
 public extension EnvironmentValues {
     var renderQuality: RenderQuality {
         get { self[RenderQualityKey.self] }
@@ -162,6 +174,24 @@ public extension EnvironmentValues {
     var dialogueAvatarSize: Double {
         get { self[DialogueAvatarSizeKey.self] }
         set { self[DialogueAvatarSizeKey.self] = newValue }
+    }
+
+    /// 설정 > 페이지: 포커스 모드 — 편집 중 블록 외 디밍
+    var pageFocusMode: Bool {
+        get { self[PageFocusModeKey.self] }
+        set { self[PageFocusModeKey.self] = newValue }
+    }
+
+    /// 설정 > 페이지: 타자기 모드 — 편집 중 블록을 화면 중앙에 유지
+    var pageTypewriterMode: Bool {
+        get { self[PageTypewriterModeKey.self] }
+        set { self[PageTypewriterModeKey.self] = newValue }
+    }
+
+    /// 설정 > 마인드맵: 노드 선택 시 인스펙터 자동 표시
+    var mindmapAutoOpenInspector: Bool {
+        get { self[MindmapAutoOpenInspectorKey.self] }
+        set { self[MindmapAutoOpenInspectorKey.self] = newValue }
     }
 }
 

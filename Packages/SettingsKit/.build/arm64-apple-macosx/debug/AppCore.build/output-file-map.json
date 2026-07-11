@@ -9,6 +9,13 @@
     "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/AppCore.swiftdeps",
     "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/AppCore.dia"
   },
+  "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/ImageThumbnailCache.swift": {
+    "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache.d",
+    "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache.swift.o",
+    "swiftmodule": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache~partial.swiftmodule",
+    "swift-dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache.swiftdeps",
+    "diagnostics": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache.dia"
+  },
   "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift": {
     "dependencies": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.d",
     "object": "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.swift.o",

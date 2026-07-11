@@ -61,6 +61,14 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// 시나리오 대사 블록의 캐릭터 프로필(아바타) 크기 (pt)
     public var dialogueAvatarSize: Double = 34
 
+    // 에디터별
+    /// 페이지: 포커스 모드 — 편집 중 블록 외 디밍
+    public var pageFocusModeEnabled: Bool = false
+    /// 페이지: 타자기 모드 — 편집 중 블록을 화면 중앙에 유지
+    public var pageTypewriterEnabled: Bool = false
+    /// 마인드맵: 노드 선택 시 인스펙터 자동 표시
+    public var mindmapAutoOpenInspector: Bool = true
+
     // 베타 (AI)
     public var aiProviderRaw: String = "offline"
     public var aiContextScope: AIContextScope = .document
@@ -104,6 +112,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         blockSpacing = try c.decodeIfPresent(Double.self, forKey: .blockSpacing) ?? d.blockSpacing
         dialogueDisplayRaw = try c.decodeIfPresent(String.self, forKey: .dialogueDisplayRaw) ?? d.dialogueDisplayRaw
         dialogueAvatarSize = try c.decodeIfPresent(Double.self, forKey: .dialogueAvatarSize) ?? d.dialogueAvatarSize
+        pageFocusModeEnabled = try c.decodeIfPresent(Bool.self, forKey: .pageFocusModeEnabled) ?? d.pageFocusModeEnabled
+        pageTypewriterEnabled = try c.decodeIfPresent(Bool.self, forKey: .pageTypewriterEnabled) ?? d.pageTypewriterEnabled
+        mindmapAutoOpenInspector = try c.decodeIfPresent(Bool.self, forKey: .mindmapAutoOpenInspector) ?? d.mindmapAutoOpenInspector
         aiProviderRaw = try c.decodeIfPresent(String.self, forKey: .aiProviderRaw) ?? d.aiProviderRaw
         aiContextScope = try c.decodeIfPresent(AIContextScope.self, forKey: .aiContextScope) ?? d.aiContextScope
     }

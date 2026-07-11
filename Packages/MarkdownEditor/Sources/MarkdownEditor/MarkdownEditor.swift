@@ -17,8 +17,28 @@ public struct PageEditorView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentFontFamily) private var fontFamily
     @Environment(\.readOnlyMode) private var readOnlyMode
+    @Environment(\.pageFocusMode) private var focusModeEnabled
+    @Environment(\.pageTypewriterMode) private var typewriterEnabled
 
     private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
+
+    /// 포커스 모드에서 이 항목을 흐리게 할지 — 편집 중 블록이 속한 항목만 밝게 유지.
+    private func focusOpacity(for item: DisplayItem) -> Double {
+        guard focusModeEnabled, let focused = focusedBlockID else { return 1 }
+        return item.contains(focused) ? 1 : 0.3
+    }
+
+    /// 타자기 모드 스크롤 목표 — 편집 중 블록이 속한 표시 항목의 id.
+    private var typewriterTargetID: UUID? {
+        guard typewriterEnabled, let focused = focusedBlockID else { return nil }
+        return displayItems.first { $0.contains(focused) }?.id
+    }
+
+    /// 편집 중 블록의 텍스트 — 줄이 늘어날 때도 중앙을 따라가기 위한 관찰 값.
+    private var focusedBlockText: String {
+        guard typewriterEnabled, let focused = focusedBlockID else { return "" }
+        return store.block(id: focused)?.text ?? ""
+    }
 
     /// 빈 블록 위에서 백스페이스 — SwiftUI의 `.onKeyPress`가 SwiftUI 레이어 문제.
     /// 필드가 완전히 비어있으면 AppKit이 "지울 게 없다"며 이벤트를 자체적으로 삼켜
@@ -124,6 +144,13 @@ public struct PageEditorView: View {
             case .pair(let left, _): left.id
             }
         }
+
+        func contains(_ blockID: UUID) -> Bool {
+            switch self {
+            case .single(let block): block.id == blockID
+            case .pair(let left, let right): left.id == blockID || right.id == blockID
+            }
+        }
     }
 
     private var displayItems: [DisplayItem] {
@@ -153,64 +180,81 @@ public struct PageEditorView: View {
         // 반응하지 않았다 — GeometryReader로 뷰포트 높이를 재서 트레일링 여백이
         // 화면 끝까지 채우도록 늘려, 어디를 클릭해도 새 블록으로 이어지게 한다.
         GeometryReader { geo in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    // Notion처럼 중앙 정렬된 본문 칼럼 (캐릭터 페이지는 제목을 프로필 탭에서 편집)
-                    if !store.isCharacterPage {
-                        TextField(l10n.t(.untitled), text: $title)
-                            .textFieldStyle(.plain)
-                            .font(DSFonts.font(size: 30, weight: .bold, family: fontFamily))
-                            .padding(.top, 6)
-                            .padding(.bottom, 6)
-                            .padding(.leading, 44) // 블록 거터와 정렬
+            ScrollViewReader { proxy in
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        // Notion처럼 중앙 정렬된 본문 칼럼 (캐릭터 페이지는 제목을 프로필 탭에서 편집)
+                        if !store.isCharacterPage {
+                            TextField(l10n.t(.untitled), text: $title)
+                                .textFieldStyle(.plain)
+                                .font(DSFonts.font(size: 30, weight: .bold, family: fontFamily))
+                                .padding(.top, 6)
+                                .padding(.bottom, 6)
+                                .padding(.leading, 44) // 블록 거터와 정렬
+                                .modifier(CenteredColumn())
+                                .disabled(isReadOnly)
+                        }
+
+                        // 나란히(2단) 배치: sideBySide 블록은 다음 블록과 한 행으로 묶는다
+                        let display = displayItems
+                        ForEach(display) { item in
+                            Group {
+                                switch item {
+                                case .single(let block):
+                                    PageBlockRow(store: store, block: block, focusedBlockID: $focusedBlockID)
+                                case .pair(let left, let right):
+                                    HStack(alignment: .top, spacing: DesignTokens.Spacing.m) {
+                                        PageBlockRow(store: store, block: left, focusedBlockID: $focusedBlockID)
+                                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                                        PageBlockRow(store: store, block: right, focusedBlockID: $focusedBlockID)
+                                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    }
+                                }
+                            }
                             .modifier(CenteredColumn())
-                            .disabled(isReadOnly)
-                    }
+                            .id(item.id)
+                            .allowsHitTesting(!isReadOnly)
+                            .opacity(focusOpacity(for: item))
+                            .animation(.easeOut(duration: 0.18), value: focusedBlockID)
+                        }
 
-                    // 나란히(2단) 배치: sideBySide 블록은 다음 블록과 한 행으로 묶는다
-                    let display = displayItems
-                    ForEach(display) { item in
-                        Group {
-                            switch item {
-                            case .single(let block):
-                                PageBlockRow(store: store, block: block, focusedBlockID: $focusedBlockID)
-                            case .pair(let left, let right):
-                                HStack(alignment: .top, spacing: DesignTokens.Spacing.m) {
-                                    PageBlockRow(store: store, block: left, focusedBlockID: $focusedBlockID)
-                                        .frame(maxWidth: .infinity, alignment: .topLeading)
-                                    PageBlockRow(store: store, block: right, focusedBlockID: $focusedBlockID)
-                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        Color.clear
+                            .frame(minHeight: 200, maxHeight: .infinity)
+                            .frame(maxWidth: .infinity)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                guard !isReadOnly else { return }
+                                if let last = store.content.blocks.last {
+                                    if last.text.isEmpty, last.kind == .paragraph {
+                                        store.focusRequest = last.id
+                                    } else {
+                                        store.insertBlock(after: last.id)
+                                    }
                                 }
                             }
-                        }
-                        .modifier(CenteredColumn())
-                        .id(item.id)
-                        .allowsHitTesting(!isReadOnly)
-                    }
-
-                    Color.clear
-                        .frame(minHeight: 200, maxHeight: .infinity)
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            guard !isReadOnly else { return }
-                            if let last = store.content.blocks.last {
-                                if last.text.isEmpty, last.kind == .paragraph {
-                                    store.focusRequest = last.id
-                                } else {
-                                    store.insertBlock(after: last.id)
-                                }
+                            // 문서 맨 끝으로 드래그해서 놓으면 마지막 블록 뒤로 옮긴다.
+                            .dropDestination(for: String.self) { items, _ in
+                                guard !isReadOnly,
+                                      let raw = items.first, let draggedID = UUID(uuidString: raw) else { return false }
+                                store.moveBlockToEnd(draggedID)
+                                return true
                             }
-                        }
-                        // 문서 맨 끝으로 드래그해서 놓으면 마지막 블록 뒤로 옮긴다.
-                        .dropDestination(for: String.self) { items, _ in
-                            guard !isReadOnly,
-                                  let raw = items.first, let draggedID = UUID(uuidString: raw) else { return false }
-                            store.moveBlockToEnd(draggedID)
-                            return true
-                        }
+                    }
+                    .frame(minHeight: geo.size.height, alignment: .top)
                 }
-                .frame(minHeight: geo.size.height, alignment: .top)
+                // 타자기 모드 — 포커스 이동/줄 증가 시 편집 블록을 화면 중앙으로
+                .onChange(of: typewriterTargetID) { _, target in
+                    if let target {
+                        withAnimation(DesignTokens.Motion.gentle) {
+                            proxy.scrollTo(target, anchor: .center)
+                        }
+                    }
+                }
+                .onChange(of: focusedBlockText) {
+                    if let target = typewriterTargetID {
+                        proxy.scrollTo(target, anchor: .center)
+                    }
+                }
             }
         }
     }

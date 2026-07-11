@@ -62,6 +62,7 @@ public enum L10nKey: String, Sendable {
     case readOnlyMode, readOnlyOn, readOnlyOff
     case rehearsal, rehearsalPause, rehearsalResume, rehearsalStop, rehearsalSpeed
     case quickOpen, quickOpenPlaceholder, noMatches, actionsSection, documentsSection
+    case focusMode, focusModeHint, typewriterMode, typewriterModeHint, mindmapAutoInspector
     case rehearsalVoice
     case settingsAppearance, settingsEditor
     case deleteProject, trashConfirmMessage, projectDeleteMessage
@@ -210,6 +211,11 @@ public final class Localizer {
         .actionsSection: [.korean: "명령", .japanese: "コマンド", .english: "Commands"],
         .documentsSection: [.korean: "문서", .japanese: "ドキュメント", .english: "Documents"],
         .rehearsalVoice: [.korean: "낭독", .japanese: "朗読", .english: "Read Aloud"],
+        .focusMode: [.korean: "포커스 모드", .japanese: "フォーカスモード", .english: "Focus Mode"],
+        .focusModeHint: [.korean: "편집 중인 블록만 밝게, 나머지는 흐리게 표시합니다", .japanese: "編集中のブロックだけを明るく表示します", .english: "Dims everything except the block you are editing"],
+        .typewriterMode: [.korean: "타자기 모드", .japanese: "タイプライターモード", .english: "Typewriter Mode"],
+        .typewriterModeHint: [.korean: "편집 중인 블록을 화면 중앙에 유지합니다", .japanese: "編集中のブロックを画面中央に保ちます", .english: "Keeps the editing block vertically centered"],
+        .mindmapAutoInspector: [.korean: "노드 선택 시 인스펙터 자동 열기", .japanese: "ノード選択時にインスペクタを自動表示", .english: "Open inspector when a node is selected"],
         .aiSuggesting: [.korean: "AI가 이어쓰는 중…", .japanese: "AIが続きを作成中…", .english: "AI is drafting…"],
         .acceptAll: [.korean: "모두 반영", .japanese: "すべて反映", .english: "Accept All"],
         .dismissAll: [.korean: "모두 무시", .japanese: "すべて破棄", .english: "Dismiss All"],

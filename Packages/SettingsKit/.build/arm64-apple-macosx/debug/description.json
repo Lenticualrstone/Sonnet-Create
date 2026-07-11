@@ -7,6 +7,20 @@
     }
   ],
   "copyCommands" : {
+    "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem_DesignSystem.bundle/Fonts" : {
+      "inputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/Fonts"
+        }
+      ],
+      "outputs" : [
+        {
+          "kind" : "directory",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem_DesignSystem.bundle/Fonts"
+        }
+      ]
+    },
     "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/RenderingKit_RenderingKit.bundle/WavyDotField.metal" : {
       "inputs" : [
         {
@@ -45,6 +59,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/ImageThumbnailCache.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift"
         },
         {
@@ -65,6 +83,7 @@
       "moduleOutputPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/Modules/AppCore.swiftmodule",
       "objects" : [
         "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/AppCore.swift.o",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache.swift.o",
         "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.swift.o",
         "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/Quality.swift.o"
       ],
@@ -125,6 +144,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.swift.o"
         },
         {
@@ -139,6 +162,7 @@
       "prepareForIndexing" : false,
       "sources" : [
         "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/AppCore.swift",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/ImageThumbnailCache.swift",
         "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift",
         "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Quality.swift"
       ],
@@ -152,11 +176,27 @@
       "inputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/CircularCrop.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/DesignSystem.swift"
         },
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/SonnetTheme.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DerivedSources/resource_bundle_accessor.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<DesignSystem-arm64-apple-macosx-debug.module-resources>"
         },
         {
           "kind" : "file",
@@ -171,7 +211,10 @@
       "moduleName" : "DesignSystem",
       "moduleOutputPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/Modules/DesignSystem.swiftmodule",
       "objects" : [
-        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.swift.o"
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/CircularCrop.swift.o",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.swift.o",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/SonnetTheme.swift.o",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/resource_bundle_accessor.swift.o"
       ],
       "otherArguments" : [
         "-target",
@@ -186,7 +229,7 @@
         "-j8",
         "-DSWIFT_PACKAGE",
         "-DDEBUG",
-        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
         "-module-cache-path",
         "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/ModuleCache",
         "-parseable-output",
@@ -226,7 +269,19 @@
       "outputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/CircularCrop.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/SonnetTheme.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/resource_bundle_accessor.swift.o"
         },
         {
           "kind" : "file",
@@ -235,7 +290,10 @@
       ],
       "prepareForIndexing" : false,
       "sources" : [
-        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/DesignSystem.swift"
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/CircularCrop.swift",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/DesignSystem.swift",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/SonnetTheme.swift",
+        "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DerivedSources/resource_bundle_accessor.swift"
       ],
       "tempsPath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build",
       "wholeModuleOptimization" : false
@@ -674,6 +732,7 @@
       "appcore",
       "-c",
       "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/AppCore.swift",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/ImageThumbnailCache.swift",
       "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift",
       "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Quality.swift",
       "-I",
@@ -735,7 +794,10 @@
       "-package-name",
       "designsystem",
       "-c",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/CircularCrop.swift",
       "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/DesignSystem.swift",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/SonnetTheme.swift",
+      "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DerivedSources/resource_bundle_accessor.swift",
       "-I",
       "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/Modules",
       "-target",
@@ -750,7 +812,7 @@
       "-j8",
       "-DSWIFT_PACKAGE",
       "-DDEBUG",
-      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_AVAILABLE",
       "-module-cache-path",
       "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/ModuleCache",
       "-parseable-output",
@@ -1095,6 +1157,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/ImageThumbnailCache.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/AppCore/Sources/AppCore/Localization.swift"
         },
         {
@@ -1113,7 +1179,19 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/CircularCrop.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/DesignSystem.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/DesignSystem/Sources/DesignSystem/SonnetTheme.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DerivedSources/resource_bundle_accessor.swift"
         }
       ],
       "outputFilePath" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/sources"
@@ -1185,6 +1263,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/ImageThumbnailCache.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/AppCore.build/Localization.swift.o"
         },
         {
@@ -1193,7 +1275,19 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/CircularCrop.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/DesignSystem.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/SonnetTheme.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SettingsKit/.build/arm64-apple-macosx/debug/DesignSystem.build/resource_bundle_accessor.swift.o"
         },
         {
           "kind" : "file",

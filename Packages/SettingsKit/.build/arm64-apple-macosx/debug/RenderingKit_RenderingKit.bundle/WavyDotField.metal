@@ -11,14 +11,19 @@ using namespace metal;
     float density,
     float amplitude,
     half4 tint,
-    float vignette
+    float vignette,
+    float dotScale,
+    float pitch
 ) {
     float2 size = bounds.zw;
     if (size.x < 1.0 || size.y < 1.0) { return half4(0.0);
     }
 
+    // 시점 각도: y축 압축으로 기울어진 평면 느낌 (1.0 = 정면)
+    float2 warped = float2(position.x, position.y / max(pitch, 0.3));
+
     float cell = max(size.x, size.y) / max(density, 4.0);
-    float2 grid = position / cell;
+    float2 grid = warped / cell;
     float2 cellIndex = floor(grid);
 
     half4 accumulated = half4(0.0);
@@ -36,9 +41,9 @@ using namespace metal;
             float lift = sin((index.x + index.y) * 0.4 + phase * 1.25);
 
             float2 offset = float2(waveA, waveB) * cell * 0.22 * amplitude;
-            float radius = cell * (0.085 + 0.055 * (0.5 + 0.5 * lift) * amplitude);
+            float radius = cell * (0.085 + 0.055 * (0.5 + 0.5 * lift) * amplitude) * max(dotScale, 0.2);
 
-            float dist = distance(position, center + offset);
+            float dist = distance(warped, center + offset);
             float alpha = 1.0 - smoothstep(radius * 0.45, radius, dist);
 
             // 물결 마루에서 살짝 밝아진다

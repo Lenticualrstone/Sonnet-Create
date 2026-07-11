@@ -21,6 +21,7 @@ public struct MindMapEditorView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
     @Environment(\.readOnlyMode) private var readOnlyMode
+    @Environment(\.mindmapAutoOpenInspector) private var autoOpenInspector
 
     private var isReadOnly: Bool { readOnlyMode?.wrappedValue == true }
 
@@ -57,6 +58,7 @@ public struct MindMapEditorView: View {
         }
         .animation(DesignTokens.Motion.gentle, value: showInspector)
         .animation(DesignTokens.Motion.gentle, value: store.selectedNodeID)
+        .onAppear { showInspector = autoOpenInspector }
     }
 
     // MARK: 좌표 변환

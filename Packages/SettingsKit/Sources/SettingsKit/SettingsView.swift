@@ -4,13 +4,50 @@ import DesignSystem
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// 탭형 설정창 — 일반 · 모양 · 에디터 · 베타. 변경은 draft에 쌓이고 저장 버튼으로 반영된다.
+/// 설정 카테고리 — 공통 설정과 기능별 설정을 분리해, 어느 화면에 적용되는
+/// 옵션인지 카테고리 이름만으로 드러나게 한다.
+private enum SettingsCategory: String, CaseIterable, Identifiable {
+    case general, appearance, text, scenario, page, mindmap, archive, ai, beta
+
+    var id: String { rawValue }
+
+    var key: L10nKey {
+        switch self {
+        case .general: .settingsGeneral
+        case .appearance: .settingsAppearance
+        case .text: .settingsText
+        case .scenario: .scenario
+        case .page: .page
+        case .mindmap: .mindmap
+        case .archive: .archive
+        case .ai: .sonnetAI
+        case .beta: .settingsBeta
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .general: "gearshape"
+        case .appearance: "paintpalette"
+        case .text: "textformat"
+        case .scenario: "text.bubble"
+        case .page: "doc.richtext"
+        case .mindmap: "point.3.connected.trianglepath.dotted"
+        case .archive: "archivebox"
+        case .ai: "sparkles"
+        case .beta: "flask"
+        }
+    }
+}
+
+/// 사이드바형 설정창 — 카테고리 목록 + 상세 폼. 변경은 draft에 쌓이고 저장 버튼으로 반영된다.
 public struct SettingsRootView: View {
     @Bindable var store: SettingsStore
     /// 백업 타임라인 등 앱 수준 액션 (일반 탭에 노출)
     let backupTimelineView: AnyView?
     @Environment(\.resolvedAccent) private var accent
     @State private var showCropEditor = false
+    @State private var category: SettingsCategory = .general
 
     public init(store: SettingsStore, backupTimelineView: AnyView? = nil) {
         self.store = store
@@ -20,19 +57,33 @@ public struct SettingsRootView: View {
     public var body: some View {
         let l10n = Localizer.shared
         VStack(spacing: 0) {
-            TabView {
-                Tab(l10n.t(.settingsGeneral), systemImage: "gearshape") {
-                    generalTab(l10n)
+            HStack(spacing: 0) {
+                List(selection: $category) {
+                    ForEach(SettingsCategory.allCases) { candidate in
+                        Label(l10n.t(candidate.key), systemImage: candidate.symbol)
+                            .tag(candidate)
+                    }
                 }
-                Tab(l10n.t(.settingsAppearance), systemImage: "paintpalette") {
-                    appearanceTab(l10n)
+                .listStyle(.sidebar)
+                .scrollContentBackground(.hidden)
+                .frame(width: 176)
+
+                Divider().opacity(0.4)
+
+                Group {
+                    switch category {
+                    case .general: generalTab(l10n)
+                    case .appearance: appearanceTab(l10n)
+                    case .text: textTab(l10n)
+                    case .scenario: scenarioTab(l10n)
+                    case .page: pageTab(l10n)
+                    case .mindmap: mindmapTab(l10n)
+                    case .archive: archiveTab(l10n)
+                    case .ai: aiTab(l10n)
+                    case .beta: betaTab(l10n)
+                    }
                 }
-                Tab(l10n.t(.settingsEditor), systemImage: "square.and.pencil") {
-                    editorTab(l10n)
-                }
-                Tab(l10n.t(.settingsBeta), systemImage: "flask") {
-                    betaTab(l10n)
-                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Divider()
@@ -51,7 +102,7 @@ public struct SettingsRootView: View {
             }
             .padding(DesignTokens.Spacing.m)
         }
-        .frame(width: 540, height: 520)
+        .frame(width: 700, height: 520)
         .onAppear { store.refreshAPIKeyDraft() }
     }
 
@@ -107,12 +158,6 @@ public struct SettingsRootView: View {
                         .controlSize(.small)
                 }
             }
-
-            Picker(l10n.t(.openBehavior), selection: $store.draft.openOnSingleClick) {
-                Text(l10n.t(.singleClick)).tag(true)
-                Text(l10n.t(.doubleClick)).tag(false)
-            }
-            .pickerStyle(.segmented)
 
             Toggle(l10n.t(.autosave), isOn: $store.draft.autosave)
             Toggle(l10n.t(.backups) + " — " + l10n.t(.backupNow), isOn: $store.draft.backupOnQuit)
@@ -361,9 +406,9 @@ public struct SettingsRootView: View {
         return Color(nsColor: resolved)
     }
 
-    // MARK: 에디터 — 글꼴/간격/인스펙터
+    // MARK: 텍스트 — 전 에디터 공통 글꼴/간격
 
-    private func editorTab(_ l10n: Localizer) -> some View {
+    private func textTab(_ l10n: Localizer) -> some View {
         Form {
             Picker(l10n.t(.fontLabel), selection: $store.draft.fontFamily) {
                 Text(l10n.t(.fontPretendard)).tag(FontFamily.pretendard)
@@ -385,6 +430,20 @@ public struct SettingsRootView: View {
             }
             .pickerStyle(.segmented)
 
+            Section {
+                Text("본문 미리보기 — The quick brown fox / 다람쥐 헌 쳇바퀴에 타고파")
+                    .font(DSFonts.font(size: 13 * store.draft.fontScale, family: store.draft.fontFamily))
+                    .lineSpacing(4 * store.draft.lineSpacingScale)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: 시나리오 에디터
+
+    private func scenarioTab(_ l10n: Localizer) -> some View {
+        Form {
             Picker(l10n.t(.inspectorPosition), selection: $store.draft.scenarioInspectorOnRight) {
                 Text(l10n.t(.positionLeft)).tag(false)
                 Text(l10n.t(.positionRight)).tag(true)
@@ -405,13 +464,48 @@ public struct SettingsRootView: View {
                 }
                 .disabled(store.draft.dialogueDisplayRaw == "nameOnly" || store.draft.dialogueDisplayRaw == "hidden")
             }
+        }
+        .formStyle(.grouped)
+    }
 
+    // MARK: 페이지 에디터
+
+    private func pageTab(_ l10n: Localizer) -> some View {
+        Form {
             Section {
-                Text("본문 미리보기 — The quick brown fox / 다람쥐 헌 쳇바퀴에 타고파")
-                    .font(DSFonts.font(size: 13 * store.draft.fontScale, family: store.draft.fontFamily))
-                    .lineSpacing(4 * store.draft.lineSpacingScale)
+                Toggle(l10n.t(.focusMode), isOn: $store.draft.pageFocusModeEnabled)
+                Text(l10n.t(.focusModeHint))
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section {
+                Toggle(l10n.t(.typewriterMode), isOn: $store.draft.pageTypewriterEnabled)
+                Text(l10n.t(.typewriterModeHint))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: 마인드맵 에디터
+
+    private func mindmapTab(_ l10n: Localizer) -> some View {
+        Form {
+            Toggle(l10n.t(.mindmapAutoInspector), isOn: $store.draft.mindmapAutoOpenInspector)
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: 파일 아카이브
+
+    private func archiveTab(_ l10n: Localizer) -> some View {
+        Form {
+            Picker(l10n.t(.openBehavior), selection: $store.draft.openOnSingleClick) {
+                Text(l10n.t(.singleClick)).tag(true)
+                Text(l10n.t(.doubleClick)).tag(false)
+            }
+            .pickerStyle(.segmented)
         }
         .formStyle(.grouped)
     }
@@ -435,7 +529,14 @@ public struct SettingsRootView: View {
                     }
                 }
             }
+        }
+        .formStyle(.grouped)
+    }
 
+    // MARK: Sonnet AI
+
+    private func aiTab(_ l10n: Localizer) -> some View {
+        Form {
             Picker(l10n.t(.aiProvider), selection: $store.draft.aiProviderRaw) {
                 Text(l10n.t(.aiProviderMock)).tag("offline")
                 Text(l10n.t(.aiProviderApple)).tag("appleOnDevice")
