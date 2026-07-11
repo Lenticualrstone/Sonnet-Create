@@ -11,16 +11,20 @@
 		08E7CB4C3FC3194116332A82 /* MarkdownEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 9E2A054BB2B7B62B5886B52A /* MarkdownEditor */; };
 		0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D11BB4282BA195D4F440C97 /* HomeView.swift */; };
 		0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 732C34C9124878FB3421665B /* TouchBarController.swift */; };
+		0E27B11F3544F7119C5D46D5 /* QuickLookPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2BE731F8989DBAB49443A5E5 /* MindMapEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 2156137A81292CD1ACB4C89C /* MindMapEditor */; };
 		376249414C17B9E064AD94FD /* BackupTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A17E86B8424F8306FD4B021 /* BackupTimelineView.swift */; };
 		3FAC1FB551CFA25588210BE4 /* AIAgentKit in Frameworks */ = {isa = PBXBuildFile; productRef = 00F386E97DD83D5B4B114EB5 /* AIAgentKit */; };
 		51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0573DE5D33E846CBAC56F881 /* ProfileView.swift */; };
+		5F8F9E2456FF7C42AF7650A0 /* DocumentKit in Frameworks */ = {isa = PBXBuildFile; productRef = BDB3362F902C34778C95F899 /* DocumentKit */; };
+		6153C6BC26EA5E188A2BF0AC /* PreviewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4046E7879AFA051EBD1A564 /* PreviewProvider.swift */; };
 		67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3ED3D33526C84530606161E /* SidebarView.swift */; };
 		739698DB548DA49A80F70BF0 /* PersistenceKit in Frameworks */ = {isa = PBXBuildFile; productRef = A79C4CEF0465317FD9C7756D /* PersistenceKit */; };
 		73C1957625A8EF96EE98588F /* AppKitTweaks.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB3A38D7E56C4651C29B5608 /* AppKitTweaks.swift */; };
 		755B0B0B607E9D105E67F080 /* SecurityKit in Frameworks */ = {isa = PBXBuildFile; productRef = D360B4756CE0BA218F903BD9 /* SecurityKit */; };
 		864BCFA12CA4C3B99F0D27F7 /* RenderingKit in Frameworks */ = {isa = PBXBuildFile; productRef = 75F6E4913FEF7E67809AA77C /* RenderingKit */; };
 		940CCB411068FF0559A82462 /* ScenarioEditor in Frameworks */ = {isa = PBXBuildFile; productRef = C2FB5974A13E9BFA33F4DADE /* ScenarioEditor */; };
+		A96F92D2F89ED82A866DDCAE /* PreviewHTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */; };
 		AF49D942F7AC3E75387EBE40 /* DocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7858C36D928A18AE009A7109 /* DocumentSession.swift */; };
 		BA6BF5A23001C363B2C21DFA /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 3722969A975C520EC306C467 /* DesignSystem */; };
 		BBF47A2C561F1C3AE8B91E0A /* SettingsKit in Frameworks */ = {isa = PBXBuildFile; productRef = E03BBB394470E4A945388DA5 /* SettingsKit */; };
@@ -35,6 +39,30 @@
 		FC099ED60FC655FAEC220640 /* AppCore in Frameworks */ = {isa = PBXBuildFile; productRef = B66C46C1CF946DC42CF32CC2 /* AppCore */; };
 		FC2A014B0269B528555A98D5 /* AIChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97FEA9BD30A9EBCDFF468D0 /* AIChatView.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		ECDBEF22FAB2425C20A3015E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1515F5E085B93D0F8522FF5A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A5A0A407A34703C5D4AC1A50;
+			remoteInfo = QuickLookPreview;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A0253B2DCD320CFD469FF86B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				0E27B11F3544F7119C5D46D5 /* QuickLookPreview.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		0573DE5D33E846CBAC56F881 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
@@ -54,16 +82,22 @@
 		8573EF3D5CB4A904AC4508A6 /* SonnetCreate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SonnetCreate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B5242E6D85B6063EED37A75 /* PersistenceKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PersistenceKit; path = ../Packages/PersistenceKit; sourceTree = SOURCE_ROOT; };
 		8D11BB4282BA195D4F440C97 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		99DDCD817FBAB1586D2FD450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		A225ADDF85117C42771140CB /* ReferencePanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferencePanelView.swift; sourceTree = "<group>"; };
+		A4046E7879AFA051EBD1A564 /* PreviewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewProvider.swift; sourceTree = "<group>"; };
 		A674A976F8B9DDDADE87118C /* MindMapEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MindMapEditor; path = ../Packages/MindMapEditor; sourceTree = SOURCE_ROOT; };
 		AB3A38D7E56C4651C29B5608 /* AppKitTweaks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppKitTweaks.swift; sourceTree = "<group>"; };
+		AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = QuickLookPreview.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		ABBAECEF6C9CC82C4C0376F6 /* SecurityKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SecurityKit; path = ../Packages/SecurityKit; sourceTree = SOURCE_ROOT; };
 		AD78E348E12059A02780BCD4 /* BackupKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BackupKit; path = ../Packages/BackupKit; sourceTree = SOURCE_ROOT; };
 		B272B5B24C1D05E090A56FDE /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
 		BEF97F3EBD79DB77E8B85FD0 /* AppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AppCore; path = ../Packages/AppCore; sourceTree = SOURCE_ROOT; };
+		DA3306994A69721E5EB757A5 /* QuickLookPreview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuickLookPreview.entitlements; sourceTree = "<group>"; };
+		E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHTML.swift; sourceTree = "<group>"; };
 		E3ED3D33526C84530606161E /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		E97FEA9BD30A9EBCDFF468D0 /* AIChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatView.swift; sourceTree = "<group>"; };
 		EDB84974A63607FACEA8CC73 /* ScenarioEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScenarioEditor; path = ../Packages/ScenarioEditor; sourceTree = SOURCE_ROOT; };
+		F5F9B00914469D62BA5273B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F97888449FE61B870DCDF0F5 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -88,6 +122,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EEE22AC3158B0BB07A5FCAB2 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5F8F9E2456FF7C42AF7650A0 /* DocumentKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -102,6 +144,7 @@
 				5F664E7ACD2C4618DF9D5834 /* CommandPaletteView.swift */,
 				7858C36D928A18AE009A7109 /* DocumentSession.swift */,
 				8D11BB4282BA195D4F440C97 /* HomeView.swift */,
+				F5F9B00914469D62BA5273B3 /* Info.plist */,
 				B272B5B24C1D05E090A56FDE /* MainWindowView.swift */,
 				0573DE5D33E846CBAC56F881 /* ProfileView.swift */,
 				A225ADDF85117C42771140CB /* ReferencePanelView.swift */,
@@ -115,9 +158,21 @@
 		0282DD7997A0230628ECF015 /* Products */ = {
 			isa = PBXGroup;
 			children = (
+				AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */,
 				8573EF3D5CB4A904AC4508A6 /* SonnetCreate.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		5BC52F3B5357A33E6EBAF2BE /* QuickLookPreview */ = {
+			isa = PBXGroup;
+			children = (
+				99DDCD817FBAB1586D2FD450 /* Info.plist */,
+				E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */,
+				A4046E7879AFA051EBD1A564 /* PreviewProvider.swift */,
+				DA3306994A69721E5EB757A5 /* QuickLookPreview.entitlements */,
+			);
+			path = QuickLookPreview;
 			sourceTree = "<group>";
 		};
 		9FC410B5ED69DBED70AB151D /* Packages */ = {
@@ -144,6 +199,7 @@
 			isa = PBXGroup;
 			children = (
 				9FC410B5ED69DBED70AB151D /* Packages */,
+				5BC52F3B5357A33E6EBAF2BE /* QuickLookPreview */,
 				00A91D9485262C6F44AE6DD9 /* SonnetCreate */,
 				0282DD7997A0230628ECF015 /* Products */,
 			);
@@ -159,10 +215,12 @@
 				D81CC33213E6A4C2B1ACC9D2 /* Sources */,
 				49160F96D564B0657BC05AB6 /* Resources */,
 				3DF37BA9649A26302EBE5AE4 /* Frameworks */,
+				A0253B2DCD320CFD469FF86B /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				59FF9EC06713ABFE6B9E0A60 /* PBXTargetDependency */,
 			);
 			name = SonnetCreate;
 			packageProductDependencies = (
@@ -184,6 +242,25 @@
 			productReference = 8573EF3D5CB4A904AC4508A6 /* SonnetCreate.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A5A0A407A34703C5D4AC1A50 /* QuickLookPreview */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BD0E8EB407FFAD41FF7F72D7 /* Build configuration list for PBXNativeTarget "QuickLookPreview" */;
+			buildPhases = (
+				EA494DCAD8A214A21474E948 /* Sources */,
+				EEE22AC3158B0BB07A5FCAB2 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = QuickLookPreview;
+			packageProductDependencies = (
+				BDB3362F902C34778C95F899 /* DocumentKit */,
+			);
+			productName = QuickLookPreview;
+			productReference = AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -194,6 +271,9 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					89D980997194E42E7289F99D = {
+						ProvisioningStyle = Automatic;
+					};
+					A5A0A407A34703C5D4AC1A50 = {
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -227,6 +307,7 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				A5A0A407A34703C5D4AC1A50 /* QuickLookPreview */,
 				89D980997194E42E7289F99D /* SonnetCreate */,
 			);
 		};
@@ -264,7 +345,24 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		EA494DCAD8A214A21474E948 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A96F92D2F89ED82A866DDCAE /* PreviewHTML.swift in Sources */,
+				6153C6BC26EA5E188A2BF0AC /* PreviewProvider.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		59FF9EC06713ABFE6B9E0A60 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A5A0A407A34703C5D4AC1A50 /* QuickLookPreview */;
+			targetProxy = ECDBEF22FAB2425C20A3015E /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		0162E8178BD4049E79F46963 /* Debug */ = {
@@ -332,6 +430,24 @@
 			};
 			name = Debug;
 		};
+		2719138A6CF7ABA75540AE03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLookPreview/QuickLookPreview.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = QuickLookPreview/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.seolhwarim.sonnetcreate.quicklook;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
 		2CBFEC15F22C8F8457469AF3 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -340,11 +456,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Sonnet Create";
-				INFOPLIST_KEY_CFBundleName = "Sonnet Create";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_FILE = SonnetCreate/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -362,16 +474,30 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Sonnet Create";
-				INFOPLIST_KEY_CFBundleName = "Sonnet Create";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				INFOPLIST_FILE = SonnetCreate/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.seolhwarim.sonnetcreate;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		56914E77EF5ACCCFC951133A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = QuickLookPreview/QuickLookPreview.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = QuickLookPreview/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.seolhwarim.sonnetcreate.quicklook;
 				SDKROOT = macosx;
 			};
 			name = Release;
@@ -442,6 +568,15 @@
 			buildConfigurations = (
 				0162E8178BD4049E79F46963 /* Debug */,
 				D04C75325A1BA9A33D20A936 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BD0E8EB407FFAD41FF7F72D7 /* Build configuration list for PBXNativeTarget "QuickLookPreview" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2719138A6CF7ABA75540AE03 /* Debug */,
+				56914E77EF5ACCCFC951133A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
@@ -548,6 +683,10 @@
 		B66C46C1CF946DC42CF32CC2 /* AppCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AppCore;
+		};
+		BDB3362F902C34778C95F899 /* DocumentKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = DocumentKit;
 		};
 		C2FB5974A13E9BFA33F4DADE /* ScenarioEditor */ = {
 			isa = XCSwiftPackageProductDependency;

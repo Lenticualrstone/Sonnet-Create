@@ -1,6 +1,7 @@
 import AppCore
 import AppKit
 import DesignSystem
+import DocumentKit
 import SettingsKit
 import SwiftUI
 
@@ -112,13 +113,25 @@ struct SonnetCreateApp: App {
     }
 }
 
-/// 종료 시 미저장 플러시 + 프로젝트 자동 백업.
+/// 종료 시 미저장 플러시 + 프로젝트 자동 백업 + Finder 더블클릭 열기.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var appState: AppState?
 
     func applicationWillTerminate(_ notification: Notification) {
         MainActor.assumeIsolated {
             appState?.handleTermination()
+        }
+    }
+
+    /// Finder에서 .scen/.scno/.scpa 번들을 더블클릭하면 해당 탭으로 연다.
+    func application(_ application: NSApplication, open urls: [URL]) {
+        MainActor.assumeIsolated {
+            guard let appState else { return }
+            for url in urls {
+                if let envelope = DocumentPackageIO.readEnvelope(from: url) {
+                    appState.openDocument(id: envelope.id, at: url)
+                }
+            }
         }
     }
 }

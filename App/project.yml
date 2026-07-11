@@ -51,12 +51,51 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         ENABLE_HARDENED_RUNTIME: YES
-        GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_NSPrincipalClass: NSApplication
-        INFOPLIST_KEY_NSHumanReadableCopyright: ""
-        INFOPLIST_KEY_CFBundleDisplayName: "Sonnet Create"
-        INFOPLIST_KEY_CFBundleName: "Sonnet Create"
         CODE_SIGN_STYLE: Automatic
+    # 문서 UTI 선언(Quick Look/더블클릭 열기)이 필요해져 생성형 Info.plist 대신
+    # 명시적 프로퍼티로 전환했다 — INFOPLIST_KEY_* 로는 딕셔너리 키를 못 넣는다.
+    info:
+      path: SonnetCreate/Info.plist
+      properties:
+        CFBundleDisplayName: "Sonnet Create"
+        CFBundleName: "Sonnet Create"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSPrincipalClass: NSApplication
+        NSHumanReadableCopyright: ""
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: "Sonnet Create Scenario"
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSTypeIsPackage: true
+            LSItemContentTypes: [com.seolhwarim.sonnetcreate.scenario]
+          - CFBundleTypeName: "Sonnet Create Mind Map"
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSTypeIsPackage: true
+            LSItemContentTypes: [com.seolhwarim.sonnetcreate.mindmap]
+          - CFBundleTypeName: "Sonnet Create Page"
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Owner
+            LSTypeIsPackage: true
+            LSItemContentTypes: [com.seolhwarim.sonnetcreate.page]
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.seolhwarim.sonnetcreate.scenario
+            UTTypeDescription: "Sonnet Create Scenario"
+            UTTypeConformsTo: [com.apple.package, public.content]
+            UTTypeTagSpecification:
+              public.filename-extension: [scen]
+          - UTTypeIdentifier: com.seolhwarim.sonnetcreate.mindmap
+            UTTypeDescription: "Sonnet Create Mind Map"
+            UTTypeConformsTo: [com.apple.package, public.content]
+            UTTypeTagSpecification:
+              public.filename-extension: [scno]
+          - UTTypeIdentifier: com.seolhwarim.sonnetcreate.page
+            UTTypeDescription: "Sonnet Create Page"
+            UTTypeConformsTo: [com.apple.package, public.content]
+            UTTypeTagSpecification:
+              public.filename-extension: [scpa]
     dependencies:
       - package: AppCore
       - package: DesignSystem
@@ -71,6 +110,39 @@ targets:
       - package: SettingsKit
       - package: BackupKit
       - package: SecurityKit
+      - target: QuickLookPreview
+
+  QuickLookPreview:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: QuickLookPreview
+    dependencies:
+      - package: DocumentKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.seolhwarim.sonnetcreate.quicklook
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+    entitlements:
+      path: QuickLookPreview/QuickLookPreview.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+    info:
+      path: QuickLookPreview/Info.plist
+      properties:
+        CFBundleDisplayName: "Sonnet Create Quick Look"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.quicklook.preview
+          NSExtensionPrincipalClass: "$(PRODUCT_MODULE_NAME).PreviewProvider"
+          NSExtensionAttributes:
+            QLIsDataBasedPreview: true
+            QLSupportedContentTypes:
+              - com.seolhwarim.sonnetcreate.scenario
+              - com.seolhwarim.sonnetcreate.mindmap
+              - com.seolhwarim.sonnetcreate.page
 
 schemes:
   SonnetCreate:
