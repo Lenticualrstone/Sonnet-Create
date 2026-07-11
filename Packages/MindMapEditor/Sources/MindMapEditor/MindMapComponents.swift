@@ -22,6 +22,7 @@ struct MindMapNodeView: View {
     @State private var hovering = false
     @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
+    @Environment(\.interfaceTheme) private var theme
 
     private var isSelected: Bool { store.selectedNodeID == node.id }
     private var tint: Color? { node.colorHex.map { Color(hex: $0) } }
@@ -58,6 +59,12 @@ struct MindMapNodeView: View {
         .padding(10)
         .frame(minWidth: 96, maxWidth: 180, alignment: .leading)
         .glassSurface(cornerRadius: DesignTokens.Radius.medium, tint: tint, quality: quality)
+        // 글래스 표면은 반투명이라 아래에 그려진 연결선이 노드를 관통해 비쳤다 —
+        // 캔버스색 불투명 베이스를 글래스 '뒤'에 깔아 선이 노드 밑에서 끊겨 보이게 한다.
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(theme.isBranded ? theme.canvasColor : Color(nsColor: .windowBackgroundColor))
+        )
         .overlay(
             RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
                 .strokeBorder(

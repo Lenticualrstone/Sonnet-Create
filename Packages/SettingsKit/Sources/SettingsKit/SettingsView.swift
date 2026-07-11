@@ -286,7 +286,10 @@ public struct SettingsRootView: View {
             }
 
             LabeledContent(l10n.t(.uiScale)) {
-                Slider(value: $store.draft.uiScale, in: 0.9...1.3, step: 0.05)
+                BarSlider(
+                    value: $store.draft.uiScale, in: 0.9...1.3, step: 0.05,
+                    format: { String(format: "%.2f×", $0) }
+                )
             }
 
             Picker(l10n.t(.tabStyle), selection: $store.draft.tabStyleRaw) {
@@ -344,6 +347,9 @@ public struct SettingsRootView: View {
         let isSelected = store.draft.interfaceTheme == theme
         return Button {
             store.draft.interfaceTheme = theme
+            // 테마를 바꾸면 강조색도 그 테마 고유 액센트를 따르도록 리셋한다.
+            // (이후 강조색을 다시 고르면 그 선택이 우선)
+            store.draft.accent = .system
         } label: {
             VStack(spacing: 4) {
                 ThemeColorTile(style: swatchStyle(for: theme))
@@ -418,10 +424,16 @@ public struct SettingsRootView: View {
             }
 
             LabeledContent(l10n.t(.fontSize)) {
-                Slider(value: $store.draft.fontScale, in: 0.8...1.4, step: 0.05)
+                BarSlider(
+                    value: $store.draft.fontScale, in: 0.8...1.4, step: 0.05,
+                    format: { String(format: "%.2f×", $0) }
+                )
             }
             LabeledContent(l10n.t(.lineSpacing)) {
-                Slider(value: $store.draft.lineSpacingScale, in: 0.8...1.6, step: 0.1)
+                BarSlider(
+                    value: $store.draft.lineSpacingScale, in: 0.8...1.6, step: 0.1,
+                    format: { String(format: "%.1f×", $0) }
+                )
             }
             Picker(l10n.t(.blockSpacing), selection: $store.draft.blockSpacing) {
                 Text(l10n.t(.spacingCompact)).tag(6.0)
@@ -460,7 +472,10 @@ public struct SettingsRootView: View {
                 .pickerStyle(.segmented)
 
                 LabeledContent(l10n.t(.dialogueAvatarSize)) {
-                    Slider(value: $store.draft.dialogueAvatarSize, in: 20...52, step: 2)
+                    BarSlider(
+                        value: $store.draft.dialogueAvatarSize, in: 20...52, step: 2,
+                        format: { String(format: "%.0f pt", $0) }
+                    )
                 }
                 .disabled(store.draft.dialogueDisplayRaw == "nameOnly" || store.draft.dialogueDisplayRaw == "hidden")
             }

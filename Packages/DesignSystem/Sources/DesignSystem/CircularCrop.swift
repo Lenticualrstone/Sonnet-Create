@@ -91,9 +91,11 @@ public struct CircularCropEditor: View {
 
             HStack(spacing: DesignTokens.Spacing.s) {
                 Image(systemName: "minus.magnifyingglass").foregroundStyle(.secondary)
-                Slider(value: $zoom, in: 1...3) { editing in
-                    if !editing { onCommit() }
-                }
+                BarSlider(
+                    value: $zoom, in: 1...3, height: 20,
+                    format: { String(format: "%.1f×", $0) },
+                    onCommit: onCommit
+                )
                 Image(systemName: "plus.magnifyingglass").foregroundStyle(.secondary)
             }
             .frame(width: diameter)

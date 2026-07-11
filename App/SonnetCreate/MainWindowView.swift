@@ -331,6 +331,8 @@ struct ChromeTabBar: View {
                     .padding(.leading, isChrome ? 6 : 4)
                     .padding(.top, isChrome ? 5 : 3)
                 }
+                // 칩 상단(활성 언더라인)이 스크롤 뷰 경계에 잘리지 않게 한다
+                .scrollClipDisabled()
                 // 탭이 많아 가려질 때 선택 탭을 항상 시야로 데려온다
                 .onChange(of: app.selectedTabID) { _, selected in
                     if let selected {

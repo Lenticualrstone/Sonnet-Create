@@ -293,9 +293,13 @@ public struct PageEditorView: View {
             .fixedSize()
             .help(l10n.t(.exportMarkdown))
 
-            Text(l10n.t(.slashHint))
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
+            // 캐릭터 페이지는 프로필 등 폼 탭이 기본이라 '/' 힌트가 오히려 혼란 —
+            // 슬래시 커맨드가 실제로 동작하는 일반 페이지에서만 보여준다.
+            if !store.isCharacterPage {
+                Text(l10n.t(.slashHint))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
         }
         .padding(.horizontal, DesignTokens.Spacing.m)
         .padding(.vertical, DesignTokens.Spacing.s)
