@@ -1,3 +1,4 @@
+import AVFoundation
 import AppCore
 import DesignSystem
 import DocumentKit
@@ -28,6 +29,9 @@ public struct ScenarioEditorView: View {
     @State private var rehearsalPaused = false
     @State private var rehearsalSpeed: Double = 1
     @State private var rehearsalTask: Task<Void, Never>?
+    /// 낭독(TTS) — 대사를 캐릭터별 목소리로 읽어준다.
+    @State private var rehearsalVoiceEnabled = false
+    @State private var narrator = RehearsalNarrator()
 
     private var isRehearsing: Bool { rehearsalCount != nil }
 
@@ -106,6 +110,9 @@ public struct ScenarioEditorView: View {
         .animation(DesignTokens.Motion.gentle, value: showInspector)
         .onChange(of: isReadOnly) { _, locked in
             if !locked { stopRehearsal() }
+        }
+        .onChange(of: rehearsalPaused) { _, paused in
+            narrator.setPaused(paused)
         }
         .onDisappear { stopRehearsal() }
     }
@@ -396,6 +403,8 @@ public struct ScenarioEditorView: View {
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
 
+            voiceToggle(l10n)
+
             Button {
                 cycleRehearsalSpeed()
             } label: {
@@ -423,10 +432,23 @@ public struct ScenarioEditorView: View {
             ToolbarIconButton("stop.fill", help: l10n.t(.rehearsalStop) + " (⎋)") { stopRehearsal() }
                 .keyboardShortcut(.escape, modifiers: [])
         } else {
+            voiceToggle(l10n)
+
             ToolbarIconButton("play.circle", help: l10n.t(.rehearsal) + " (⌘R)") { startRehearsal() }
                 .keyboardShortcut("r", modifiers: .command)
                 .disabled(store.visibleBlocks.isEmpty)
                 .opacity(store.visibleBlocks.isEmpty ? 0.35 : 1)
+        }
+    }
+
+    private func voiceToggle(_ l10n: Localizer) -> some View {
+        ToolbarIconButton(
+            rehearsalVoiceEnabled ? "speaker.wave.2.fill" : "speaker.slash",
+            help: l10n.t(.rehearsalVoice),
+            isActive: rehearsalVoiceEnabled
+        ) {
+            rehearsalVoiceEnabled.toggle()
+            if !rehearsalVoiceEnabled { narrator.stop() }
         }
     }
 
@@ -448,12 +470,25 @@ public struct ScenarioEditorView: View {
             var index = 0
             while index < store.visibleBlocks.count, !Task.isCancelled {
                 let block = store.visibleBlocks[index]
-                try? await Task.sleep(for: .seconds(rehearsalDelay(for: block)))
+                if rehearsalVoiceEnabled, block.kind == .line, !block.text.isEmpty {
+                    // 낭독 모드: 자막처럼 먼저 등장시키고, 말이 끝나야 다음으로
+                    try? await Task.sleep(for: .milliseconds(300))
+                    guard !Task.isCancelled else { return }
+                    withAnimation(DesignTokens.Motion.arrival) { rehearsalCount = index + 1 }
+                    await narrator.speak(
+                        plainText(of: block),
+                        voice: rehearsalVoice(for: block),
+                        rate: speechRate
+                    )
+                } else {
+                    try? await Task.sleep(for: .seconds(rehearsalDelay(for: block)))
+                    guard !Task.isCancelled else { return }
+                    withAnimation(DesignTokens.Motion.arrival) { rehearsalCount = index + 1 }
+                }
                 while rehearsalPaused, !Task.isCancelled {
                     try? await Task.sleep(for: .milliseconds(120))
                 }
                 guard !Task.isCancelled else { return }
-                withAnimation(DesignTokens.Motion.arrival) { rehearsalCount = index + 1 }
                 index += 1
             }
         }
@@ -462,8 +497,36 @@ public struct ScenarioEditorView: View {
     private func stopRehearsal() {
         rehearsalTask?.cancel()
         rehearsalTask = nil
+        narrator.stop()
         rehearsalPaused = false
         withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = nil }
+    }
+
+    // MARK: 낭독 보이스
+
+    /// 마크다운 강조 기호를 걷어낸 낭독용 평문.
+    private func plainText(of block: ScenarioBlock) -> String {
+        let attributed = (try? AttributedString(
+            markdown: block.text,
+            options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )) ?? AttributedString(block.text)
+        return String(attributed.characters)
+    }
+
+    /// 첫 화자의 캐스트 순번으로 목소리를 고정 배정 — 캐릭터마다 다른 목소리.
+    private func rehearsalVoice(for block: ScenarioBlock) -> AVSpeechSynthesisVoice? {
+        let castIndex = block.speakerIDs.first.flatMap { id in
+            store.content.cast.firstIndex { $0.id == id }
+        }
+        return RehearsalVoiceCasting.voice(
+            languageCode: Localizer.shared.language.rawValue,
+            castIndex: castIndex
+        )
+    }
+
+    /// 재생 속도 칩과 연동된 발화 속도. AVSpeech 기본 0.5 근처에서 완만하게 가감.
+    private var speechRate: Float {
+        AVSpeechUtteranceDefaultSpeechRate * Float(1 + (rehearsalSpeed - 1) * 0.2)
     }
 
     /// 텍스트 길이에 비례한 등장 간격 — 실제 대화 리듬처럼 느껴지는 값.

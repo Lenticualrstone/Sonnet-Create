@@ -62,6 +62,7 @@ public enum L10nKey: String, Sendable {
     case readOnlyMode, readOnlyOn, readOnlyOff
     case rehearsal, rehearsalPause, rehearsalResume, rehearsalStop, rehearsalSpeed
     case quickOpen, quickOpenPlaceholder, noMatches, actionsSection, documentsSection
+    case rehearsalVoice
     case settingsAppearance, settingsEditor
     case deleteProject, trashConfirmMessage, projectDeleteMessage
     case profilePage, contributions, activityEmpty
@@ -208,6 +209,7 @@ public final class Localizer {
         .noMatches: [.korean: "일치하는 항목이 없습니다", .japanese: "一致する項目がありません", .english: "No matches"],
         .actionsSection: [.korean: "명령", .japanese: "コマンド", .english: "Commands"],
         .documentsSection: [.korean: "문서", .japanese: "ドキュメント", .english: "Documents"],
+        .rehearsalVoice: [.korean: "낭독", .japanese: "朗読", .english: "Read Aloud"],
         .aiSuggesting: [.korean: "AI가 이어쓰는 중…", .japanese: "AIが続きを作成中…", .english: "AI is drafting…"],
         .acceptAll: [.korean: "모두 반영", .japanese: "すべて反映", .english: "Accept All"],
         .dismissAll: [.korean: "모두 무시", .japanese: "すべて破棄", .english: "Dismiss All"],
