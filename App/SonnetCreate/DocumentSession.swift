@@ -171,6 +171,45 @@ final class DocumentSession {
         }
     }
 
+    // MARK: 스냅샷
+
+    private(set) var snapshots: [DocumentSnapshot] = []
+
+    func refreshSnapshots() {
+        snapshots = SnapshotIO.list(in: document.url)
+    }
+
+    func takeSnapshot(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        let snapshot = DocumentSnapshot(
+            name: trimmed.isEmpty ? Localizer.shared.t(.snapshots) : trimmed,
+            content: document.content
+        )
+        try? SnapshotIO.save(snapshot, in: document.url)
+        refreshSnapshots()
+    }
+
+    func deleteSnapshot(_ id: UUID) {
+        SnapshotIO.delete(id, in: document.url)
+        refreshSnapshots()
+    }
+
+    /// 복원 — 현재 상태를 자동 스냅샷으로 보관한 뒤 에디터 스토어를 통째로 교체.
+    /// 교체는 스토어의 undo 스택에 남는 단일 작업이라 ⌘Z로도 되돌릴 수 있다.
+    func restoreSnapshot(_ snapshot: DocumentSnapshot) {
+        takeSnapshot(named: Localizer.shared.t(.beforeRestoreSnapshot))
+        switch (editor, snapshot.content) {
+        case (.scenario(let store), .scenario(let content)):
+            store.replaceContent(content)
+        case (.mindmap(let store), .mindmap(let content)):
+            store.replaceContent(content)
+        case (.page(let store), .page(let content)):
+            store.replaceContent(content)
+        default:
+            break // 같은 문서의 스냅샷이므로 종류 불일치는 없다
+        }
+    }
+
     /// 종료/탭 닫기 시 미저장분 플러시.
     func flush() {
         if saveState == .unsaved || saveState == .saving {

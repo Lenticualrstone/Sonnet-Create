@@ -221,8 +221,15 @@ struct MainWindowView: View {
                             .frame(width: 250)
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
+                    if app.showSnapshotPanel {
+                        Divider().opacity(0.4)
+                        SnapshotPanelView(session: session)
+                            .frame(width: 250)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                 }
                 .animation(DesignTokens.Motion.gentle, value: app.showReferencePanel)
+                .animation(DesignTokens.Motion.gentle, value: app.showSnapshotPanel)
             }
         }
     }
@@ -376,6 +383,13 @@ struct ChromeTabBar: View {
             if case .document = app.selectedTab?.content {
                 ToolbarIconButton("link", help: l10n.t(.references), isActive: app.showReferencePanel) {
                     app.showReferencePanel.toggle()
+                }
+                ToolbarIconButton(
+                    "clock.arrow.circlepath",
+                    help: Localizer.shared.t(.snapshots),
+                    isActive: app.showSnapshotPanel
+                ) {
+                    app.showSnapshotPanel.toggle()
                 }
             }
             ToolbarIconButton("archivebox", help: l10n.t(.archive)) {

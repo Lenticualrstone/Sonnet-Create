@@ -50,3 +50,32 @@ private struct RenameFieldMigration: DocumentContentMigration {
     #expect(payload["newName"] as? String == "hello")
     #expect(payload["oldName"] == nil)
 }
+
+// MARK: 스냅샷 IO
+
+@Test func snapshotRoundTripAndOrdering() throws {
+    let bundle = FileManager.default.temporaryDirectory
+        .appendingPathComponent("snapshot-test-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: bundle, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: bundle) }
+
+    let older = DocumentSnapshot(
+        name: "초고",
+        createdAt: Date(timeIntervalSinceNow: -100),
+        content: .page(PageContent(blocks: [PageBlock(kind: .paragraph, text: "hello")]))
+    )
+    let newer = DocumentSnapshot(
+        name: "퇴고",
+        content: .page(PageContent(blocks: []))
+    )
+    try SnapshotIO.save(older, in: bundle)
+    try SnapshotIO.save(newer, in: bundle)
+
+    let listed = SnapshotIO.list(in: bundle)
+    #expect(listed.count == 2)
+    #expect(listed.first?.name == "퇴고") // 최신순
+    #expect(listed.last?.content == older.content)
+
+    SnapshotIO.delete(newer.id, in: bundle)
+    #expect(SnapshotIO.list(in: bundle).count == 1)
+}

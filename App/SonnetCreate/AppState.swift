@@ -87,6 +87,7 @@ final class AppState {
     var selectedTabID: UUID?
     /// 참조 패널 표시 여부 (문서 탭에서만 의미 있음)
     var showReferencePanel = false
+    var showSnapshotPanel = false
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
 

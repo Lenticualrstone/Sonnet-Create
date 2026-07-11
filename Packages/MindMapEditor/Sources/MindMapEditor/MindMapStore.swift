@@ -42,6 +42,11 @@ public final class MindMapStore {
         onContentChanged?(content)
     }
 
+    /// 스냅샷 복원 등 콘텐츠 전면 교체 — 되돌리기 스택에 남는 단일 작업.
+    public func replaceContent(_ newContent: MindMapContent) {
+        mutate { $0 = newContent }
+    }
+
     public func undo() {
         guard let previous = undoStack.popLast() else { return }
         redoStack.append(content)

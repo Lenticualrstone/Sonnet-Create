@@ -63,6 +63,8 @@ public enum L10nKey: String, Sendable {
     case rehearsal, rehearsalPause, rehearsalResume, rehearsalStop, rehearsalSpeed
     case quickOpen, quickOpenPlaceholder, noMatches, actionsSection, documentsSection
     case focusMode, focusModeHint, typewriterMode, typewriterModeHint, mindmapAutoInspector
+    case snapshots, takeSnapshot, snapshotNamePlaceholder, compare, beforeRestoreSnapshot
+    case diffAdded, diffRemoved, diffChanged, noSnapshots, restoreSnapshotConfirm, noDifferences
     case rehearsalVoice
     case settingsAppearance, settingsEditor
     case deleteProject, trashConfirmMessage, projectDeleteMessage
@@ -216,6 +218,17 @@ public final class Localizer {
         .typewriterMode: [.korean: "타자기 모드", .japanese: "タイプライターモード", .english: "Typewriter Mode"],
         .typewriterModeHint: [.korean: "편집 중인 블록을 화면 중앙에 유지합니다", .japanese: "編集中のブロックを画面中央に保ちます", .english: "Keeps the editing block vertically centered"],
         .mindmapAutoInspector: [.korean: "노드 선택 시 인스펙터 자동 열기", .japanese: "ノード選択時にインスペクタを自動表示", .english: "Open inspector when a node is selected"],
+        .snapshots: [.korean: "스냅샷", .japanese: "スナップショット", .english: "Snapshots"],
+        .takeSnapshot: [.korean: "스냅샷 찍기", .japanese: "スナップショットを撮る", .english: "Take Snapshot"],
+        .snapshotNamePlaceholder: [.korean: "스냅샷 이름 (예: 초고)", .japanese: "スナップショット名（例：初稿）", .english: "Snapshot name (e.g. First draft)"],
+        .compare: [.korean: "비교", .japanese: "比較", .english: "Compare"],
+        .beforeRestoreSnapshot: [.korean: "복원 전 상태", .japanese: "復元前の状態", .english: "Before restore"],
+        .diffAdded: [.korean: "추가됨", .japanese: "追加", .english: "Added"],
+        .diffRemoved: [.korean: "삭제됨", .japanese: "削除", .english: "Removed"],
+        .diffChanged: [.korean: "변경됨", .japanese: "変更", .english: "Changed"],
+        .noSnapshots: [.korean: "아직 스냅샷이 없습니다 — 큰 수정 전에 찍어두세요", .japanese: "まだスナップショットがありません", .english: "No snapshots yet — take one before big edits"],
+        .restoreSnapshotConfirm: [.korean: "이 스냅샷으로 복원할까요? 현재 상태는 \'복원 전 상태\' 스냅샷으로 자동 보관됩니다.", .japanese: "このスナップショットに復元しますか？現在の状態は自動保管されます。", .english: "Restore this snapshot? The current state is kept automatically."],
+        .noDifferences: [.korean: "차이가 없습니다", .japanese: "差分はありません", .english: "No differences"],
         .aiSuggesting: [.korean: "AI가 이어쓰는 중…", .japanese: "AIが続きを作成中…", .english: "AI is drafting…"],
         .acceptAll: [.korean: "모두 반영", .japanese: "すべて反映", .english: "Accept All"],
         .dismissAll: [.korean: "모두 무시", .japanese: "すべて破棄", .english: "Dismiss All"],

@@ -12,6 +12,7 @@
 		0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D11BB4282BA195D4F440C97 /* HomeView.swift */; };
 		0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 732C34C9124878FB3421665B /* TouchBarController.swift */; };
 		0E27B11F3544F7119C5D46D5 /* QuickLookPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */; };
 		2BE731F8989DBAB49443A5E5 /* MindMapEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 2156137A81292CD1ACB4C89C /* MindMapEditor */; };
 		376249414C17B9E064AD94FD /* BackupTimelineView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A17E86B8424F8306FD4B021 /* BackupTimelineView.swift */; };
 		3FAC1FB551CFA25588210BE4 /* AIAgentKit in Frameworks */ = {isa = PBXBuildFile; productRef = 00F386E97DD83D5B4B114EB5 /* AIAgentKit */; };
@@ -67,6 +68,7 @@
 /* Begin PBXFileReference section */
 		0573DE5D33E846CBAC56F881 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		0B44C3D75121B9967F503526 /* FileManagerKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FileManagerKit; path = ../Packages/FileManagerKit; sourceTree = SOURCE_ROOT; };
+		1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotPanelView.swift; sourceTree = "<group>"; };
 		1D99E3851BA6E0A5B95B1508 /* DesignSystem */ = {isa = PBXFileReference; lastKnownFileType = folder; name = DesignSystem; path = ../Packages/DesignSystem; sourceTree = SOURCE_ROOT; };
 		3A17E86B8424F8306FD4B021 /* BackupTimelineView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackupTimelineView.swift; sourceTree = "<group>"; };
 		4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SonnetCreateApp.swift; sourceTree = "<group>"; };
@@ -149,6 +151,7 @@
 				0573DE5D33E846CBAC56F881 /* ProfileView.swift */,
 				A225ADDF85117C42771140CB /* ReferencePanelView.swift */,
 				E3ED3D33526C84530606161E /* SidebarView.swift */,
+				1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */,
 				4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */,
 				732C34C9124878FB3421665B /* TouchBarController.swift */,
 			);
@@ -340,6 +343,7 @@
 				51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */,
 				0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */,
 				67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */,
+				2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */,
 				DEDBCA2FAA6C5AACAAD3ADE0 /* SonnetCreateApp.swift in Sources */,
 				0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */,
 			);
