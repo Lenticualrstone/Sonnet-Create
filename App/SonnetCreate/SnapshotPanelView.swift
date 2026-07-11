@@ -110,6 +110,8 @@ struct SnapshotPanelView: View {
                 }
                 .buttonStyle(.borderless)
                 .help(l10n.t(.restore))
+                // 읽기 전용 세션은 markDirty가 차단되어 복원이 저장되지 않으므로 금지
+                .disabled(session.isReadOnly)
 
                 Button(role: .destructive) {
                     session.deleteSnapshot(snapshot.id)
