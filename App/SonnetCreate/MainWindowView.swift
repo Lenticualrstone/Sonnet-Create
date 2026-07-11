@@ -484,30 +484,33 @@ struct TabChip: View {
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                // 미저장 표시 — 브라우저 관례처럼 호버 전에는 점, 호버하면 닫기 버튼
-                ZStack {
-                    if hasUnsavedChanges, !hovering {
-                        Circle()
-                            .fill(accent.opacity(0.85))
-                            .frame(width: 7, height: 7)
-                            .transition(.opacity.combined(with: .scale(scale: 0.5)))
+                // 미저장 표시 — 브라우저 관례처럼 호버 전에는 점, 호버하면 닫기 버튼.
+                // 홈 탭은 닫아도 곧바로 재생성되므로 X를 아예 숨긴다 (⌘W/우클릭은 유지).
+                if tab.content != .home {
+                    ZStack {
+                        if hasUnsavedChanges, !hovering {
+                            Circle()
+                                .fill(accent.opacity(0.85))
+                                .frame(width: 7, height: 7)
+                                .transition(.opacity.combined(with: .scale(scale: 0.5)))
+                        }
+                        Button {
+                            app.closeTab(tab)
+                        } label: {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 8, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .frame(width: 17, height: 17)
+                                .background(
+                                    Circle().fill(Color.primary.opacity(hovering ? 0.09 : 0))
+                                )
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .opacity(hovering ? 1 : (isSelected && !hasUnsavedChanges ? 1 : 0))
                     }
-                    Button {
-                        app.closeTab(tab)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundStyle(.secondary)
-                            .frame(width: 17, height: 17)
-                            .background(
-                                Circle().fill(Color.primary.opacity(hovering ? 0.09 : 0))
-                            )
-                            .contentShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .opacity(hovering ? 1 : (isSelected && !hasUnsavedChanges ? 1 : 0))
+                    .frame(width: 17, height: 17)
                 }
-                .frame(width: 17, height: 17)
             }
             .padding(.horizontal, 10)
             .padding(.vertical, isChrome ? 7 : 5)

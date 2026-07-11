@@ -65,6 +65,8 @@ public enum L10nKey: String, Sendable {
     case focusMode, focusModeHint, typewriterMode, typewriterModeHint, mindmapAutoInspector
     case snapshots, takeSnapshot, snapshotNamePlaceholder, compare, beforeRestoreSnapshot
     case diffAdded, diffRemoved, diffChanged, noSnapshots, restoreSnapshotConfirm, noDifferences
+    case snapshotOnSave, snapshotOnSaveHint
+    case writingGoal, charsUnit, goalReached, streakDays
     case rehearsalVoice
     case settingsAppearance, settingsEditor
     case deleteProject, trashConfirmMessage, projectDeleteMessage
@@ -229,6 +231,12 @@ public final class Localizer {
         .noSnapshots: [.korean: "아직 스냅샷이 없습니다 — 큰 수정 전에 찍어두세요", .japanese: "まだスナップショットがありません", .english: "No snapshots yet — take one before big edits"],
         .restoreSnapshotConfirm: [.korean: "이 스냅샷으로 복원할까요? 현재 상태는 \'복원 전 상태\' 스냅샷으로 자동 보관됩니다.", .japanese: "このスナップショットに復元しますか？現在の状態は自動保管されます。", .english: "Restore this snapshot? The current state is kept automatically."],
         .noDifferences: [.korean: "차이가 없습니다", .japanese: "差分はありません", .english: "No differences"],
+        .snapshotOnSave: [.korean: "수동 저장 시 자동 스냅샷", .japanese: "手動保存時に自動スナップショット", .english: "Snapshot on manual save"],
+        .snapshotOnSaveHint: [.korean: "⌘S로 저장할 때마다 스냅샷을 남깁니다. 자동 스냅샷은 문서당 최근 10개만 보관됩니다.", .japanese: "⌘Sで保存するたびにスナップショットを残します。自動分は最新10件のみ保管。", .english: "Takes a snapshot every time you save with ⌘S. Only the 10 most recent automatic snapshots are kept per document."],
+        .writingGoal: [.korean: "일일 집필 목표", .japanese: "1日の執筆目標", .english: "Daily Writing Goal"],
+        .charsUnit: [.korean: "자", .japanese: "文字", .english: " chars"],
+        .goalReached: [.korean: "오늘 목표 달성!", .japanese: "今日の目標達成！", .english: "Goal reached today!"],
+        .streakDays: [.korean: "연속 %d일", .japanese: "連続%d日", .english: "%d-day streak"],
         .aiSuggesting: [.korean: "AI가 이어쓰는 중…", .japanese: "AIが続きを作成中…", .english: "AI is drafting…"],
         .acceptAll: [.korean: "모두 반영", .japanese: "すべて反映", .english: "Accept All"],
         .dismissAll: [.korean: "모두 무시", .japanese: "すべて破棄", .english: "Dismiss All"],

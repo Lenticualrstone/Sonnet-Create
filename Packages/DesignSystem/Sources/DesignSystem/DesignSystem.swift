@@ -342,6 +342,17 @@ public struct SaveStatusBadge: View {
     let label: String
     let action: () -> Void
 
+    @Environment(\.resolvedAccent) private var accent
+
+    /// 저장 중/자동 저장의 고정 파랑은 앤티크 페이퍼 톤에서 유일하게 튀는 색이라
+    /// 테마 액센트를 따르게 한다. 나머지 상태는 신호색(빨강/초록/노랑) 유지.
+    private var displayColor: Color {
+        switch state {
+        case .saving, .savedAuto: accent
+        default: state.color
+        }
+    }
+
     @State private var pulse = false
 
     public init(state: SaveState, label: String, action: @escaping () -> Void) {
@@ -354,10 +365,10 @@ public struct SaveStatusBadge: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Circle()
-                    .fill(state.color)
+                    .fill(displayColor)
                     .frame(width: 7, height: 7)
                     .scaleEffect(pulse ? 1.7 : 1)
-                    .shadow(color: state.color.opacity(0.8), radius: 3)
+                    .shadow(color: displayColor.opacity(0.8), radius: 3)
                 Text(label)
                     .font(.caption)
                     .foregroundStyle(.secondary)

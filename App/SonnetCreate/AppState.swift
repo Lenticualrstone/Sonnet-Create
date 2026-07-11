@@ -166,6 +166,8 @@ final class AppState {
 
     /// 일별 저장 활동 (yyyy-MM-dd → 횟수) — 프로필 기여도 그래프용
     private(set) var activity: [String: Int] = [:]
+    /// 일별 집필 글자 수 (증가분 합산) — 프로필 집필 목표 카드 데이터.
+    private(set) var writing: [String: Int] = [:]
 
     /// 수신함 이벤트 (가져오기/백업/복원 등)
     private(set) var inbox: [InboxEvent] = []
@@ -199,6 +201,7 @@ final class AppState {
         }
         touchBar.appState = self
         loadActivity()
+        loadWriting()
         loadInbox()
     }
 
@@ -214,6 +217,7 @@ final class AppState {
             workspace.setRoot(newRoot)
             backupManager = BackupManager(workspaceRoot: newRoot)
             loadActivity()
+            loadWriting()
             loadInbox()
         }
         for session in sessions.values {
@@ -393,6 +397,12 @@ final class AppState {
         guard let resolvedURL, let loaded = try? DocumentPackageIO.read(from: resolvedURL) else { return }
 
         let session = DocumentSession(document: loaded, isPersisted: true)
+        session.shouldSnapshotOnManualSave = { [weak self] in
+            self?.settings.applied.snapshotOnManualSave ?? false
+        }
+        session.onWritingDelta = { [weak self] delta in
+            self?.recordWriting(delta: delta)
+        }
         presentSession(session, id: id)
         workspace.touchRecent(id)
     }
@@ -421,6 +431,12 @@ final class AppState {
             return id
         }
         let session = DocumentSession(document: document, isPersisted: false)
+        session.shouldSnapshotOnManualSave = { [weak self] in
+            self?.settings.applied.snapshotOnManualSave ?? false
+        }
+        session.onWritingDelta = { [weak self] delta in
+            self?.recordWriting(delta: delta)
+        }
         presentSession(session, id: id)
         return id
     }
@@ -459,6 +475,7 @@ final class AppState {
     // MARK: 종료 처리
 
     func handleTermination() {
+        persistWriting()
         flushAllSessions()
         if settings.applied.backupOnQuit {
             try? backupManager.snapshot()
@@ -692,6 +709,62 @@ final class AppState {
     /// 특정 날짜의 활동 횟수.
     func activityCount(on date: Date) -> Int {
         activity[Self.dayFormatter.string(from: date)] ?? 0
+    }
+
+    // MARK: 집필 통계 (일별 글자 수)
+
+    private var writingURL: URL {
+        workspace.rootURL.appendingPathComponent(".sonnetcreate/writing.json")
+    }
+
+    private var writingPersistTask: Task<Void, Never>?
+
+    func loadWriting() {
+        guard let data = try? Data(contentsOf: writingURL),
+              let decoded = try? JSONDecoder().decode([String: Int].self, from: data)
+        else {
+            writing = [:]
+            return
+        }
+        writing = decoded
+    }
+
+    /// 문서 내용이 늘어난 만큼 오늘 칸에 더한다. 키 입력마다 불리므로
+    /// 디스크 기록은 3초 디바운스 (종료 시 handleTermination이 플러시).
+    func recordWriting(delta: Int) {
+        guard delta > 0 else { return }
+        writing[Self.dayFormatter.string(from: Date()), default: 0] += delta
+        writingPersistTask?.cancel()
+        writingPersistTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(3))
+            guard !Task.isCancelled else { return }
+            self?.persistWriting()
+        }
+    }
+
+    private func persistWriting() {
+        writingPersistTask?.cancel()
+        guard let data = try? JSONEncoder().encode(writing) else { return }
+        try? data.write(to: writingURL, options: .atomic)
+    }
+
+    var todayWriting: Int {
+        writing[Self.dayFormatter.string(from: Date())] ?? 0
+    }
+
+    /// 연속 집필 일수 — 오늘 썼다면 오늘부터, 아직이면 어제부터 거슬러 센다.
+    var writingStreak: Int {
+        let calendar = Calendar.current
+        var day = calendar.startOfDay(for: Date())
+        if writing[Self.dayFormatter.string(from: day)] == nil {
+            day = calendar.date(byAdding: .day, value: -1, to: day) ?? day
+        }
+        var streak = 0
+        while (writing[Self.dayFormatter.string(from: day)] ?? 0) > 0 {
+            streak += 1
+            day = calendar.date(byAdding: .day, value: -1, to: day) ?? day
+        }
+        return streak
     }
 
     // MARK: 외부 가져오기

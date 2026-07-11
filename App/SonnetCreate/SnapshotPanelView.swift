@@ -84,9 +84,17 @@ struct SnapshotPanelView: View {
 
     private func snapshotRow(_ snapshot: DocumentSnapshot, l10n: Localizer) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(snapshot.name)
-                .font(.callout.weight(.medium))
-                .lineLimit(1)
+            HStack(spacing: 5) {
+                Text(snapshot.name)
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                if snapshot.isAutomatic {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 8))
+                        .foregroundStyle(.tertiary)
+                        .help(l10n.t(.autosave))
+                }
+            }
             HStack(spacing: 6) {
                 Text(snapshot.createdAt, format: .dateTime.month().day().hour().minute())
                     .font(.caption2)

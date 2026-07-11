@@ -9,12 +9,31 @@ public struct DocumentSnapshot: Identifiable, Codable, Sendable, Equatable {
     public var name: String
     public var createdAt: Date
     public var content: DocumentContent
+    /// 시스템이 찍은 스냅샷 (⌘S 자동/복원 전 상태) — 오래된 것부터 정리 대상.
+    public var isAutomatic: Bool
 
-    public init(id: UUID = UUID(), name: String, createdAt: Date = Date(), content: DocumentContent) {
+    public init(
+        id: UUID = UUID(),
+        name: String,
+        createdAt: Date = Date(),
+        content: DocumentContent,
+        isAutomatic: Bool = false
+    ) {
         self.id = id
         self.name = name
         self.createdAt = createdAt
         self.content = content
+        self.isAutomatic = isAutomatic
+    }
+
+    /// isAutomatic 도입 이전에 저장된 스냅샷도 읽히도록 decodeIfPresent.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        createdAt = try c.decode(Date.self, forKey: .createdAt)
+        content = try c.decode(DocumentContent.self, forKey: .content)
+        isAutomatic = try c.decodeIfPresent(Bool.self, forKey: .isAutomatic) ?? false
     }
 }
 

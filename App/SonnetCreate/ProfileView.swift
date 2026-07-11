@@ -45,6 +45,9 @@ struct ProfileView: View {
                 // 워크스페이스 통계
                 statsRow(l10n)
 
+                // 집필 목표 — 오늘 쓴 글자 수 / 목표, 연속 일수
+                writingGoalCard(l10n)
+
                 // 기여도 그래프 (GitHub식)
                 VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
                     Label(l10n.t(.contributions), systemImage: "square.grid.4x3.fill")
@@ -95,6 +98,58 @@ struct ProfileView: View {
             }
             .frame(width: 96, height: 96)
         }
+    }
+
+    private func writingGoalCard(_ l10n: Localizer) -> some View {
+        let today = app.todayWriting
+        let goal = max(1, Int(app.settings.applied.dailyWritingGoal))
+        let progress = min(1.0, Double(today) / Double(goal))
+        let streak = app.writingStreak
+
+        return VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+            HStack {
+                Label(l10n.t(.writingGoal), systemImage: "target")
+                    .font(.headline)
+                Spacer()
+                if streak > 0 {
+                    Label(String(format: l10n.t(.streakDays), streak), systemImage: "flame.fill")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(.orange)
+                }
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text("\(today)")
+                    .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
+                    .contentTransition(.numericText())
+                Text("/ \(goal)\(l10n.t(.charsUnit))")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if today >= goal {
+                    Label(l10n.t(.goalReached), systemImage: "checkmark.seal.fill")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(accent)
+                }
+            }
+
+            // 진행 바
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.primary.opacity(0.07))
+                    Capsule()
+                        .fill(accent.opacity(0.75))
+                        .frame(width: max(6, geo.size.width * progress))
+                }
+            }
+            .frame(height: 7)
+            .animation(DesignTokens.Motion.gentle, value: progress)
+        }
+        .padding(DesignTokens.Spacing.m)
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(SonnetPalette.surface)
+        )
     }
 
     private func statsRow(_ l10n: Localizer) -> some View {

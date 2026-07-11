@@ -45,9 +45,14 @@ final class DocumentSession {
         }
     }
 
+    /// 집필 통계 — 내용 글자 수가 늘어난 만큼 AppState로 보고.
+    var onWritingDelta: ((Int) -> Void)?
+    private var lastCharCount = 0
+
     init(document: LoadedDocument, isPersisted: Bool) {
         self.document = document
         self.isPersisted = isPersisted
+        lastCharCount = Self.charCount(of: document.content)
         saveState = isPersisted ? .savedAuto : .unsaved
         switch document.content {
         case .scenario(let content):
@@ -55,6 +60,7 @@ final class DocumentSession {
             editor = .scenario(store)
             store.onContentChanged = { [weak self] updated in
                 self?.document.content = .scenario(updated)
+                self?.reportWritingDelta()
                 self?.markDirty()
             }
         case .mindmap(let content):
@@ -62,6 +68,7 @@ final class DocumentSession {
             editor = .mindmap(store)
             store.onContentChanged = { [weak self] updated in
                 self?.document.content = .mindmap(updated)
+                self?.reportWritingDelta()
                 self?.markDirty()
             }
             store.resourceResolver = { [weak self] relative in self?.resolveResource(relative) }
@@ -71,6 +78,7 @@ final class DocumentSession {
             editor = .page(store)
             store.onContentChanged = { [weak self] updated in
                 self?.document.content = .page(updated)
+                self?.reportWritingDelta()
                 self?.markDirty()
             }
             store.resourceResolver = { [weak self] relative in self?.resolveResource(relative) }
@@ -104,6 +112,28 @@ final class DocumentSession {
         }
     }
 
+    private func reportWritingDelta() {
+        let count = Self.charCount(of: document.content)
+        let delta = count - lastCharCount
+        lastCharCount = count
+        if delta > 0, !isReadOnly { onWritingDelta?(delta) }
+    }
+
+    /// 문서 종류별 본문 글자 수 (시나리오는 분기 포함).
+    private static func charCount(of content: DocumentContent) -> Int {
+        switch content {
+        case .scenario(let c):
+            c.blocks.reduce(0) { $0 + $1.text.count }
+                + c.branches.reduce(0) { sum, branch in
+                    sum + branch.blocks.reduce(0) { $0 + $1.text.count }
+                }
+        case .page(let c):
+            c.blocks.reduce(0) { $0 + $1.text.count }
+        case .mindmap(let c):
+            c.nodes.reduce(0) { $0 + $1.title.count + $1.detail.count }
+        }
+    }
+
     private func markDirty() {
         // 읽기 전용 모드에서는 편집 UI가 모두 잠기므로 여기 도달할 일이 없어야
         // 하지만, 만약 우회 경로로 변경이 들어와도 더티 처리하지 않는다.
@@ -130,6 +160,10 @@ final class DocumentSession {
             try DocumentPackageIO.write(document)
             isPersisted = true
             saveState = manual ? .savedManual : .savedAuto
+            // ⌘S 습관을 스냅샷 안전망으로 — 자동 표시가 붙고 오래된 것부터 정리된다
+            if manual, shouldSnapshotOnManualSave?() == true {
+                takeSnapshot(named: Localizer.shared.t(.autosave), automatic: true)
+            }
             onSaved?()
         } catch {
             saveState = .error
@@ -179,13 +213,31 @@ final class DocumentSession {
         snapshots = SnapshotIO.list(in: document.url)
     }
 
-    func takeSnapshot(named name: String) {
+    /// 문서당 보관하는 자동 스냅샷 상한 — 이름 붙인 수동 스냅샷은 무제한.
+    private static let automaticSnapshotCap = 10
+
+    /// 설정 > 일반의 '수동 저장 시 자동 스냅샷' — AppState가 주입.
+    var shouldSnapshotOnManualSave: (() -> Bool)?
+
+    func takeSnapshot(named name: String, automatic: Bool = false) {
         let trimmed = name.trimmingCharacters(in: .whitespaces)
         let snapshot = DocumentSnapshot(
             name: trimmed.isEmpty ? Localizer.shared.t(.snapshots) : trimmed,
-            content: document.content
+            content: document.content,
+            isAutomatic: automatic
         )
         try? SnapshotIO.save(snapshot, in: document.url)
+        refreshSnapshots()
+        if automatic { pruneAutomaticSnapshots() }
+    }
+
+    /// 자동 스냅샷이 상한을 넘으면 오래된 것부터 삭제한다 (수동은 보존).
+    private func pruneAutomaticSnapshots() {
+        let automatic = snapshots.filter(\.isAutomatic) // 최신순 정렬 상태
+        guard automatic.count > Self.automaticSnapshotCap else { return }
+        for stale in automatic.dropFirst(Self.automaticSnapshotCap) {
+            SnapshotIO.delete(stale.id, in: document.url)
+        }
         refreshSnapshots()
     }
 
@@ -197,7 +249,7 @@ final class DocumentSession {
     /// 복원 — 현재 상태를 자동 스냅샷으로 보관한 뒤 에디터 스토어를 통째로 교체.
     /// 교체는 스토어의 undo 스택에 남는 단일 작업이라 ⌘Z로도 되돌릴 수 있다.
     func restoreSnapshot(_ snapshot: DocumentSnapshot) {
-        takeSnapshot(named: Localizer.shared.t(.beforeRestoreSnapshot))
+        takeSnapshot(named: Localizer.shared.t(.beforeRestoreSnapshot), automatic: true)
         switch (editor, snapshot.content) {
         case (.scenario(let store), .scenario(let content)):
             store.replaceContent(content)

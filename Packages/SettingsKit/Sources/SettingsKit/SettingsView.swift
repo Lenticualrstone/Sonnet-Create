@@ -160,6 +160,20 @@ public struct SettingsRootView: View {
             }
 
             Toggle(l10n.t(.autosave), isOn: $store.draft.autosave)
+
+            Section {
+                Toggle(l10n.t(.snapshotOnSave), isOn: $store.draft.snapshotOnManualSave)
+                Text(l10n.t(.snapshotOnSaveHint))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            LabeledContent(l10n.t(.writingGoal)) {
+                BarSlider(
+                    value: $store.draft.dailyWritingGoal, in: 200...5000, step: 100,
+                    format: { "\(Int($0))" + l10n.t(.charsUnit) }
+                )
+            }
             Toggle(l10n.t(.backups) + " — " + l10n.t(.backupNow), isOn: $store.draft.backupOnQuit)
 
             if let backupTimelineView {

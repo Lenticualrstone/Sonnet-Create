@@ -61,6 +61,11 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// 시나리오 대사 블록의 캐릭터 프로필(아바타) 크기 (pt)
     public var dialogueAvatarSize: Double = 34
 
+    /// 수동 저장(⌘S) 시 자동 스냅샷 — 자동분은 문서당 최근 10개만 보관
+    public var snapshotOnManualSave: Bool = true
+    /// 일일 집필 목표 (글자 수) — 프로필의 목표 카드 기준
+    public var dailyWritingGoal: Double = 1000
+
     // 에디터별
     /// 페이지: 포커스 모드 — 편집 중 블록 외 디밍
     public var pageFocusModeEnabled: Bool = false
@@ -112,6 +117,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
         blockSpacing = try c.decodeIfPresent(Double.self, forKey: .blockSpacing) ?? d.blockSpacing
         dialogueDisplayRaw = try c.decodeIfPresent(String.self, forKey: .dialogueDisplayRaw) ?? d.dialogueDisplayRaw
         dialogueAvatarSize = try c.decodeIfPresent(Double.self, forKey: .dialogueAvatarSize) ?? d.dialogueAvatarSize
+        snapshotOnManualSave = try c.decodeIfPresent(Bool.self, forKey: .snapshotOnManualSave) ?? d.snapshotOnManualSave
+        dailyWritingGoal = try c.decodeIfPresent(Double.self, forKey: .dailyWritingGoal) ?? d.dailyWritingGoal
         pageFocusModeEnabled = try c.decodeIfPresent(Bool.self, forKey: .pageFocusModeEnabled) ?? d.pageFocusModeEnabled
         pageTypewriterEnabled = try c.decodeIfPresent(Bool.self, forKey: .pageTypewriterEnabled) ?? d.pageTypewriterEnabled
         mindmapAutoOpenInspector = try c.decodeIfPresent(Bool.self, forKey: .mindmapAutoOpenInspector) ?? d.mindmapAutoOpenInspector
