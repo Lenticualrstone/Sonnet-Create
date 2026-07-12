@@ -90,6 +90,8 @@ final class AppState {
     var showSnapshotPanel = false
     /// 프로젝트 파일 인스펙터 (프로젝트 소속 문서 탭에서만 의미 있음) — 기본 표시
     var showProjectNavigator = true
+    /// 탭바에서 드래그 재정렬 중인 탭
+    var draggingTabID: UUID?
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
 
@@ -440,7 +442,7 @@ final class AppState {
         do {
             loaded = try DocumentPackageIO.read(from: resolvedURL)
         } catch DocumentIOError.corruptedContent {
-            presentOpenError(message: l10n.t(.errorCorruptedContent), detail: resolvedURL.lastPathComponent)
+            handleCorruptedDocument(at: resolvedURL, id: id)
             return
         } catch DocumentIOError.notADocumentBundle, DocumentIOError.corruptedMetadata {
             presentOpenError(message: l10n.t(.errorOpenGeneric), detail: resolvedURL.lastPathComponent)
@@ -459,6 +461,42 @@ final class AppState {
         }
         presentSession(session, id: id)
         workspace.touchRecent(id)
+    }
+
+    /// 손상된 문서 — 번들 안에 스냅샷이 남아 있으면 최신 스냅샷으로 복구를 제안한다.
+    /// 복구를 수락하면 스냅샷 내용으로 세션을 열고 즉시 저장해 번들을 치유한다.
+    private func handleCorruptedDocument(at url: URL, id: UUID) {
+        let l10n = Localizer.shared
+        let snapshots = SnapshotIO.list(in: url)
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = l10n.t(.errorOpenTitle)
+        alert.informativeText = "\(l10n.t(.errorCorruptedContent))\n\n\(url.lastPathComponent)"
+        notify(symbol: "exclamationmark.triangle", message: "\(l10n.t(.errorOpenTitle)): \(url.lastPathComponent)")
+
+        guard let latest = snapshots.first else {
+            alert.runModal()
+            return
+        }
+        alert.addButton(withTitle: l10n.t(.recoverFromSnapshot))
+        alert.addButton(withTitle: l10n.t(.cancel))
+        guard alert.runModal() == .alertFirstButtonReturn,
+              let envelope = DocumentPackageIO.readEnvelope(from: url)
+        else { return }
+
+        let refs = DocumentPackageIO.readRefs(from: url) ?? ReferenceGraph()
+        let document = LoadedDocument(envelope: envelope, content: latest.content, refs: refs, url: url)
+        let session = DocumentSession(document: document, isPersisted: true)
+        session.shouldSnapshotOnManualSave = { [weak self] in
+            self?.settings.applied.snapshotOnManualSave ?? false
+        }
+        session.onWritingDelta = { [weak self] delta in
+            self?.stats.recordWriting(delta: delta)
+        }
+        presentSession(session, id: id)
+        session.healAfterRecovery()
+        workspace.touchRecent(id)
+        notify(symbol: "bandage", message: "\(l10n.t(.eventRecovered)): \(envelope.title)")
     }
 
     /// 문서 열기 실패를 사용자에게 알린다 — 예전처럼 조용히 무시하면 클릭이 "고장난 것처럼" 보인다.

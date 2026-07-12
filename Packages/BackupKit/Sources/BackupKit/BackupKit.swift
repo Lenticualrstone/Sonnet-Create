@@ -84,6 +84,30 @@ public struct BackupManager: Sendable {
         try? FileManager.default.removeItem(at: record.url)
     }
 
+    /// 백업 한 건의 요약 정보 (총 용량 · 문서 번들 수) — 타임라인 표시용.
+    /// 전체 파일 순회라 호출부에서 백그라운드로 돌리는 것을 전제로 한다.
+    public struct BackupDetail: Sendable, Equatable {
+        public let byteSize: Int64
+        public let documentCount: Int
+    }
+
+    public func detail(of record: BackupRecord) -> BackupDetail {
+        let fm = FileManager.default
+        var size: Int64 = 0
+        var docs = 0
+        let documentExtensions: Set<String> = ["scen", "scno", "scpa"]
+        if let enumerator = fm.enumerator(at: record.url, includingPropertiesForKeys: [.fileSizeKey, .isDirectoryKey]) {
+            for case let url as URL in enumerator {
+                let values = try? url.resourceValues(forKeys: [.fileSizeKey, .isDirectoryKey])
+                size += Int64(values?.fileSize ?? 0)
+                if values?.isDirectory == true, documentExtensions.contains(url.pathExtension.lowercased()) {
+                    docs += 1
+                }
+            }
+        }
+        return BackupDetail(byteSize: size, documentCount: docs)
+    }
+
     private func prune(keeping limit: Int) {
         let records = timeline()
         guard records.count > limit else { return }

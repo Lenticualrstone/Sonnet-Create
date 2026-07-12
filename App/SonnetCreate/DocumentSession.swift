@@ -163,6 +163,13 @@ final class DocumentSession {
         }
     }
 
+    /// 손상 문서를 스냅샷 내용으로 복구해 연 세션 — 즉시 저장해 번들을 치유한다.
+    /// (저장하지 않으면 디스크의 content.json이 손상된 채 남아 다음 열기에 또 실패한다.)
+    func healAfterRecovery() {
+        hasChanged = true
+        save(manual: false)
+    }
+
     /// 처음부터 디스크에 존재해야 하는 문서용 즉시 1회 저장 — 캐스트에 연결되는 캐릭터
     /// 페이지처럼 다른 문서가 UUID로 참조하는 경우, 편집 전이라도 파일이 있어야
     /// 참조가 끊기지 않는다.

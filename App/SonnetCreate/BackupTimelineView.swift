@@ -9,6 +9,8 @@ struct BackupTimelineView: View {
 
     @State private var records: [BackupRecord] = []
     @State private var confirmRestore: BackupRecord?
+    /// 백업별 용량/문서 수 — 전체 파일 순회라 백그라운드에서 채운다.
+    @State private var details: [String: BackupManager.BackupDetail] = [:]
 
     private var isBusy: Bool { app.isBackingUp || app.isRestoringBackup }
 
@@ -42,6 +44,12 @@ struct BackupTimelineView: View {
                             .foregroundStyle(.secondary)
                         Text(record.date, format: .dateTime.month().day().hour().minute())
                             .font(.callout)
+                        if let detail = details[record.id] {
+                            let size = ByteCountFormatter.string(fromByteCount: detail.byteSize, countStyle: .file)
+                            Text("\(detail.documentCount) · \(size)")
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                        }
                         Spacer()
                         Button(l10n.t(.restoreBackup)) {
                             confirmRestore = record
@@ -74,5 +82,17 @@ struct BackupTimelineView: View {
 
     private func refresh() {
         records = app.backupManager.timeline()
+        let manager = app.backupManager
+        let visible = Array(records.prefix(8))
+        Task {
+            let computed = await Task.detached(priority: .utility) {
+                var result: [String: BackupManager.BackupDetail] = [:]
+                for record in visible {
+                    result[record.id] = manager.detail(of: record)
+                }
+                return result
+            }.value
+            details = computed
+        }
     }
 }

@@ -337,12 +337,26 @@ public enum SaveState: Sendable, Equatable {
     }
 }
 
+/// 저장 실패 사유 — DocumentSession이 주입하고 SaveStatusBadge 툴팁이 읽는다.
+/// 에디터 3종의 시그니처를 건드리지 않고 배지까지 내려보내기 위한 환경값.
+private struct SaveErrorDetailKey: EnvironmentKey {
+    static let defaultValue: String? = nil
+}
+
+public extension EnvironmentValues {
+    var saveErrorDetail: String? {
+        get { self[SaveErrorDetailKey.self] }
+        set { self[SaveErrorDetailKey.self] = newValue }
+    }
+}
+
 public struct SaveStatusBadge: View {
     let state: SaveState
     let label: String
     let action: () -> Void
 
     @Environment(\.resolvedAccent) private var accent
+    @Environment(\.saveErrorDetail) private var saveErrorDetail
 
     /// 저장 중/자동 저장의 고정 파랑은 앤티크 페이퍼 톤에서 유일하게 튀는 색이라
     /// 테마 액센트를 따르게 한다. 나머지 상태는 신호색(빨강/초록/노랑) 유지.
@@ -381,7 +395,8 @@ public struct SaveStatusBadge: View {
         .buttonStyle(.plain)
         .textSelection(.disabled)
         .animation(DesignTokens.Motion.snappy, value: state)
-        .help(label)
+        // 오류 상태에서는 왜 실패했는지 툴팁으로 — 클릭은 원래부터 수동 저장(=재시도)이다
+        .help(state == .error ? (saveErrorDetail.map { "\(label) — \($0)" } ?? label) : label)
         .onChange(of: state) {
             // 상태가 바뀔 때마다 도트가 짧게 튀는 하이라이트 (GitHub 상태 배지 참고)
             withAnimation(DesignTokens.Motion.snappy) { pulse = true }

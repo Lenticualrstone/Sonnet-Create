@@ -569,6 +569,12 @@ struct TabChip: View {
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { beginRename() }
         .onTapGesture { app.selectExistingTab(tab) }
+        // 드래그로 탭 순서 재배치 (브라우저 관례) — ⌘1~9 번호도 새 순서를 따른다
+        .onDrag {
+            app.draggingTabID = tab.id
+            return NSItemProvider(object: tab.id.uuidString as NSString)
+        }
+        .onDrop(of: [.text], delegate: TabReorderDropDelegate(target: tab, app: app))
         .onHover { hovering = $0 }
         .contextMenu {
             let l10n = Localizer.shared
@@ -615,6 +621,33 @@ struct TabChip: View {
             documentSession?.title = trimmed
         }
         renaming = false
+    }
+}
+
+/// 탭 드래그 재정렬 — 드래그한 칩이 다른 칩 위로 들어오는 순간 자리를 바꾼다 (라이브 리오더).
+private struct TabReorderDropDelegate: DropDelegate {
+    let target: OpenTab
+    let app: AppState
+
+    func dropEntered(info: DropInfo) {
+        MainActor.assumeIsolated {
+            guard let draggingID = app.draggingTabID, draggingID != target.id,
+                  let from = app.tabs.firstIndex(where: { $0.id == draggingID }),
+                  let to = app.tabs.firstIndex(where: { $0.id == target.id })
+            else { return }
+            withAnimation(DesignTokens.Motion.snappy) {
+                app.tabs.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
+            }
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        MainActor.assumeIsolated { app.draggingTabID = nil }
+        return true
     }
 }
 
@@ -681,6 +714,7 @@ struct DocumentHostView: View {
     var body: some View {
         editorView
             .environment(\.readOnlyMode, $session.isReadOnly)
+            .environment(\.saveErrorDetail, session.lastSaveError)
     }
 
     @ViewBuilder
