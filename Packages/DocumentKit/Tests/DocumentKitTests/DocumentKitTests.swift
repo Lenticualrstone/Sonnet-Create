@@ -51,6 +51,61 @@ private struct RenameFieldMigration: DocumentContentMigration {
     #expect(payload["oldName"] == nil)
 }
 
+// MARK: 패키지 IO — 손상/부분 손실 안전성
+
+/// content.json이 손상된 번들은 빈 문서로 대체되지 않고 corruptedContent를 던져야 한다 —
+/// 빈 대체본이 다음 저장에서 원본을 덮어쓰는 데이터 손실을 막는 회귀 테스트.
+@Test func corruptedContentThrowsInsteadOfReplacingWithEmpty() throws {
+    let document = try DocumentPackageIO.create(
+        title: "손상 테스트", kind: .page,
+        in: FileManager.default.temporaryDirectory.appendingPathComponent("corrupt-test-\(UUID().uuidString)", isDirectory: true)
+    )
+    defer { try? FileManager.default.removeItem(at: document.url.deletingLastPathComponent()) }
+
+    // content.json을 반쯤 잘린 JSON으로 오염
+    try Data("{\"kind\":\"page\",\"payl".utf8)
+        .write(to: document.url.appendingPathComponent("content.json"))
+
+    #expect(throws: DocumentIOError.self) {
+        _ = try DocumentPackageIO.read(from: document.url)
+    }
+}
+
+/// content.json이 아예 없는 번들(구버전/미완성 저장)은 빈 문서로 열려야 한다.
+@Test func missingContentFallsBackToEmpty() throws {
+    let document = try DocumentPackageIO.create(
+        title: "빈 폴백", kind: .page,
+        in: FileManager.default.temporaryDirectory.appendingPathComponent("missing-test-\(UUID().uuidString)", isDirectory: true)
+    )
+    defer { try? FileManager.default.removeItem(at: document.url.deletingLastPathComponent()) }
+
+    try FileManager.default.removeItem(at: document.url.appendingPathComponent("content.json"))
+    let reread = try DocumentPackageIO.read(from: document.url)
+    #expect(reread.envelope.id == document.envelope.id)
+}
+
+/// updateEnvelope는 metadata.json만 다시 쓰고 content.json은 건드리지 않아야 한다 —
+/// 손상 문서도 휴지통 이동/이름 변경이 가능해야 하기 때문.
+@Test func updateEnvelopeLeavesContentUntouched() throws {
+    let document = try DocumentPackageIO.create(
+        title: "원제", kind: .page,
+        in: FileManager.default.temporaryDirectory.appendingPathComponent("envelope-test-\(UUID().uuidString)", isDirectory: true)
+    )
+    defer { try? FileManager.default.removeItem(at: document.url.deletingLastPathComponent()) }
+
+    let contentURL = document.url.appendingPathComponent("content.json")
+    let corrupted = Data("not json at all".utf8)
+    try corrupted.write(to: contentURL)
+
+    let updated = try DocumentPackageIO.updateEnvelope(at: document.url) {
+        $0.title = "변경됨"
+        $0.isTrashed = true
+    }
+    #expect(updated.title == "변경됨")
+    #expect(try Data(contentsOf: contentURL) == corrupted)
+    #expect(DocumentPackageIO.readEnvelope(from: document.url)?.isTrashed == true)
+}
+
 // MARK: 스냅샷 IO
 
 @Test func snapshotRoundTripAndOrdering() throws {

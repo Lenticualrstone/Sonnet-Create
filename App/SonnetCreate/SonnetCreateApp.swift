@@ -120,6 +120,26 @@ struct SonnetCreateApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var appState: AppState?
 
+    /// 종료 전에 미저장분을 플러시하고, 저장에 실패한 문서가 있으면 종료를 보류하고 묻는다 —
+    /// applicationWillTerminate 시점에는 이미 취소가 불가능하기 때문에 여기서 가드한다.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        MainActor.assumeIsolated {
+            guard let appState else { return .terminateNow }
+            appState.flushAllSessions()
+            let failed = appState.failedSaveTitles
+            guard !failed.isEmpty else { return .terminateNow }
+
+            let l10n = Localizer.shared
+            let alert = NSAlert()
+            alert.alertStyle = .critical
+            alert.messageText = l10n.t(.saveFailedQuitTitle)
+            alert.informativeText = l10n.t(.saveFailedQuitMessage) + "\n\n" + failed.joined(separator: "\n")
+            alert.addButton(withTitle: l10n.t(.cancel)) // 기본 버튼 = 안전한 선택
+            alert.addButton(withTitle: l10n.t(.quitAnyway))
+            return alert.runModal() == .alertFirstButtonReturn ? .terminateCancel : .terminateNow
+        }
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         MainActor.assumeIsolated {
             appState?.handleTermination()

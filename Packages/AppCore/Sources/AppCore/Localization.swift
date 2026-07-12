@@ -97,6 +97,12 @@ public enum L10nKey: String, Sendable {
     case selectedCountFormat, deselectAll, selectAll
     case showAllFormat
     case navigateBack, navigateForward
+    // v1.2 안정성: 열기/저장 실패 표면화 · 백업 복원 안내
+    case errorOpenTitle, errorCorruptedContent, errorDocumentMissing, errorOpenGeneric
+    case saveFailedCloseTitle, saveFailedCloseMessage, retrySave, closeWithoutSaving
+    case saveFailedQuitTitle, saveFailedQuitMessage, quitAnyway
+    case restoreClosesTabsMessage, eventBackupFailed, eventImportFailed, eventExportFailed
+    case backupRunning, restoreRunning
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -433,5 +439,22 @@ public final class Localizer {
         .showAllFormat: [.korean: "모두 보기 (%d)", .japanese: "すべて表示 (%d)", .english: "Show All (%d)"],
         .navigateBack: [.korean: "뒤로 이동", .japanese: "戻る", .english: "Back"],
         .navigateForward: [.korean: "앞으로 이동", .japanese: "進む", .english: "Forward"],
+        .errorOpenTitle: [.korean: "문서를 열 수 없습니다", .japanese: "ドキュメントを開けません", .english: "Can't Open Document"],
+        .errorCorruptedContent: [.korean: "문서 내용이 손상되어 열 수 없습니다. 원본은 그대로 보존됩니다 — 문서 번들 안의 snapshots/ 또는 백업 타임라인에서 복구할 수 있습니다.", .japanese: "ドキュメントの内容が破損しているため開けません。原本はそのまま保持されます — バンドル内のsnapshots/またはバックアップから復元できます。", .english: "The document's content is corrupted and can't be opened. The original file is left untouched — you can recover from the bundle's snapshots/ folder or a backup."],
+        .errorDocumentMissing: [.korean: "문서 파일을 찾을 수 없습니다. 이동되었거나 아직 저장되지 않은 문서일 수 있습니다.", .japanese: "ドキュメントファイルが見つかりません。移動されたか、まだ保存されていない可能性があります。", .english: "The document file could not be found. It may have been moved or never saved."],
+        .errorOpenGeneric: [.korean: "문서를 여는 중 오류가 발생했습니다.", .japanese: "ドキュメントを開く際にエラーが発生しました。", .english: "An error occurred while opening the document."],
+        .saveFailedCloseTitle: [.korean: "저장하지 못했습니다", .japanese: "保存できませんでした", .english: "Couldn't Save"],
+        .saveFailedCloseMessage: [.korean: "이 문서를 저장하지 못했습니다. 저장하지 않고 닫으면 최근 변경 내용이 사라집니다.", .japanese: "このドキュメントを保存できませんでした。保存せずに閉じると最近の変更が失われます。", .english: "This document could not be saved. Closing without saving will discard your recent changes."],
+        .retrySave: [.korean: "다시 시도", .japanese: "再試行", .english: "Try Again"],
+        .closeWithoutSaving: [.korean: "저장하지 않고 닫기", .japanese: "保存せずに閉じる", .english: "Close Without Saving"],
+        .saveFailedQuitTitle: [.korean: "저장하지 못한 문서가 있습니다", .japanese: "保存できなかったドキュメントがあります", .english: "Some Documents Couldn't Be Saved"],
+        .saveFailedQuitMessage: [.korean: "일부 문서를 저장하지 못했습니다. 지금 종료하면 최근 변경 내용이 사라집니다.", .japanese: "一部のドキュメントを保存できませんでした。今終了すると最近の変更が失われます。", .english: "Some documents could not be saved. Quitting now will discard those recent changes."],
+        .quitAnyway: [.korean: "그래도 종료", .japanese: "終了する", .english: "Quit Anyway"],
+        .restoreClosesTabsMessage: [.korean: "복원하면 열려 있는 문서 탭이 모두 닫히고 워크스페이스가 선택한 시점으로 교체됩니다.", .japanese: "復元すると開いているドキュメントタブがすべて閉じられ、ワークスペースが選択した時点に置き換えられます。", .english: "Restoring closes all open document tabs and replaces the workspace with the selected snapshot."],
+        .eventBackupFailed: [.korean: "백업 실패", .japanese: "バックアップ失敗", .english: "Backup failed"],
+        .eventImportFailed: [.korean: "가져오기 실패", .japanese: "読み込み失敗", .english: "Import failed"],
+        .eventExportFailed: [.korean: "내보내기 실패", .japanese: "書き出し失敗", .english: "Export failed"],
+        .backupRunning: [.korean: "백업 중…", .japanese: "バックアップ中…", .english: "Backing up…"],
+        .restoreRunning: [.korean: "복원 중…", .japanese: "復元中…", .english: "Restoring…"],
     ]
 }

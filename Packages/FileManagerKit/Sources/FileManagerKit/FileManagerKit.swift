@@ -55,6 +55,11 @@ public final class WorkspaceStore {
     private let watcher = FolderWatcher()
     private let logger = AppLogger(subsystem: "com.seolhwarim.sonnetcreate.workspace")
 
+    /// 색인 재구축용 스캔 세대/태스크 — 겹치는 스캔이 서로의 결과를 덮지 않게 한다.
+    private var scanGeneration: UInt64 = 0
+    private var indexRebuildTask: Task<Void, Never>?
+    private var pendingScanTask: Task<Void, Never>?
+
     private var trashDir: URL { rootURL.appendingPathComponent(".sonnetcreate/Trash", isDirectory: true) }
     private var trashMapURL: URL { rootURL.appendingPathComponent(".sonnetcreate/trash-origins.json") }
 
@@ -84,8 +89,18 @@ public final class WorkspaceStore {
         scan()
         watcher.watch(rootURL) { [weak self] in
             Task { @MainActor [weak self] in
-                self?.scan()
+                self?.scanSoon()
             }
+        }
+    }
+
+    /// 연쇄 이벤트(저장 → 파일 3개 기록 → watcher 다발 발화)를 짧게 뭉쳐 스캔 1회로 만든다.
+    public func scanSoon() {
+        pendingScanTask?.cancel()
+        pendingScanTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            self?.scan()
         }
     }
 
@@ -96,17 +111,15 @@ public final class WorkspaceStore {
         var foundProjects: [ProjectFolder] = []
         var foundDocs: [DocumentListItem] = []
         var foundOther: [OtherFileItem] = []
-        var bodies: [UUID: String] = [:]
 
         func collectDocument(at url: URL, projectName: String?) {
+            // 목록에는 가벼운 metadata.json만 읽는다 — 본문(content.json)은 색인 태스크가
+            // 백그라운드에서 따로 읽는다. 예전엔 저장할 때마다 전 문서 본문을 메인에서
+            // 다시 읽어 문서가 늘수록 타이핑이 끊겼다.
             guard DocumentKind.from(fileExtension: url.pathExtension) != nil,
                   let envelope = DocumentPackageIO.readEnvelope(from: url)
             else { return }
             foundDocs.append(DocumentListItem(envelope: envelope, url: url, projectName: projectName))
-            // 본문 검색 색인용 평문 (실패해도 목록에는 지장 없음)
-            if let loaded = try? DocumentPackageIO.read(from: url) {
-                bodies[envelope.id] = loaded.content.plainText
-            }
         }
 
         // 문서로 인식되지 않는 뷰어블 파일 (이미지·PDF·텍스트 등)을 '기타'로 수집한다.
@@ -159,9 +172,12 @@ public final class WorkspaceStore {
         documents = foundDocs.sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
         otherFiles = foundOther.sorted { $0.modifiedAt > $1.modifiedAt }
 
-        // SQLite 색인 갱신 (UUID→경로 해석용)
+        // SQLite 색인 갱신 (UUID→경로 해석 + 본문 딥서치용).
+        // 본문 읽기가 무거우므로 백그라운드에서 읽고, 한 트랜잭션으로 통째 교체한다.
         if let index {
-            let entries = documents.map { item in
+            scanGeneration += 1
+            let generation = scanGeneration
+            let skeletons = documents.map { item in
                 DocumentIndexEntry(
                     id: item.envelope.id,
                     title: item.envelope.title,
@@ -171,15 +187,21 @@ public final class WorkspaceStore {
                     projectName: item.projectName,
                     modifiedAt: item.envelope.modifiedAt,
                     isHidden: item.envelope.isHidden,
-                    isTrashed: item.envelope.isTrashed,
-                    body: bodies[item.envelope.id] ?? ""
+                    isTrashed: item.envelope.isTrashed
                 )
             }
-            Task.detached(priority: .utility) {
-                await index.removeAll()
-                for entry in entries {
-                    await index.upsert(entry)
+            indexRebuildTask?.cancel()
+            indexRebuildTask = Task.detached(priority: .utility) {
+                var entries: [DocumentIndexEntry] = []
+                entries.reserveCapacity(skeletons.count)
+                for var entry in skeletons {
+                    if Task.isCancelled { return }
+                    let url = URL(fileURLWithPath: entry.path, isDirectory: true)
+                    entry.body = (try? DocumentPackageIO.read(from: url))?.content.plainText ?? ""
+                    entries.append(entry)
                 }
+                if Task.isCancelled { return }
+                await index.rebuild(entries: entries, generation: generation)
             }
         }
     }
@@ -280,10 +302,10 @@ public final class WorkspaceStore {
     // MARK: 이름 변경 / 복제
 
     public func renameDocument(_ item: DocumentListItem, to title: String) {
-        guard var document = try? DocumentPackageIO.read(from: item.url) else { return }
-        document.envelope.title = title
-        document.envelope.modifiedAt = Date()
-        try? DocumentPackageIO.write(document)
+        _ = try? DocumentPackageIO.updateEnvelope(at: item.url) {
+            $0.title = title
+            $0.modifiedAt = Date()
+        }
         scan()
     }
 
@@ -339,7 +361,9 @@ public final class WorkspaceStore {
     }
 
     private static func recentsKey(for root: URL) -> String {
-        "recents-\(root.path.hashValue)"
+        // 주의: hashValue는 실행마다 시드가 달라져 키가 매번 바뀐다(= 최근 목록이 영속 안 됨).
+        // 경로 문자열 자체를 키에 쓴다.
+        "recents-\(root.standardizedFileURL.path)"
     }
 
     private static func loadRecents(for root: URL) -> [UUID] {
@@ -354,9 +378,7 @@ public final class WorkspaceStore {
     // MARK: 가리기 (Finder 반영: isHidden 리소스 플래그)
 
     public func setHidden(_ item: DocumentListItem, hidden: Bool) {
-        guard var document = try? DocumentPackageIO.read(from: item.url) else { return }
-        document.envelope.isHidden = hidden
-        try? DocumentPackageIO.write(document)
+        guard (try? DocumentPackageIO.updateEnvelope(at: item.url) { $0.isHidden = hidden }) != nil else { return }
 
         var url = item.url
         var values = URLResourceValues()
@@ -370,10 +392,10 @@ public final class WorkspaceStore {
 
     public func moveToTrash(_ item: DocumentListItem) {
         let fm = FileManager.default
-        guard var document = try? DocumentPackageIO.read(from: item.url) else { return }
-        document.envelope.isTrashed = true
-        document.envelope.trashedAt = Date()
-        try? DocumentPackageIO.write(document)
+        guard (try? DocumentPackageIO.updateEnvelope(at: item.url) {
+            $0.isTrashed = true
+            $0.trashedAt = Date()
+        }) != nil else { return }
 
         var origins = loadTrashOrigins()
         var target = trashDir.appendingPathComponent(item.url.lastPathComponent)
@@ -401,10 +423,10 @@ public final class WorkspaceStore {
         let originPath = (fellBackToRoot ? nil : recordedPath) ?? rootURL.path
         origins.removeValue(forKey: item.url.lastPathComponent)
 
-        guard var document = try? DocumentPackageIO.read(from: item.url) else { return fellBackToRoot }
-        document.envelope.isTrashed = false
-        document.envelope.trashedAt = nil
-        try? DocumentPackageIO.write(document)
+        guard (try? DocumentPackageIO.updateEnvelope(at: item.url) {
+            $0.isTrashed = false
+            $0.trashedAt = nil
+        }) != nil else { return fellBackToRoot }
 
         let originDir = URL(fileURLWithPath: originPath, isDirectory: true)
         try? fm.createDirectory(at: originDir, withIntermediateDirectories: true)
@@ -447,7 +469,10 @@ public final class WorkspaceStore {
         guard let path = loadTrashOrigins()[item.url.lastPathComponent] else { return nil }
         let originURL = URL(fileURLWithPath: path)
         guard originURL != rootURL else { return nil }
-        if let project = projects.first(where: { originURL.path.hasPrefix($0.url.path) }) {
+        // 경로 접두 비교는 "Novel"과 "Novel 2"를 혼동한다 — 디렉토리 경계까지 포함해 비교
+        if let project = projects.first(where: {
+            originURL.path == $0.url.path || originURL.path.hasPrefix($0.url.path + "/")
+        }) {
             return project.manifest.name
         }
         return originURL.lastPathComponent

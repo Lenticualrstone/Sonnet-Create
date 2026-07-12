@@ -21,6 +21,8 @@ final class DocumentSession {
     private(set) var document: LoadedDocument
     let editor: EditorStore
     private(set) var saveState: SaveState
+    /// 마지막 저장 실패 사유 — 상태 배지 툴팁과 닫기/종료 경고에 표시된다.
+    private(set) var lastSaveError: String?
 
     var autosaveEnabled = true
     /// 읽기 전용 뷰어 모드 — 세션(탭) 단위로 켜고 끈다. 파일에는 저장하지 않는다.
@@ -39,7 +41,9 @@ final class DocumentSession {
     var title: String {
         get { document.envelope.title }
         set {
-            guard newValue != document.envelope.title else { return }
+            // 읽기 전용에서는 markDirty가 무시되어 "바뀐 것처럼 보이지만 저장 안 되는"
+            // 유령 변경이 되므로, 메모리 반영 자체를 막는다.
+            guard !isReadOnly, newValue != document.envelope.title else { return }
             document.envelope.title = newValue
             markDirty()
         }
@@ -58,32 +62,42 @@ final class DocumentSession {
         case .scenario(let content):
             let store = ScenarioStore(content: content)
             editor = .scenario(store)
-            store.onContentChanged = { [weak self] updated in
-                self?.document.content = .scenario(updated)
-                self?.reportWritingDelta()
-                self?.markDirty()
+            store.onContentChanged = { [weak self, weak store] updated in
+                self?.applyContentChange(.scenario(updated), wasHistory: store?.lastChangeWasHistory == true)
             }
         case .mindmap(let content):
             let store = MindMapStore(content: content)
             editor = .mindmap(store)
-            store.onContentChanged = { [weak self] updated in
+            store.onContentChanged = { [weak self, weak store] updated in
+                self?.applyContentChange(.mindmap(updated), wasHistory: store?.lastChangeWasHistory == true)
+            }
+            // 팬/줌은 dirty를 만들지 않고 메모리에만 반영 — 다음 실제 저장에 함께 실린다.
+            store.onViewportChanged = { [weak self] updated in
                 self?.document.content = .mindmap(updated)
-                self?.reportWritingDelta()
-                self?.markDirty()
             }
             store.resourceResolver = { [weak self] relative in self?.resolveResource(relative) }
             store.resourceImporter = { [weak self] source in self?.importResource(source) }
         case .page(let content):
             let store = PageStore(content: content)
             editor = .page(store)
-            store.onContentChanged = { [weak self] updated in
-                self?.document.content = .page(updated)
-                self?.reportWritingDelta()
-                self?.markDirty()
+            store.onContentChanged = { [weak self, weak store] updated in
+                self?.applyContentChange(.page(updated), wasHistory: store?.lastChangeWasHistory == true)
             }
             store.resourceResolver = { [weak self] relative in self?.resolveResource(relative) }
             store.resourceImporter = { [weak self] source in self?.importResource(source) }
         }
+    }
+
+    /// 에디터 변경 공통 처리 — undo/redo/스냅샷 복원(히스토리 이동)은 집필 통계에
+    /// 집계하지 않고 글자 수 기준점만 다시 잡는다.
+    private func applyContentChange(_ content: DocumentContent, wasHistory: Bool) {
+        document.content = content
+        if wasHistory {
+            lastCharCount = Self.charCount(of: content)
+        } else {
+            reportWritingDelta()
+        }
+        markDirty()
     }
 
     // MARK: 번들 resources/ 리소스 관리
@@ -149,6 +163,15 @@ final class DocumentSession {
         }
     }
 
+    /// 처음부터 디스크에 존재해야 하는 문서용 즉시 1회 저장 — 캐스트에 연결되는 캐릭터
+    /// 페이지처럼 다른 문서가 UUID로 참조하는 경우, 편집 전이라도 파일이 있어야
+    /// 참조가 끊기지 않는다.
+    func persistInitial() {
+        guard !isPersisted else { return }
+        hasChanged = true
+        save(manual: false)
+    }
+
     func save(manual: Bool) {
         // 실제 변경이 한 번도 없었다면 저장하지 않는다 (빈 새 문서가 더미 파일로 남는 것을 방지).
         guard hasChanged else { return }
@@ -160,6 +183,7 @@ final class DocumentSession {
             try DocumentPackageIO.write(document)
             isPersisted = true
             saveState = manual ? .savedManual : .savedAuto
+            lastSaveError = nil
             // ⌘S 습관을 스냅샷 안전망으로 — 자동 표시가 붙고 오래된 것부터 정리된다
             if manual, shouldSnapshotOnManualSave?() == true {
                 takeSnapshot(named: Localizer.shared.t(.autosave), automatic: true)
@@ -167,6 +191,7 @@ final class DocumentSession {
             onSaved?()
         } catch {
             saveState = .error
+            lastSaveError = error.localizedDescription
         }
     }
 

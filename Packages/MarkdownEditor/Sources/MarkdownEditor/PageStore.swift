@@ -43,7 +43,12 @@ public final class PageStore {
 
     public var isCharacterPage: Bool { content.profile != nil }
 
-    private func mutate(_ transform: (inout PageContent) -> Void) {
+    /// 직전 onContentChanged가 undo/redo/스냅샷 복원에서 왔는지 — 세션이 집필 통계에
+    /// 히스토리 이동을 집계하지 않도록 구분하는 신호.
+    public private(set) var lastChangeWasHistory = false
+
+    private func mutate(isHistory: Bool = false, _ transform: (inout PageContent) -> Void) {
+        lastChangeWasHistory = isHistory
         undoStack.append(content)
         if undoStack.count > 200 { undoStack.removeFirst() }
         redoStack.removeAll()
@@ -53,11 +58,12 @@ public final class PageStore {
 
     /// 스냅샷 복원 등 콘텐츠 전면 교체 — 되돌리기 스택에 남는 단일 작업.
     public func replaceContent(_ newContent: PageContent) {
-        mutate { $0 = newContent }
+        mutate(isHistory: true) { $0 = newContent }
     }
 
     public func undo() {
         guard let previous = undoStack.popLast() else { return }
+        lastChangeWasHistory = true
         redoStack.append(content)
         content = previous
         onContentChanged?(content)
@@ -65,6 +71,7 @@ public final class PageStore {
 
     public func redo() {
         guard let next = redoStack.popLast() else { return }
+        lastChangeWasHistory = true
         undoStack.append(content)
         content = next
         onContentChanged?(content)
@@ -109,6 +116,7 @@ public final class PageStore {
         if autoConvertMarkdown(at: idx, id: id, text: text) { return }
 
         // 타이핑 단위 undo는 과하므로 직접 갱신 (블록 구조 변경만 undo 대상)
+        lastChangeWasHistory = false
         content.blocks[idx].text = text
         onContentChanged?(content)
 

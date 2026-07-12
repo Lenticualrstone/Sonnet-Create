@@ -66,7 +66,7 @@ public struct BackupManager: Sendable {
     /// 특정 시점으로 복원. 현재 상태는 복원 직전에 자동 스냅샷을 남긴다.
     public func restore(_ record: BackupRecord) throws {
         let fm = FileManager.default
-        try? snapshot()
+        _ = try? snapshot()
 
         // 현재 워크스페이스 콘텐츠 제거 (관리 폴더 제외)
         let current = try fm.contentsOfDirectory(at: workspaceRoot, includingPropertiesForKeys: nil)

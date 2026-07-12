@@ -21,11 +21,13 @@ public struct LoadedDocument: Sendable, Identifiable {
 public enum DocumentIOError: Error, LocalizedError {
     case notADocumentBundle(URL)
     case corruptedMetadata(URL)
+    case corruptedContent(URL)
 
     public var errorDescription: String? {
         switch self {
         case .notADocumentBundle(let url): "문서 번들이 아닙니다: \(url.lastPathComponent)"
         case .corruptedMetadata(let url): "메타데이터가 손상되었습니다: \(url.lastPathComponent)"
+        case .corruptedContent(let url): "문서 내용이 손상되었습니다: \(url.lastPathComponent)"
         }
     }
 }
@@ -99,9 +101,16 @@ public enum DocumentPackageIO {
         let content: DocumentContent
         if let rawData = try? Data(contentsOf: contentURL) {
             let data = DocumentContentMigrations.apply(to: rawData, from: envelope.formatVersion, kind: envelope.kind)
-            content = (try? decoder.decode(DocumentContent.self, from: data))
-                ?? .empty(for: envelope.kind, pageRole: envelope.pageRole)
+            // 손상된 content.json을 빈 문서로 대체하면 다음 저장 때 원본을 빈 내용으로
+            // 덮어써 버린다 — 조용한 데이터 손실 대신 오류를 던져 열기를 중단시킨다.
+            do {
+                content = try decoder.decode(DocumentContent.self, from: data)
+            } catch {
+                throw DocumentIOError.corruptedContent(url)
+            }
         } else {
+            // content.json이 아예 없는 번들(구버전/미완성 저장)은 빈 문서로 시작해도
+            // 덮어쓸 원본이 없으므로 안전하다.
             content = .empty(for: envelope.kind, pageRole: envelope.pageRole)
         }
         if envelope.formatVersion < DocumentFormatVersion.current {
@@ -117,6 +126,17 @@ public enum DocumentPackageIO {
         let metaURL = url.appendingPathComponent("metadata.json")
         guard let data = try? Data(contentsOf: metaURL) else { return nil }
         return try? decoder.decode(DocumentEnvelope.self, from: data)
+    }
+
+    /// metadata.json만 읽어 변형 후 다시 쓴다 — 가리기/휴지통/이름변경처럼 본문이 필요 없는
+    /// 작업용. 본문을 거치지 않으므로 content.json이 손상된 문서에도 동작한다.
+    @discardableResult
+    public static func updateEnvelope(at url: URL, _ transform: (inout DocumentEnvelope) -> Void) throws -> DocumentEnvelope {
+        let metaURL = url.appendingPathComponent("metadata.json")
+        var envelope = try decoder.decode(DocumentEnvelope.self, from: Data(contentsOf: metaURL))
+        transform(&envelope)
+        try encoder.encode(envelope).write(to: metaURL, options: .atomic)
+        return envelope
     }
 
     /// 참조 그래프만 빠르게 읽는다 (백링크 스캔용).

@@ -10,15 +10,24 @@ struct BackupTimelineView: View {
     @State private var records: [BackupRecord] = []
     @State private var confirmRestore: BackupRecord?
 
+    private var isBusy: Bool { app.isBackingUp || app.isRestoringBackup }
+
     var body: some View {
         let l10n = Localizer.shared
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
-            HStack {
+            HStack(spacing: 8) {
                 Button(l10n.t(.backupNow)) {
-                    app.backupNow()
-                    refresh()
+                    app.backupNow { refresh() }
                 }
                 .controlSize(.small)
+                .disabled(isBusy)
+                if isBusy {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(l10n.t(app.isRestoringBackup ? .restoreRunning : .backupRunning))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
                 Spacer()
             }
 
@@ -38,6 +47,7 @@ struct BackupTimelineView: View {
                             confirmRestore = record
                         }
                         .controlSize(.small)
+                        .disabled(isBusy)
                     }
                 }
             }
@@ -52,22 +62,17 @@ struct BackupTimelineView: View {
         ) {
             Button(l10n.t(.restoreBackup), role: .destructive) {
                 if let record = confirmRestore {
-                    restore(record)
+                    app.restoreBackup(record) { refresh() }
                 }
             }
             Button(l10n.t(.cancel), role: .cancel) {}
+        } message: {
+            // 복원은 열린 문서 탭을 모두 닫는다 — 세션이 복원 전 내용을 도로 저장하는 사고 방지
+            Text(l10n.t(.restoreClosesTabsMessage))
         }
     }
 
     private func refresh() {
         records = app.backupManager.timeline()
-    }
-
-    private func restore(_ record: BackupRecord) {
-        app.flushAllSessions()
-        try? app.backupManager.restore(record)
-        app.workspace.scan()
-        app.notify(symbol: "clock.arrow.circlepath", message: Localizer.shared.t(.eventRestored))
-        refresh()
     }
 }

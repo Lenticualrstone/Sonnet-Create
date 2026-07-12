@@ -75,7 +75,12 @@ public final class ScenarioStore {
 
     // MARK: 변형 헬퍼
 
-    private func mutate(_ transform: (inout ScenarioContent) -> Void) {
+    /// 직전 onContentChanged가 undo/redo/스냅샷 복원에서 왔는지 — 세션이 집필 통계(늘어난
+    /// 글자 수)에 히스토리 이동을 집계하지 않도록 구분하는 신호.
+    public private(set) var lastChangeWasHistory = false
+
+    private func mutate(isHistory: Bool = false, _ transform: (inout ScenarioContent) -> Void) {
+        lastChangeWasHistory = isHistory
         undoStack.append(content)
         if undoStack.count > 100 { undoStack.removeFirst() }
         redoStack.removeAll()
@@ -85,11 +90,12 @@ public final class ScenarioStore {
 
     /// 스냅샷 복원 등 콘텐츠 전면 교체 — 되돌리기 스택에 남는 단일 작업.
     public func replaceContent(_ newContent: ScenarioContent) {
-        mutate { $0 = newContent }
+        mutate(isHistory: true) { $0 = newContent }
     }
 
     public func undo() {
         guard let previous = undoStack.popLast() else { return }
+        lastChangeWasHistory = true
         redoStack.append(content)
         content = previous
         onContentChanged?(content)
@@ -97,6 +103,7 @@ public final class ScenarioStore {
 
     public func redo() {
         guard let next = redoStack.popLast() else { return }
+        lastChangeWasHistory = true
         undoStack.append(content)
         content = next
         onContentChanged?(content)

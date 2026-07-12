@@ -277,11 +277,23 @@ final class AppState {
 
     // MARK: 확인 팝업
 
-    /// 지금 백업 — 설정의 백업 타임라인에서도 호출된다.
-    func backupNow() {
+    /// 백업/복원 진행 상태 — 타임라인 UI가 버튼을 잠그고 스피너를 보여주는 데 쓴다.
+    private(set) var isBackingUp = false
+    private(set) var isRestoringBackup = false
+
+    /// 모든 문서 탭/세션을 정리한다 (미저장분 플러시 포함) — 워크스페이스 교체·백업 복원 공용.
+    func closeAllDocumentTabs() {
         flushAllSessions()
-        if (try? backupManager.snapshot()) != nil {
-            notify(symbol: "clock.arrow.circlepath", message: Localizer.shared.t(.eventBackedUp))
+        sessions.removeAll()
+        tabs.removeAll {
+            if case .document = $0.content { return true }
+            return false
+        }
+        if tabs.isEmpty {
+            tabs = [OpenTab(content: .home)]
+        }
+        if !tabs.contains(where: { $0.id == selectedTabID }) {
+            selectedTabID = tabs.first?.id
         }
     }
 
@@ -363,11 +375,31 @@ final class AppState {
         }
     }
 
+    /// 닫기 시도 중 저장에 실패한 탭 — 확인 다이얼로그(다시 시도/저장 없이 닫기/취소) 대기.
+    var pendingSaveFailureTab: OpenTab?
+
     func closeTab(_ tab: OpenTab) {
-        if case .document(let docID) = tab.content {
-            sessions[docID]?.flush()
+        if case .document(let docID) = tab.content, let session = sessions[docID] {
+            session.flush()
+            // 저장이 실패한 채로 세션을 버리면 변경분이 조용히 사라진다 — 닫기를 보류하고 묻는다.
+            if session.saveState == .error {
+                pendingSaveFailureTab = tab
+                return
+            }
             sessions.removeValue(forKey: docID)
         }
+        removeTabFromStrip(tab)
+    }
+
+    /// 저장 실패 확인 후 '저장하지 않고 닫기' — 플러시 없이 세션을 버린다.
+    func forceCloseTab(_ tab: OpenTab) {
+        if case .document(let docID) = tab.content {
+            sessions.removeValue(forKey: docID)
+        }
+        removeTabFromStrip(tab)
+    }
+
+    private func removeTabFromStrip(_ tab: OpenTab) {
         tabs.removeAll { $0.id == tab.id }
         if tabs.isEmpty {
             tabs = [OpenTab(content: .home)]
@@ -375,6 +407,13 @@ final class AppState {
         if selectedTabID == tab.id {
             selectedTabID = tabs.last?.id
         }
+    }
+
+    /// 저장 실패 상태로 남아 있는 세션들의 제목 (종료 경고용).
+    var failedSaveTitles: [String] {
+        sessions.values
+            .filter { $0.saveState == .error }
+            .map { $0.title.isEmpty ? Localizer.shared.t(.untitled) : $0.title }
     }
 
     // MARK: 문서 열기/생성
@@ -390,8 +429,24 @@ final class AppState {
             pushNavigation(.document(id))
             return
         }
-        let resolvedURL = url ?? workspace.item(id: id)?.url
-        guard let resolvedURL, let loaded = try? DocumentPackageIO.read(from: resolvedURL) else { return }
+        let l10n = Localizer.shared
+        guard let resolvedURL = url ?? workspace.item(id: id)?.url else {
+            presentOpenError(message: l10n.t(.errorDocumentMissing))
+            return
+        }
+        let loaded: LoadedDocument
+        do {
+            loaded = try DocumentPackageIO.read(from: resolvedURL)
+        } catch DocumentIOError.corruptedContent {
+            presentOpenError(message: l10n.t(.errorCorruptedContent), detail: resolvedURL.lastPathComponent)
+            return
+        } catch DocumentIOError.notADocumentBundle, DocumentIOError.corruptedMetadata {
+            presentOpenError(message: l10n.t(.errorOpenGeneric), detail: resolvedURL.lastPathComponent)
+            return
+        } catch {
+            presentOpenError(message: l10n.t(.errorOpenGeneric), detail: error.localizedDescription)
+            return
+        }
 
         let session = DocumentSession(document: loaded, isPersisted: true)
         session.shouldSnapshotOnManualSave = { [weak self] in
@@ -402,6 +457,16 @@ final class AppState {
         }
         presentSession(session, id: id)
         workspace.touchRecent(id)
+    }
+
+    /// 문서 열기 실패를 사용자에게 알린다 — 예전처럼 조용히 무시하면 클릭이 "고장난 것처럼" 보인다.
+    private func presentOpenError(message: String, detail: String? = nil) {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = Localizer.shared.t(.errorOpenTitle)
+        alert.informativeText = detail.map { "\(message)\n\n\($0)" } ?? message
+        alert.runModal()
+        notify(symbol: "exclamationmark.triangle", message: "\(Localizer.shared.t(.errorOpenTitle)): \(detail ?? message)")
     }
 
     /// 새 문서를 만들어 연다. 디스크에는 아직 쓰지 않고, 실제 편집이 발생해야 저장된다
@@ -442,7 +507,8 @@ final class AppState {
     private func presentSession(_ session: DocumentSession, id: UUID) {
         session.autosaveEnabled = settings.applied.autosave
         session.onSaved = { [weak self] in
-            self?.workspace.scan()
+            // 자동저장마다 즉시 풀스캔하면 watcher 발화와 겹쳐 이중 스캔이 된다 — 디바운스 경유
+            self?.workspace.scanSoon()
             self?.workspace.touchRecent(id)
             self?.stats.recordActivity()
         }
@@ -475,7 +541,7 @@ final class AppState {
         stats.flush()
         flushAllSessions()
         if settings.applied.backupOnQuit {
-            try? backupManager.snapshot()
+            _ = try? backupManager.snapshot()
         }
     }
 
@@ -622,7 +688,11 @@ final class AppState {
             pageRole: .character,
             in: project
         )
-        return openUnsavedDocument(document)
+        let id = openUnsavedDocument(document)
+        // 캐스트가 이 UUID를 characterPageID로 즉시 참조하므로, 편집 전에 닫혀도
+        // 참조가 허공을 가리키지 않도록 지금 바로 디스크에 1회 저장해 둔다.
+        sessions[id]?.persistInitial()
+        return id
     }
 
     /// 문서 이름 변경 — 열려 있으면 세션 경유(자동저장), 아니면 디스크에서 직접.
@@ -634,82 +704,6 @@ final class AppState {
         } else {
             workspace.renameDocument(item, to: trimmed)
         }
-    }
-
-    /// 프로젝트를 .scproj로 내보내기 (저장 위치 선택).
-    func exportProject(_ project: ProjectFolder) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = project.manifest.name + ".scproj"
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        if (try? backupManager.exportProject(project, to: url)) != nil {
-            notify(symbol: "square.and.arrow.up", message: "\(Localizer.shared.t(.eventExported)): \(project.manifest.name).scproj")
-        }
-    }
-
-    // MARK: 수신함
-
-    private var inboxURL: URL {
-        workspace.rootURL.appendingPathComponent(".sonnetcreate/inbox.json")
-    }
-
-    func loadInbox() {
-        guard let data = try? Data(contentsOf: inboxURL),
-              let decoded = try? JSONDecoder().decode([InboxEvent].self, from: data)
-        else {
-            inbox = []
-            return
-        }
-        inbox = decoded
-    }
-
-    /// 수신함에 이벤트 기록 (최근 50개 유지).
-    func notify(symbol: String, message: String) {
-        inbox.insert(InboxEvent(symbol: symbol, message: message), at: 0)
-        if inbox.count > 50 { inbox = Array(inbox.prefix(50)) }
-        if let data = try? JSONEncoder().encode(inbox) {
-            try? data.write(to: inboxURL, options: .atomic)
-        }
-    }
-
-    // MARK: 외부 가져오기
-
-    /// 프로젝트(.scproj/폴더)나 문서 번들을 워크스페이스로 가져온다.
-    func importFromDisk() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = true
-        panel.message = Localizer.shared.t(.importAny)
-        guard panel.runModal() == .OK else { return }
-        for url in panel.urls where importItem(at: url) {
-            notify(
-                symbol: "square.and.arrow.down",
-                message: "\(Localizer.shared.t(.eventImported)): \(url.lastPathComponent)"
-            )
-        }
-        workspace.scan()
-    }
-
-    @discardableResult
-    private func importItem(at url: URL) -> Bool {
-        let fm = FileManager.default
-        // 1) .scproj 백업 패키지
-        if url.pathExtension.lowercased() == "scproj" {
-            return (try? backupManager.importProject(from: url)) != nil
-        }
-        // 2) 프로젝트 폴더 (project.json 보유) 또는 문서 번들 (.scen/.scno/.scpa)
-        let isProject = fm.fileExists(atPath: url.appendingPathComponent("project.json").path)
-        let isDocument = DocumentKind.from(fileExtension: url.pathExtension) != nil
-        guard isProject || isDocument else { return false }
-        guard url.deletingLastPathComponent() != workspace.rootURL else { return false } // 이미 워크스페이스 안
-
-        var target = workspace.rootURL.appendingPathComponent(url.lastPathComponent)
-        var counter = 2
-        while fm.fileExists(atPath: target.path) {
-            target = workspace.rootURL.appendingPathComponent("\(counter)-\(url.lastPathComponent)")
-            counter += 1
-        }
-        return (try? fm.copyItem(at: url, to: target)) != nil
     }
 
     /// 실효 강조색 — 브랜드 테마(Sonnet/Pilgrimage)에서 '시스템' 선택 시 테마 고유 액센트가 기본.
@@ -755,5 +749,149 @@ final class AppState {
                 ? "person.crop.circle"
                 : (sessions[docID]?.document.envelope.kind.symbolName ?? "doc")
         }
+    }
+}
+
+// MARK: - 백업 · 수신함 · 가져오기/내보내기
+// 본체(AppState)가 SwiftLint type_body_length를 넘지 않도록 전송 계열 기능을 분리해 둔다.
+
+extension AppState {
+    /// 지금 백업 — 설정의 백업 타임라인에서도 호출된다. 워크스페이스 전체 복사라
+    /// 메인 스레드에서 돌리면 대형 워크스페이스에서 UI가 얼어붙는다 — 백그라운드로 옮긴다.
+    func backupNow(completion: (() -> Void)? = nil) {
+        guard !isBackingUp, !isRestoringBackup else { return }
+        flushAllSessions()
+        isBackingUp = true
+        let manager = backupManager
+        Task { [weak self] in
+            let success = await Task.detached(priority: .userInitiated) {
+                (try? manager.snapshot()) != nil
+            }.value
+            guard let self else { return }
+            isBackingUp = false
+            notify(
+                symbol: success ? "clock.arrow.circlepath" : "exclamationmark.triangle",
+                message: Localizer.shared.t(success ? .eventBackedUp : .eventBackupFailed)
+            )
+            completion?()
+        }
+    }
+
+    /// 타임라인 복원 — 열린 문서 세션이 복원 전 내용을 들고 있다가 자동저장으로
+    /// 복원본을 도로 덮어쓰는 사고를 막기 위해, 반드시 문서 탭을 전부 닫고 시작한다.
+    func restoreBackup(_ record: BackupRecord, completion: (() -> Void)? = nil) {
+        guard !isBackingUp, !isRestoringBackup else { return }
+        closeAllDocumentTabs()
+        isRestoringBackup = true
+        let manager = backupManager
+        Task { [weak self] in
+            let success = await Task.detached(priority: .userInitiated) {
+                (try? manager.restore(record)) != nil
+            }.value
+            guard let self else { return }
+            isRestoringBackup = false
+            workspace.scan()
+            notify(
+                symbol: success ? "clock.arrow.circlepath" : "exclamationmark.triangle",
+                message: Localizer.shared.t(success ? .eventRestored : .eventBackupFailed)
+            )
+            completion?()
+        }
+    }
+
+    /// 프로젝트를 .scproj로 내보내기 (저장 위치 선택). 압축은 백그라운드에서.
+    func exportProject(_ project: ProjectFolder) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = project.manifest.name + ".scproj"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let manager = backupManager
+        Task { [weak self] in
+            let success = await Task.detached(priority: .userInitiated) {
+                (try? manager.exportProject(project, to: url)) != nil
+            }.value
+            let l10n = Localizer.shared
+            self?.notify(
+                symbol: success ? "square.and.arrow.up" : "exclamationmark.triangle",
+                message: success
+                    ? "\(l10n.t(.eventExported)): \(project.manifest.name).scproj"
+                    : "\(l10n.t(.eventExportFailed)): \(project.manifest.name)"
+            )
+        }
+    }
+
+    // MARK: 수신함
+
+    private var inboxURL: URL {
+        workspace.rootURL.appendingPathComponent(".sonnetcreate/inbox.json")
+    }
+
+    func loadInbox() {
+        guard let data = try? Data(contentsOf: inboxURL),
+              let decoded = try? JSONDecoder().decode([InboxEvent].self, from: data)
+        else {
+            inbox = []
+            return
+        }
+        inbox = decoded
+    }
+
+    /// 수신함에 이벤트 기록 (최근 50개 유지).
+    func notify(symbol: String, message: String) {
+        inbox.insert(InboxEvent(symbol: symbol, message: message), at: 0)
+        if inbox.count > 50 { inbox = Array(inbox.prefix(50)) }
+        if let data = try? JSONEncoder().encode(inbox) {
+            try? data.write(to: inboxURL, options: .atomic)
+        }
+    }
+
+    // MARK: 외부 가져오기
+
+    /// 프로젝트(.scproj/폴더)나 문서 번들을 워크스페이스로 가져온다. 압축 해제/복사는 백그라운드에서.
+    func importFromDisk() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        panel.message = Localizer.shared.t(.importAny)
+        guard panel.runModal() == .OK else { return }
+        let urls = panel.urls
+        let root = workspace.rootURL
+        let manager = backupManager
+        Task { [weak self] in
+            let results = await Task.detached(priority: .userInitiated) {
+                urls.map { (name: $0.lastPathComponent, ok: Self.importItem(at: $0, workspaceRoot: root, backupManager: manager)) }
+            }.value
+            guard let self else { return }
+            let l10n = Localizer.shared
+            for result in results {
+                notify(
+                    symbol: result.ok ? "square.and.arrow.down" : "exclamationmark.triangle",
+                    message: "\(l10n.t(result.ok ? .eventImported : .eventImportFailed)): \(result.name)"
+                )
+            }
+            workspace.scan()
+        }
+    }
+
+    private nonisolated static func importItem(at url: URL, workspaceRoot: URL, backupManager: BackupManager) -> Bool {
+        let fm = FileManager.default
+        // 1) .scproj 백업 패키지
+        if url.pathExtension.lowercased() == "scproj" {
+            return (try? backupManager.importProject(from: url)) != nil
+        }
+        // 2) 프로젝트 폴더 (project.json 보유) 또는 문서 번들 (.scen/.scno/.scpa)
+        let isProject = fm.fileExists(atPath: url.appendingPathComponent("project.json").path)
+        let isDocument = DocumentKind.from(fileExtension: url.pathExtension) != nil
+        guard isProject || isDocument else { return false }
+        // 이미 워크스페이스 안 (경로 별칭 /private/var vs /var 대비 표준화 후 비교)
+        guard url.deletingLastPathComponent().standardizedFileURL.path != workspaceRoot.standardizedFileURL.path else { return false }
+
+        var target = workspaceRoot.appendingPathComponent(url.lastPathComponent)
+        var counter = 2
+        while fm.fileExists(atPath: target.path) {
+            target = workspaceRoot.appendingPathComponent("\(counter)-\(url.lastPathComponent)")
+            counter += 1
+        }
+        return (try? fm.copyItem(at: url, to: target)) != nil
     }
 }

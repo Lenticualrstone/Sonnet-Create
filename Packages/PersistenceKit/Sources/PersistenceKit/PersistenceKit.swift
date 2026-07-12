@@ -126,6 +126,22 @@ public actor SearchIndex {
         sqlite3_exec(db, "DELETE FROM documents;", nil, nil, nil)
     }
 
+    /// 마지막으로 적용된 스캔 세대 — 늦게 도착한 옛 스캔 결과가 새 결과를 덮어쓰지 않게 한다.
+    private var lastAppliedGeneration: UInt64 = 0
+
+    /// 전체 색인 교체 — 단일 actor 호출 안에서 트랜잭션으로 수행해, 스캔이 겹쳐도
+    /// 삭제/삽입이 뒤섞인 반쪽 색인이 노출되지 않는다.
+    public func rebuild(entries: [DocumentIndexEntry], generation: UInt64) {
+        guard generation > lastAppliedGeneration else { return }
+        lastAppliedGeneration = generation
+        sqlite3_exec(db, "BEGIN IMMEDIATE;", nil, nil, nil)
+        sqlite3_exec(db, "DELETE FROM documents;", nil, nil, nil)
+        for entry in entries {
+            upsert(entry)
+        }
+        sqlite3_exec(db, "COMMIT;", nil, nil, nil)
+    }
+
     /// UUID → 현재 경로 해석.
     public func locate(id: UUID) -> String? {
         var stmt: OpaquePointer?
@@ -141,13 +157,19 @@ public actor SearchIndex {
         let sql = """
         SELECT id, title, kind, page_role, path, project, modified, hidden, trashed
         FROM documents
-        WHERE (title LIKE ? OR project LIKE ? OR body LIKE ?) AND trashed = 0 AND hidden = 0
+        WHERE (title LIKE ? ESCAPE '\\' OR project LIKE ? ESCAPE '\\' OR body LIKE ? ESCAPE '\\')
+            AND trashed = 0 AND hidden = 0
         ORDER BY modified DESC LIMIT 100;
         """
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
         defer { sqlite3_finalize(stmt) }
-        let pattern = "%\(query)%"
+        // 사용자 검색어의 LIKE 와일드카드(%/_)를 리터럴로 취급
+        let escaped = query
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "%", with: "\\%")
+            .replacingOccurrences(of: "_", with: "\\_")
+        let pattern = "%\(escaped)%"
         sqlite3_bind_text(stmt, 1, pattern, -1, transientDestructor)
         sqlite3_bind_text(stmt, 2, pattern, -1, transientDestructor)
         sqlite3_bind_text(stmt, 3, pattern, -1, transientDestructor)

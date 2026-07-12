@@ -109,6 +109,29 @@ struct MainWindowView: View {
                 ? Localizer.shared.t(.permanentDeleteConfirmMessagePlural)
                 : Localizer.shared.t(.permanentDeleteConfirmMessage))
         }
+        // 탭 닫기 시 저장 실패 — 변경분을 조용히 버리지 않고 묻는다
+        .confirmationDialog(
+            Localizer.shared.t(.saveFailedCloseTitle),
+            isPresented: Binding(
+                get: { app.pendingSaveFailureTab != nil },
+                set: { if !$0 { app.pendingSaveFailureTab = nil } }
+            ),
+            presenting: app.pendingSaveFailureTab
+        ) { tab in
+            Button(Localizer.shared.t(.retrySave)) {
+                app.pendingSaveFailureTab = nil
+                app.closeTab(tab) // flush를 다시 시도하고, 실패하면 다이얼로그가 재등장
+            }
+            Button(Localizer.shared.t(.closeWithoutSaving), role: .destructive) {
+                app.pendingSaveFailureTab = nil
+                app.forceCloseTab(tab)
+            }
+            Button(Localizer.shared.t(.cancel), role: .cancel) {}
+        } message: { tab in
+            let detail = app.session(for: tab)?.lastSaveError
+            Text(detail.map { "\(Localizer.shared.t(.saveFailedCloseMessage))\n\n\($0)" }
+                ?? Localizer.shared.t(.saveFailedCloseMessage))
+        }
         // 프로젝트 삭제 확인
         .confirmationDialog(
             Localizer.shared.t(.deleteProject),
@@ -528,8 +551,9 @@ struct TabChip: View {
         .onHover { hovering = $0 }
         .contextMenu {
             let l10n = Localizer.shared
-            if documentSession != nil {
+            if let session = documentSession {
                 Button(l10n.t(.rename)) { beginRename() }
+                    .disabled(session.isReadOnly)
                 Divider()
             }
             Button(l10n.t(.close)) { app.closeTab(tab) }
@@ -542,7 +566,8 @@ struct TabChip: View {
     }
 
     private func beginRename() {
-        guard let session = documentSession else { return }
+        // 읽기 전용 세션은 제목 변경이 저장되지 않으므로 시작조차 하지 않는다
+        guard let session = documentSession, !session.isReadOnly else { return }
         draftTitle = session.title
         // 탭 ForEach가 재배치/디프 중일 때 popover를 열면 앵커 뷰가 아직
         // 윈도우 계층에서 확정되지 않아 NSPopover가 크래시한다 (macOS 26).

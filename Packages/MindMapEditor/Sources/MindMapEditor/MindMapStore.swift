@@ -34,7 +34,12 @@ public final class MindMapStore {
         self.content = content
     }
 
-    private func mutate(_ transform: (inout MindMapContent) -> Void) {
+    /// 직전 onContentChanged가 undo/redo/스냅샷 복원에서 왔는지 — 세션이 집필 통계에
+    /// 히스토리 이동을 집계하지 않도록 구분하는 신호.
+    public private(set) var lastChangeWasHistory = false
+
+    private func mutate(isHistory: Bool = false, _ transform: (inout MindMapContent) -> Void) {
+        lastChangeWasHistory = isHistory
         undoStack.append(content)
         if undoStack.count > 100 { undoStack.removeFirst() }
         redoStack.removeAll()
@@ -44,11 +49,12 @@ public final class MindMapStore {
 
     /// 스냅샷 복원 등 콘텐츠 전면 교체 — 되돌리기 스택에 남는 단일 작업.
     public func replaceContent(_ newContent: MindMapContent) {
-        mutate { $0 = newContent }
+        mutate(isHistory: true) { $0 = newContent }
     }
 
     public func undo() {
         guard let previous = undoStack.popLast() else { return }
+        lastChangeWasHistory = true
         redoStack.append(content)
         content = previous
         onContentChanged?(content)
@@ -56,6 +62,7 @@ public final class MindMapStore {
 
     public func redo() {
         guard let next = redoStack.popLast() else { return }
+        lastChangeWasHistory = true
         undoStack.append(content)
         content = next
         onContentChanged?(content)
@@ -63,11 +70,16 @@ public final class MindMapStore {
 
     // MARK: 뷰포트 (undo 대상 아님)
 
+    /// 팬/줌은 onContentChanged가 아닌 전용 채널로 보고한다 — 보기만 한 문서가
+    /// '미저장' 상태가 되어 자동저장·워크스페이스 리스캔을 연쇄시키는 것을 막는다.
+    /// 세션은 이 값을 메모리에만 반영하고, 실제 편집이 있어 저장될 때 함께 영속된다.
+    public var onViewportChanged: ((MindMapContent) -> Void)?
+
     public func setViewport(zoom: Double, offsetX: Double, offsetY: Double) {
         content.zoom = zoom
         content.offsetX = offsetX
         content.offsetY = offsetY
-        onContentChanged?(content)
+        onViewportChanged?(content)
     }
 
     // MARK: 노드
