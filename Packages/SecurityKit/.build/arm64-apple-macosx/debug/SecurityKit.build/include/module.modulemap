@@ -1,3 +1,0 @@
-module SecurityKit {
-    header "/Users/stelladust/Claude Code/Sonnet Create (with Fable 5)/Packages/SecurityKit/.build/arm64-apple-macosx/debug/SecurityKit.build/include/SecurityKit-Swift.h"
-}
