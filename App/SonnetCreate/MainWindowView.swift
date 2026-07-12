@@ -238,6 +238,15 @@ struct MainWindowView: View {
             if let session = app.sessions[docID] {
                 HStack(spacing: 0) {
                     DocumentHostView(session: session)
+                    // 프로젝트 파일 인스펙터 — 프로젝트 소속 문서에서만. 사이드바가 프로젝트
+                    // 내부를 펼치지 않는 대신 이웃 파일 탐색/생성을 여기서 담당한다.
+                    if app.showProjectNavigator,
+                       let project = app.workspace.project(id: session.document.envelope.projectID) {
+                        Divider().opacity(0.4)
+                        ProjectNavigatorView(session: session, project: project)
+                            .frame(width: 232)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                     if app.showReferencePanel {
                         Divider().opacity(0.4)
                         ReferencePanelView(session: session)
@@ -253,6 +262,7 @@ struct MainWindowView: View {
                 }
                 .animation(DesignTokens.Motion.gentle, value: app.showReferencePanel)
                 .animation(DesignTokens.Motion.gentle, value: app.showSnapshotPanel)
+                .animation(DesignTokens.Motion.gentle, value: app.showProjectNavigator)
             }
         }
     }
@@ -285,6 +295,12 @@ struct ChromeTabBar: View {
     @State private var newDocMenuHover = false
 
     private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
+    /// 현재 선택된 문서가 프로젝트 소속인지 — 프로젝트 파일 인스펙터 토글 노출 조건.
+    private var selectedDocumentHasProject: Bool {
+        guard let tab = app.selectedTab, let session = app.session(for: tab) else { return false }
+        return app.workspace.project(id: session.document.envelope.projectID) != nil
+    }
+
     /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 사이드바 펼침/접힘과 무관하게
     /// 윈도우 모드에서는 항상 좌측에 신호등 자리를 남겨야 한다.
     private var needsTrafficLightInset: Bool { !app.isFullscreen }
@@ -406,6 +422,11 @@ struct ChromeTabBar: View {
 
             // 우측 액션 (기존 툴바에서 이전)
             if case .document = app.selectedTab?.content {
+                if selectedDocumentHasProject {
+                    ToolbarIconButton("folder", help: l10n.t(.projectFiles), isActive: app.showProjectNavigator) {
+                        app.showProjectNavigator.toggle()
+                    }
+                }
                 ToolbarIconButton("link", help: l10n.t(.references), isActive: app.showReferencePanel) {
                     app.showReferencePanel.toggle()
                 }
@@ -673,7 +694,8 @@ struct DocumentHostView: View {
                 onManualSave: { session.save(manual: true) },
                 onOpenCharacterPage: { app.openDocument(id: $0) },
                 onCreateCharacterPage: { app.createCharacterPage(for: $0, linkedTo: session) },
-                inspectorOnRight: app.settings.applied.scenarioInspectorOnRight
+                // 우측은 프로젝트 파일 인스펙터 자리 — 캐릭터 인스펙터는 항상 좌측 고정
+                inspectorOnRight: false
             )
         case .mindmap(let store):
             MindMapEditorView(

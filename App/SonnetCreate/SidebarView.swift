@@ -493,119 +493,97 @@ struct SidebarProfileMenu: View {
 
 // MARK: - 프로젝트 트리
 
+/// 프로젝트 행 — 하위 문서를 펼치지 않는다. 대규모 프로젝트에서 사이드바 목록이
+/// 한없이 길어지는 문제를 피하기 위해, 클릭하면 해당 프로젝트의 파일 아카이브를 열고
+/// 프로젝트 내부 탐색은 아카이브와 편집기 우측의 프로젝트 파일 인스펙터가 담당한다.
 struct ProjectTreeRow: View {
     @Environment(AppState.self) private var app
+    @Environment(\.resolvedAccent) private var accent
     let project: ProjectFolder
 
-    @State private var expanded = true
     @State private var renaming = false
     @State private var draftName = ""
     @State private var hovering = false
 
-    private var docs: [DocumentListItem] {
-        app.workspace.visibleDocuments.filter { $0.envelope.projectID == project.id }
+    private var docCount: Int {
+        app.workspace.visibleDocuments.count { $0.envelope.projectID == project.id }
+    }
+
+    /// 현재 선택된 탭의 문서가 이 프로젝트 소속인지 (작업 중 강조)
+    private var isActive: Bool {
+        guard let tab = app.selectedTab, let session = app.session(for: tab) else { return false }
+        return session.document.envelope.projectID == project.id
     }
 
     var body: some View {
         let l10n = Localizer.shared
-        let characters = docs.filter { $0.envelope.isCharacterPage }
-        let others = docs.filter { !$0.envelope.isCharacterPage }
-
-        VStack(alignment: .leading, spacing: 3) {
-            // 폴더 행 — DisclosureGroup 대신 직접 그린 토글. 시스템 DisclosureGroup은
-            // contextMenu/popover의 앵커가 펼쳐진 하위 콘텐츠까지 포함돼 이름 변경 팝오버가
-            // 엉뚱한 위치에 뜨는 문제가 있었고, 이 행 하나에만 정확히 스코프하기 위함.
-            Button {
-                withAnimation(DesignTokens.Motion.snappy) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 6) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(expanded ? 90 : 0))
-                        .frame(width: 10)
-                    Label(project.manifest.name, systemImage: "folder.fill")
-                        .font(.callout.weight(.medium))
+        Button {
+            app.openArchiveTab(category: .all, project: project.id)
+        } label: {
+            HStack(spacing: 6) {
+                Label {
+                    Text(project.manifest.name)
+                        .fontWeight(isActive ? .semibold : .medium)
                         .lineLimit(1)
-                    Spacer(minLength: 0)
+                } icon: {
+                    Image(systemName: "folder.fill")
+                        .foregroundStyle(isActive ? accent : Color.secondary)
                 }
-                .padding(.vertical, 9)
-                .padding(.horizontal, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(hovering ? Color.primary.opacity(0.06) : .clear)
-                )
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .onHover { hovering = $0 }
-            .contextMenu {
-                Button(l10n.t(.rename)) {
-                    draftName = project.manifest.name
-                    // contextMenu가 닫히는 애니메이션 도중 popover를 열면 앵커 뷰가
-                    // 아직 윈도우 계층에서 확정되지 않아 NSPopover가 크래시한다 (macOS 26).
-                    DispatchQueue.main.async { renaming = true }
-                }
-                Button(l10n.t(.exportProject)) { app.exportProject(project) }
-                Button(l10n.t(.deleteProject), role: .destructive) { app.requestDeleteProject(project) }
-                Divider()
-                Button(l10n.t(.openProjectArchive)) { app.openArchiveTab(category: .all, project: project.id) }
-                Divider()
-                Menu(l10n.t(.newDocument)) {
-                    Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
-                    Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap, in: project) }
-                    Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page, in: project) }
-                    Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character, in: project) }
+                .font(.callout)
+                Spacer(minLength: 4)
+                if hovering {
+                    Image(systemName: "chevron.right")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                } else if docCount > 0 {
+                    Text("\(docCount)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(Color.primary.opacity(0.08)))
                 }
             }
-            .popover(isPresented: $renaming, arrowEdge: .trailing) {
-                SidebarRenamePopover(draft: $draftName) {
-                    app.workspace.renameProject(project, to: draftName)
-                    renaming = false
-                }
+            .padding(.vertical, 9)
+            .padding(.horizontal, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(
+                        isActive
+                            ? accent.opacity(0.12)
+                            : (hovering ? Color.primary.opacity(0.06) : .clear)
+                    )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(DesignTokens.Motion.snappy, value: hovering)
+        .help(l10n.t(.openProjectArchive))
+        .contextMenu {
+            Button(l10n.t(.rename)) {
+                draftName = project.manifest.name
+                // contextMenu가 닫히는 애니메이션 도중 popover를 열면 앵커 뷰가
+                // 아직 윈도우 계층에서 확정되지 않아 NSPopover가 크래시한다 (macOS 26).
+                DispatchQueue.main.async { renaming = true }
             }
-
-            if expanded {
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(characters) { item in
-                        SidebarDocumentRow(item: item)
-                    }
-                    ForEach(others) { item in
-                        SidebarDocumentRow(item: item)
-                    }
-
-                    // 시스템 Menu 컨트롤은 자체 청 마진이 있어 위 VStack의 spacing이
-                    // 온전히 반영되지 않는다 — 상단 여백을 명시적으로 줘 다른 행과 간격을 맞춘다.
-                    Menu {
-                        Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
-                        Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap, in: project) }
-                        Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page, in: project) }
-                        Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character, in: project) }
-                    } label: {
-                        // 흰 글씨 문제: 시스템 accent 대비색이 적용되지 않도록 잉크색을 명시
-                        HStack(spacing: 4) {
-                            Image(systemName: "plus")
-                                .font(.caption2)
-                            Text(l10n.t(.newDocument))
-                                .font(.caption)
-                        }
-                        .foregroundStyle(SonnetPalette.inkMuted)
-                        .padding(.vertical, 3)
-                    }
-                    .menuStyle(.borderlessButton)
-                    .menuIndicator(.hidden)
-                    .tint(SonnetPalette.inkMuted)
-                    .fixedSize()
-                    .padding(.top, 3)
-                }
-                .padding(.leading, 16)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+            Button(l10n.t(.exportProject)) { app.exportProject(project) }
+            Button(l10n.t(.deleteProject), role: .destructive) { app.requestDeleteProject(project) }
+            Divider()
+            Menu(l10n.t(.newDocument)) {
+                Button(l10n.t(.newScenario)) { app.createAndOpen(kind: .scenario, in: project) }
+                Button(l10n.t(.newMindMap)) { app.createAndOpen(kind: .mindmap, in: project) }
+                Button(l10n.t(.newPage)) { app.createAndOpen(kind: .page, in: project) }
+                Button(l10n.t(.newCharacter)) { app.createAndOpen(kind: .page, pageRole: .character, in: project) }
             }
         }
-        // 프로젝트 간 간격을 다른 항목(3pt)보다 넓게 — 바깥 LazyVStack의 3pt spacing에
-        // 이 여백이 더해져 프로젝트-프로젝트 사이는 총 6~7pt가 된다.
-        .padding(.bottom, 4)
+        .popover(isPresented: $renaming, arrowEdge: .trailing) {
+            SidebarRenamePopover(draft: $draftName) {
+                app.workspace.renameProject(project, to: draftName)
+                renaming = false
+            }
+        }
     }
 }
 

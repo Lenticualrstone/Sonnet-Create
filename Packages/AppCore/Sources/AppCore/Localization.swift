@@ -103,6 +103,8 @@ public enum L10nKey: String, Sendable {
     case saveFailedQuitTitle, saveFailedQuitMessage, quitAnyway
     case restoreClosesTabsMessage, eventBackupFailed, eventImportFailed, eventExportFailed
     case backupRunning, restoreRunning
+    // v1.2 인터페이스: 프로젝트 파일 인스펙터
+    case projectFiles
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -456,5 +458,6 @@ public final class Localizer {
         .eventExportFailed: [.korean: "내보내기 실패", .japanese: "書き出し失敗", .english: "Export failed"],
         .backupRunning: [.korean: "백업 중…", .japanese: "バックアップ中…", .english: "Backing up…"],
         .restoreRunning: [.korean: "복원 중…", .japanese: "復元中…", .english: "Restoring…"],
+        .projectFiles: [.korean: "프로젝트 파일", .japanese: "プロジェクトファイル", .english: "Project Files"],
     ]
 }

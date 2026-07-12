@@ -470,12 +470,8 @@ public struct SettingsRootView: View {
 
     private func scenarioTab(_ l10n: Localizer) -> some View {
         Form {
-            Picker(l10n.t(.inspectorPosition), selection: $store.draft.scenarioInspectorOnRight) {
-                Text(l10n.t(.positionLeft)).tag(false)
-                Text(l10n.t(.positionRight)).tag(true)
-            }
-            .pickerStyle(.segmented)
-
+            // 캐릭터 인스펙터 위치 옵션은 v1.2에서 제거 — 우측은 프로젝트 파일
+            // 인스펙터 자리가 되었고, 캐릭터 인스펙터는 항상 좌측에 배치된다.
             Section(l10n.t(.dialogueDisplayHeader)) {
                 Picker(l10n.t(.dialogueDisplayMethod), selection: $store.draft.dialogueDisplayRaw) {
                     Text(l10n.t(.dialogueDisplayBoth)).tag("avatarAndName")

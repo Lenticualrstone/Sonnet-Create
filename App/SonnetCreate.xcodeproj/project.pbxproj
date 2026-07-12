@@ -18,6 +18,7 @@
 		38DE31DACDA9CBF0F29371FD /* StatsLedger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D69E2937C576231B4DE757D /* StatsLedger.swift */; };
 		3FAC1FB551CFA25588210BE4 /* AIAgentKit in Frameworks */ = {isa = PBXBuildFile; productRef = 00F386E97DD83D5B4B114EB5 /* AIAgentKit */; };
 		51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0573DE5D33E846CBAC56F881 /* ProfileView.swift */; };
+		5E9DA683C799988C7528B0D5 /* ProjectNavigatorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */; };
 		5F8F9E2456FF7C42AF7650A0 /* DocumentKit in Frameworks */ = {isa = PBXBuildFile; productRef = BDB3362F902C34778C95F899 /* DocumentKit */; };
 		6153C6BC26EA5E188A2BF0AC /* PreviewProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4046E7879AFA051EBD1A564 /* PreviewProvider.swift */; };
 		67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3ED3D33526C84530606161E /* SidebarView.swift */; };
@@ -99,6 +100,7 @@
 		DA3306994A69721E5EB757A5 /* QuickLookPreview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuickLookPreview.entitlements; sourceTree = "<group>"; };
 		E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHTML.swift; sourceTree = "<group>"; };
 		E3ED3D33526C84530606161E /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectNavigatorView.swift; sourceTree = "<group>"; };
 		E97FEA9BD30A9EBCDFF468D0 /* AIChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatView.swift; sourceTree = "<group>"; };
 		EDB84974A63607FACEA8CC73 /* ScenarioEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScenarioEditor; path = ../Packages/ScenarioEditor; sourceTree = SOURCE_ROOT; };
 		F5F9B00914469D62BA5273B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -151,6 +153,7 @@
 				F5F9B00914469D62BA5273B3 /* Info.plist */,
 				B272B5B24C1D05E090A56FDE /* MainWindowView.swift */,
 				0573DE5D33E846CBAC56F881 /* ProfileView.swift */,
+				E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */,
 				A225ADDF85117C42771140CB /* ReferencePanelView.swift */,
 				E3ED3D33526C84530606161E /* SidebarView.swift */,
 				1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */,
@@ -344,6 +347,7 @@
 				0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */,
 				C494EDD5B6181E2B58C3A896 /* MainWindowView.swift in Sources */,
 				51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */,
+				5E9DA683C799988C7528B0D5 /* ProjectNavigatorView.swift in Sources */,
 				0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */,
 				67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */,
 				2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */,
