@@ -181,8 +181,9 @@ struct SidebarAIChatSection: View {
         let l10n = Localizer.shared
         let chat = app.aiChat
         VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Label(l10n.t(.aiAgent), systemImage: "sparkles")
+            HStack(spacing: 5) {
+                AISphere(size: 14, activity: chat.isBusy ? .thinking : .idle)
+                Text(l10n.t(.aiAgent))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()

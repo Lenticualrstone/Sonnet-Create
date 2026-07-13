@@ -224,14 +224,12 @@ struct SuggestionStrip: View {
     var body: some View {
         let l10n = Localizer.shared
         VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
-            HStack {
-                Label(
-                    store.isGenerating ? l10n.t(.aiSuggesting) : l10n.t(.aiCompose),
-                    systemImage: "sparkles"
-                )
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                if store.isGenerating { ProgressView().controlSize(.mini) }
+            HStack(spacing: 6) {
+                // 이어쓰기 생성 중엔 AI 스피어가 요동친다 (채팅과 동일한 아이덴티티)
+                AISphere(size: 16, activity: store.isGenerating ? .thinking : .idle)
+                Text(store.isGenerating ? l10n.t(.aiSuggesting) : l10n.t(.aiCompose))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 if !store.pendingSuggestions.isEmpty {
                     Button(l10n.t(.acceptAll)) { store.acceptAllSuggestions() }

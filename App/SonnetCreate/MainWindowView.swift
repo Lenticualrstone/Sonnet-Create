@@ -323,6 +323,8 @@ struct ChromeTabBar: View {
 
     @State private var newDocMenuHover = false
     @State private var showUpdateMenu = false
+    /// 활성 탭 언더라인이 탭 사이를 미끄러지게 하는 공유 네임스페이스
+    @Namespace private var tabUnderline
 
     private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
     /// 현재 선택된 문서가 프로젝트 소속인지 — 프로젝트 파일 인스펙터 토글 노출 조건.
@@ -395,7 +397,7 @@ struct ChromeTabBar: View {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: isChrome ? 0 : 4) {
                         ForEach(Array(app.tabs.enumerated()), id: \.element.id) { index, tab in
-                            TabChip(tab: tab, isFirst: index == 0)
+                            TabChip(tab: tab, isFirst: index == 0, underlineNamespace: tabUnderline)
                                 .id(tab.id)
                         }
                     }
@@ -570,6 +572,8 @@ struct TabChip: View {
     @Environment(\.resolvedAccent) private var accent
     let tab: OpenTab
     var isFirst: Bool = false
+    /// 활성 언더라인 슬라이드용 (ChromeTabBar가 공유)
+    var underlineNamespace: Namespace.ID
 
     @State private var hovering = false
     @State private var renaming = false
@@ -645,7 +649,8 @@ struct TabChip: View {
                 chrome: isChrome,
                 isSelected: isSelected,
                 hovering: hovering,
-                quality: quality
+                quality: quality,
+                underlineNamespace: underlineNamespace
             ))
         }
         .contentShape(Rectangle())
@@ -739,6 +744,7 @@ struct TabChipStyle: ViewModifier {
     let isSelected: Bool
     let hovering: Bool
     let quality: RenderQuality
+    let underlineNamespace: Namespace.ID
 
     @Environment(\.interfaceTheme) private var theme
     @Environment(\.resolvedAccent) private var accent
@@ -755,14 +761,14 @@ struct TabChipStyle: ViewModifier {
                     )
                     .fill(chromeFill)
                 )
-                // "지금 여기" 정체성 — 활성 탭 상단에 강조색 언더라인
+                // "지금 여기" 정체성 — 활성 탭 상단 강조색 언더라인이 탭 사이를 미끄러진다
                 .overlay(alignment: .top) {
                     if isSelected {
                         RoundedRectangle(cornerRadius: 1, style: .continuous)
                             .fill(accent)
                             .frame(height: 2)
                             .padding(.horizontal, 8)
-                            .transition(.opacity)
+                            .matchedGeometryEffect(id: "activeTabUnderline", in: underlineNamespace)
                     }
                 }
                 .opacity(isSelected ? 1 : 0.85)

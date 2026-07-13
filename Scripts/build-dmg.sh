@@ -70,3 +70,14 @@ create-dmg \
 
 shasum -a 256 "$DMG_PATH" | tee "$DMG_PATH.sha256"
 echo "==> 완료: $DMG_PATH"
+
+# 6) GitHub 릴리스에 DMG 첨부 — 앱 내 업데이트의 '다운로드 및 열기' 경로가 이 자산을 쓴다.
+#    해당 버전의 릴리스가 이미 있을 때만 업로드한다 (릴리스 생성은 별도 단계).
+echo "==> 6/6 GitHub 릴리스에 DMG 첨부"
+REPO="Lenticualrstone/Sonnet-Create"
+if command -v gh >/dev/null 2>&1 && gh release view "v${VERSION}" -R "$REPO" >/dev/null 2>&1; then
+  gh release upload "v${VERSION}" "$DMG_PATH" "$DMG_PATH.sha256" -R "$REPO" --clobber
+  echo "    업로드 완료 → https://github.com/$REPO/releases/tag/v${VERSION}"
+else
+  echo "    (gh 미설치 또는 v${VERSION} 릴리스 없음 — 업로드 건너뜀)"
+fi

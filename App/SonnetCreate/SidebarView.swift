@@ -118,8 +118,13 @@ struct SidebarView: View {
                     withAnimation(DesignTokens.Motion.snappy) { tab = candidate }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: candidate.symbol)
-                            .font(.caption)
+                        // Sonnet AI 탭은 살아 있는 미니 스피어가 아이콘 (AI 아이덴티티 통일)
+                        if candidate == .agent {
+                            AISphere(size: 12)
+                        } else {
+                            Image(systemName: candidate.symbol)
+                                .font(.caption)
+                        }
                         Text(l10n.t(candidate.labelKey))
                             .font(.caption)
                             .lineLimit(1)

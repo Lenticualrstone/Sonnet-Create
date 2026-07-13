@@ -16,6 +16,9 @@ public struct ASCIIWaveField: View {
     /// 어두움 → 밝음 순의 글자 램프. 공백이 "꺼짐"이라 필드 가장자리가 자연히 사라진다.
     private static let ramp: [Character] = Array(" ·:∗+✳#@")
 
+    /// 호버 위치 (뷰 좌표) — 커서에서 물결이 퍼져나가는 리플의 중심 (waves-ascii 참고)
+    @State private var hoverPoint: CGPoint?
+
     public init(
         columns: Int = 44,
         rows: Int = 6,
@@ -44,6 +47,12 @@ public struct ASCIIWaveField: View {
             }
         }
         .frame(height: CGFloat(rows) * fontSize * 1.25)
+        .onContinuousHover { phase in
+            switch phase {
+            case .active(let point): hoverPoint = point
+            case .ended: hoverPoint = nil
+            }
+        }
         .accessibilityHidden(true)
     }
 
@@ -59,9 +68,13 @@ public struct ASCIIWaveField: View {
                         .foregroundStyle(color.opacity(0.62))
                 )
             }
+            // 호버 리플 중심을 셀 좌표로 변환 (없으면 nil)
+            let rippleCenter: (x: Double, y: Double)? = hoverPoint.map {
+                (x: Double($0.x / cellWidth), y: Double($0.y / cellHeight))
+            }
             for row in 0..<rows {
                 for col in 0..<columns {
-                    let value = fieldValue(col: col, row: row, time: time)
+                    let value = fieldValue(col: col, row: row, time: time, ripple: rippleCenter)
                     let index = min(Self.ramp.count - 1, max(0, Int(value * Double(Self.ramp.count))))
                     guard index > 0 else { continue } // 공백은 그리지 않는다
                     let point = CGPoint(
@@ -74,16 +87,25 @@ public struct ASCIIWaveField: View {
         }
     }
 
-    /// 세 사인파의 간섭 + 가장자리 페이드 → 0...1 밝기.
-    private func fieldValue(col: Int, row: Int, time: Double) -> Double {
+    /// 세 사인파의 간섭 + 가장자리 페이드 + 호버 리플 → 0...1 밝기.
+    private func fieldValue(col: Int, row: Int, time: Double, ripple: (x: Double, y: Double)?) -> Double {
         let x = Double(col)
         let y = Double(row)
-        let wave = (
+        var wave = (
             sin(x * 0.42 + time * 1.5)
                 + sin(x * 0.23 + y * 0.9 - time * 1.05)
                 + sin(y * 1.35 + time * 0.65)
         ) / 3.0 // -1...1
-        let normalized = 0.5 + 0.5 * wave
+
+        // 커서에서 동심원 물결이 퍼져나간다 — 거리 감쇠 지수 파문
+        if let ripple {
+            let dx = x - ripple.x
+            let dy = (y - ripple.y) * 2.2 // 셀이 가로로 넓으니 세로 거리 보정
+            let distance = (dx * dx + dy * dy).squareRoot()
+            wave += 0.9 * sin(distance * 1.15 - time * 5.0) * exp(-distance * 0.16)
+        }
+
+        let normalized = 0.5 + 0.5 * max(-1, min(1, wave))
 
         // 가로 가장자리로 갈수록 사라지게 (히어로 중앙 강조)
         let centerDistance = abs(x / Double(columns - 1) - 0.5) * 2 // 0(중앙)...1(가장자리)
