@@ -322,6 +322,7 @@ struct ChromeTabBar: View {
     @Binding var columnVisibility: NavigationSplitViewVisibility
 
     @State private var newDocMenuHover = false
+    @State private var showUpdateMenu = false
 
     private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
     /// 현재 선택된 문서가 프로젝트 소속인지 — 프로젝트 파일 인스펙터 토글 노출 조건.
@@ -359,6 +360,8 @@ struct ChromeTabBar: View {
                 .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 .padding(.leading, needsTrafficLightInset ? 76 : 12)
                 .padding(.trailing, 4)
+                // 신호등 옆 브랜드 구역은 타이틀바처럼 창을 끌 수 있다
+                .background(windowDragArea)
 
             // 사이드바 토글 (시스템 툴바 제거에 따른 대체)
             ToolbarIconButton(
@@ -398,6 +401,8 @@ struct ChromeTabBar: View {
                     }
                     .padding(.leading, isChrome ? 6 : 4)
                     .padding(.top, isChrome ? 5 : 3)
+                    // 탭 스트립에서는 시스템 타이틀바 창 끌기를 차단 — 칩 드래그(순서 변경)와 경합 방지
+                    .background(BlockWindowDrag())
                 }
                 // 칩 상단(활성 언더라인)이 스크롤 뷰 경계에 잘리지 않게 한다
                 .scrollClipDisabled()
@@ -444,7 +449,11 @@ struct ChromeTabBar: View {
             .onHover { newDocMenuHover = $0 }
             .animation(DesignTokens.Motion.snappy, value: newDocMenuHover)
 
+            // 남는 가운데 여백 — 컨트롤이 없으므로 창 드래그 영역으로 쓴다.
+            // (Color 기반 뷰는 탭 스크롤뷰와 폭을 반분해 + 버튼이 가운데로 밀린다 —
+            //  레이아웃은 Spacer가 담당하고 드래그 히트 영역만 overlay로 얹는다)
             Spacer(minLength: 0)
+                .overlay(windowDragArea)
 
             // 우측 액션 (기존 툴바에서 이전)
             if case .document = app.selectedTab?.content {
@@ -464,6 +473,10 @@ struct ChromeTabBar: View {
                     app.showSnapshotPanel.toggle()
                 }
             }
+            // 새 릴리스가 발견되면 나타나는 업데이트 인디케이터 — 클릭 시 퀵메뉴
+            if let update = app.availableUpdate {
+                updateIndicator(update, l10n)
+            }
             ToolbarIconButton("archivebox", help: l10n.t(.archive)) {
                 app.openArchiveTab()
             }
@@ -479,12 +492,38 @@ struct ChromeTabBar: View {
                 Divider().opacity(0.35)
             }
         }
-        // 탭바 빈 영역 드래그로 창 이동 (타이틀바 역할)
-        .background {
-            Color.clear
-                .contentShape(Rectangle())
-                .gesture(WindowDragGesture())
+    }
+
+    /// 업데이트 가능 인디케이터 — 액센트 점 배지가 붙은 다운로드 아이콘.
+    private func updateIndicator(_ update: UpdateInfo, _ l10n: Localizer) -> some View {
+        ZStack(alignment: .topTrailing) {
+            ToolbarIconButton(
+                "arrow.down.circle",
+                help: String(format: l10n.t(.updateAvailableFormat), update.version),
+                isActive: showUpdateMenu
+            ) {
+                // 탭 스트립 디프 중 popover 앵커 미확정 크래시 방지 — 한 틱 지연 (macOS 26)
+                DispatchQueue.main.async { showUpdateMenu = true }
+            }
+            Circle()
+                .fill(accent)
+                .frame(width: 7, height: 7)
+                .offset(x: -4, y: 4)
+                .allowsHitTesting(false)
         }
+        .popover(isPresented: $showUpdateMenu, arrowEdge: .bottom) {
+            UpdateQuickMenu(update: update) { showUpdateMenu = false }
+                .environment(app)
+        }
+    }
+
+    /// 창 이동 전용 드래그 영역 — 예전엔 탭바 전체 배경에 WindowDragGesture를 깔아서
+    /// 탭 칩을 드래그해 순서를 바꾸려 하면 창 전체가 따라 움직였다. 이제 창 드래그는
+    /// 컨트롤이 없는 빈 영역(브랜드 마크 주변, 우측 여백)에서만 동작한다.
+    private var windowDragArea: some View {
+        Color.clear
+            .contentShape(Rectangle())
+            .gesture(WindowDragGesture())
     }
 
     /// 새 문서 4종 버튼 — 대상 프로젝트가 있으면 그 안에, 없으면 최상위에.

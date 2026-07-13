@@ -75,13 +75,16 @@ public struct SettingsRootView: View {
     @Bindable var store: SettingsStore
     /// 백업 타임라인 등 앱 수준 액션 (일반 탭에 노출)
     let backupTimelineView: AnyView?
+    /// 업데이트 섹션 (자동 확인 토글 + 지금 확인) — 앱이 AnyView로 주입 (backupTimelineView와 동일 패턴)
+    let updateSectionView: AnyView?
     @Environment(\.resolvedAccent) private var accent
     @State private var showCropEditor = false
     @State private var category: SettingsCategory = .general
 
-    public init(store: SettingsStore, backupTimelineView: AnyView? = nil) {
+    public init(store: SettingsStore, backupTimelineView: AnyView? = nil, updateSectionView: AnyView? = nil) {
         self.store = store
         self.backupTimelineView = backupTimelineView
+        self.updateSectionView = updateSectionView
     }
 
     public var body: some View {
@@ -217,6 +220,12 @@ public struct SettingsRootView: View {
             if let backupTimelineView {
                 Section(l10n.t(.backupTimeline)) {
                     backupTimelineView
+                }
+            }
+
+            if let updateSectionView {
+                Section(l10n.t(.updates)) {
+                    updateSectionView
                 }
             }
         }

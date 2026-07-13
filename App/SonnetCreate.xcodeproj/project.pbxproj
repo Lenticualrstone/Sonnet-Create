@@ -35,6 +35,7 @@
 		C583879B0B6F94558BFF19A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 58A12D2048D706809356DC2A /* Assets.xcassets */; };
 		CE45AB899CBA391F2CACB07F /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97888449FE61B870DCDF0F5 /* AppState.swift */; };
 		CFEF4DEACF5E17DD4C225A7E /* DocumentKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8493861596FEF81117D079D6 /* DocumentKit */; };
+		D07FC1590E903DE8C0F8D3DE /* UpdateSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDBC0833EB295B65F94EE7D6 /* UpdateSystem.swift */; };
 		DE91361733956BCE990D585A /* CommandPaletteView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F664E7ACD2C4618DF9D5834 /* CommandPaletteView.swift */; };
 		DEDBCA2FAA6C5AACAAD3ADE0 /* SonnetCreateApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */; };
 		E9C53E46E0FA962C9C0A994F /* FileManagerKit in Frameworks */ = {isa = PBXBuildFile; productRef = 2009A9936B231F52033452B6 /* FileManagerKit */; };
@@ -103,6 +104,7 @@
 		E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectNavigatorView.swift; sourceTree = "<group>"; };
 		E97FEA9BD30A9EBCDFF468D0 /* AIChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatView.swift; sourceTree = "<group>"; };
 		EDB84974A63607FACEA8CC73 /* ScenarioEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScenarioEditor; path = ../Packages/ScenarioEditor; sourceTree = SOURCE_ROOT; };
+		EDBC0833EB295B65F94EE7D6 /* UpdateSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSystem.swift; sourceTree = "<group>"; };
 		F5F9B00914469D62BA5273B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F97888449FE61B870DCDF0F5 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -160,6 +162,7 @@
 				4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */,
 				1D69E2937C576231B4DE757D /* StatsLedger.swift */,
 				732C34C9124878FB3421665B /* TouchBarController.swift */,
+				EDBC0833EB295B65F94EE7D6 /* UpdateSystem.swift */,
 			);
 			path = SonnetCreate;
 			sourceTree = "<group>";
@@ -354,6 +357,7 @@
 				DEDBCA2FAA6C5AACAAD3ADE0 /* SonnetCreateApp.swift in Sources */,
 				38DE31DACDA9CBF0F29371FD /* StatsLedger.swift in Sources */,
 				0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */,
+				D07FC1590E903DE8C0F8D3DE /* UpdateSystem.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

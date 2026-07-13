@@ -48,19 +48,17 @@ public struct AISphere: View {
                 .blur(radius: size * 0.16)
                 .scaleEffect(1.02 + 0.03 * sin(t * 0.9))
 
-            // 2) 메시 코어
-            MeshGradient(width: 3, height: 3, points: meshPoints(t), colors: palette)
-                .clipShape(Circle())
-                .overlay(
-                    // 구체의 어두운 가장자리 — 평면 그라디언트에 볼륨감 부여
-                    Circle().strokeBorder(
-                        RadialGradient(
-                            colors: [.clear, Color.black.opacity(0.18)],
-                            center: .center,
-                            startRadius: size * 0.30,
-                            endRadius: size * 0.52
-                        ),
-                        lineWidth: size * 0.10
+            // 2) Metal 플라즈마 코어 — fbm 노이즈 밴드가 구면을 따라 흐르는 셰이더.
+            //    셰이더가 원형 알파와 구면 셰이딩까지 직접 계산한다.
+            //    (colorEffect는 뷰의 픽셀을 변환하므로 캔버스는 불투명해야 한다 — 투명 뷰는 스킵됨)
+            Rectangle()
+                .fill(Color.white)
+                .colorEffect(
+                    ShaderLibrary.bundle(.module).aiSpherePlasma(
+                        .boundingRect,
+                        .float(Float(time)), // 속도는 셰이더의 thinking 파라미터가 처리
+                        .float(Float(baseHue)),
+                        .float(activity == .thinking ? 1 : 0)
                     )
                 )
 
@@ -68,7 +66,7 @@ public struct AISphere: View {
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color.white.opacity(0.75), .clear],
+                        colors: [Color.white.opacity(0.7), .clear],
                         center: UnitPoint(x: 0.34, y: 0.26),
                         startRadius: 0,
                         endRadius: size * 0.34
@@ -81,19 +79,15 @@ public struct AISphere: View {
         .scaleEffect(breathe)
     }
 
-    /// 3×3 제어점 — 모서리는 고정, 가장자리 중점과 중앙만 물결치게 해 원형 마스크
-    /// 안에서 색면이 유영하는 느낌을 만든다.
-    private func meshPoints(_ t: Double) -> [SIMD2<Float>] {
-        func wave(_ base: Double, _ amp: Double, _ phase: Double) -> Float {
-            Float(base + amp * sin(t * 0.8 + phase))
-        }
-        return [
-            [0, 0], [wave(0.5, 0.18, 0.0), 0], [1, 0],
-            [0, wave(0.5, 0.18, 1.7)],
-            [wave(0.48, 0.22, 3.1), wave(0.52, 0.22, 4.2)],
-            [1, wave(0.5, 0.18, 5.3)],
-            [0, 1], [wave(0.5, 0.18, 2.4), 1], [1, 1],
-        ]
+    /// vividBase의 hue (0...1) — 셰이더의 무지갯빛 밴드 중심축.
+    private var baseHue: CGFloat {
+        guard let rgb = NSColor(vividBase).usingColorSpace(.deviceRGB) else { return 0.6 }
+        var hue: CGFloat = 0
+        var saturation: CGFloat = 0
+        var value: CGFloat = 0
+        var alpha: CGFloat = 0
+        rgb.getHue(&hue, saturation: &saturation, brightness: &value, alpha: &alpha)
+        return hue
     }
 
     /// 어두운/무채색 강조색도 스피어에서는 발광해야 한다 — 명도·채도 하한을 끌어올린 베이스.
@@ -105,16 +99,6 @@ public struct AISphere: View {
         var alpha: CGFloat = 0
         rgb.getHue(&hue, saturation: &saturation, brightness: &value, alpha: &alpha)
         return Color(hue: hue, saturation: max(saturation, 0.5), brightness: max(value, 0.78), opacity: 1)
-    }
-
-    /// vividBase에서 파생한 9색 팔레트 — hue를 좌우로 돌리고, 중앙은 화이트 코어로 빛난다.
-    private var palette: [Color] {
-        let base = vividBase
-        return [
-            base.hueShifted(-0.06, brightness: 1.2), base.hueShifted(0.04, brightness: 1.05), base.hueShifted(0.10, brightness: 0.9),
-            base.hueShifted(-0.10, brightness: 1.1), base.mixedWithWhite(0.55), base.hueShifted(0.07, brightness: 0.85),
-            base.hueShifted(-0.04, brightness: 0.7), base.hueShifted(0.05, brightness: 0.95), base.hueShifted(0.12, brightness: 0.6),
-        ]
     }
 }
 

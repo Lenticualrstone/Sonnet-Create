@@ -109,6 +109,9 @@ public enum L10nKey: String, Sendable {
     // v1.2 신기능: 대본 내보내기 · 씬 목차 · 주간 리포트
     case exportText, exportScript, sceneList, sceneFormat
     case weeklyReport, weeklyTotal, weeklyBestDay, vsLastWeek
+    // v1.3 업데이트 시스템 (GitHub 릴리스 연동)
+    case updates, updateAvailableFormat, updateCheckNow, updateAutoCheck, updateUpToDate
+    case updateDownload, updateViewRelease, updateSkipVersion, updateCurrentFormat, updateDownloadFailed
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -473,5 +476,15 @@ public final class Localizer {
         .weeklyTotal: [.korean: "7일 합계", .japanese: "7日間合計", .english: "7-day total"],
         .weeklyBestDay: [.korean: "최고 기록", .japanese: "ベスト", .english: "Best day"],
         .vsLastWeek: [.korean: "지난주 대비", .japanese: "先週比", .english: "vs last week"],
+        .updates: [.korean: "업데이트", .japanese: "アップデート", .english: "Updates"],
+        .updateAvailableFormat: [.korean: "새 버전 v%@ 사용 가능 — 설치할 수 있습니다", .japanese: "新バージョン v%@ が利用可能です", .english: "Version %@ is available"],
+        .updateCheckNow: [.korean: "지금 확인", .japanese: "今すぐ確認", .english: "Check Now"],
+        .updateAutoCheck: [.korean: "자동으로 업데이트 확인", .japanese: "自動でアップデートを確認", .english: "Check for updates automatically"],
+        .updateUpToDate: [.korean: "최신 버전입니다", .japanese: "最新バージョンです", .english: "You're up to date"],
+        .updateDownload: [.korean: "다운로드 및 열기", .japanese: "ダウンロードして開く", .english: "Download & Open"],
+        .updateViewRelease: [.korean: "릴리스 페이지 열기", .japanese: "リリースページを開く", .english: "View Release Page"],
+        .updateSkipVersion: [.korean: "이 버전 건너뛰기", .japanese: "このバージョンをスキップ", .english: "Skip This Version"],
+        .updateCurrentFormat: [.korean: "현재 v%@", .japanese: "現在 v%@", .english: "Current v%@"],
+        .updateDownloadFailed: [.korean: "업데이트 다운로드 실패", .japanese: "アップデートのダウンロードに失敗", .english: "Update download failed"],
     ]
 }

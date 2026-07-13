@@ -74,6 +74,12 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// 마인드맵: 노드 선택 시 인스펙터 자동 표시
     public var mindmapAutoOpenInspector: Bool = true
 
+    // 업데이트 (GitHub 릴리스 연동)
+    /// 실행 시 자동으로 새 릴리스를 확인
+    public var autoCheckUpdates: Bool = true
+    /// '이 버전 건너뛰기'로 무시한 버전 (자동 확인에서만 제외, 수동 확인은 다시 보여줌)
+    public var skippedUpdateVersion: String = ""
+
     // 베타 (AI)
     public var aiProviderRaw: String = "offline"
     public var aiContextScope: AIContextScope = .document
@@ -122,6 +128,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
         pageFocusModeEnabled = try c.decodeIfPresent(Bool.self, forKey: .pageFocusModeEnabled) ?? d.pageFocusModeEnabled
         pageTypewriterEnabled = try c.decodeIfPresent(Bool.self, forKey: .pageTypewriterEnabled) ?? d.pageTypewriterEnabled
         mindmapAutoOpenInspector = try c.decodeIfPresent(Bool.self, forKey: .mindmapAutoOpenInspector) ?? d.mindmapAutoOpenInspector
+        autoCheckUpdates = try c.decodeIfPresent(Bool.self, forKey: .autoCheckUpdates) ?? d.autoCheckUpdates
+        skippedUpdateVersion = try c.decodeIfPresent(String.self, forKey: .skippedUpdateVersion) ?? d.skippedUpdateVersion
         aiProviderRaw = try c.decodeIfPresent(String.self, forKey: .aiProviderRaw) ?? d.aiProviderRaw
         aiContextScope = try c.decodeIfPresent(AIContextScope.self, forKey: .aiContextScope) ?? d.aiContextScope
     }
@@ -176,6 +184,15 @@ public final class SettingsStore {
     public func revert() {
         draft = applied
         refreshAPIKeyDraft()
+    }
+
+    /// 설정 창의 draft 편집 세션과 무관하게 단일 필드를 즉시 적용/영속한다
+    /// (업데이트 '이 버전 건너뛰기'처럼 UI 밖에서 조용히 바뀌는 값용 —
+    /// save()를 쓰면 사용자가 편집 중이던 draft 전체가 원치 않게 적용될 수 있다).
+    public func applyField(_ mutate: (inout AppSettings) -> Void) {
+        mutate(&applied)
+        mutate(&draft)
+        Self.persist(applied)
     }
 
     private static func load() -> AppSettings {

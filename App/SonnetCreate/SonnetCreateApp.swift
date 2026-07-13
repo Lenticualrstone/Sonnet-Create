@@ -93,6 +93,10 @@ struct SonnetCreateApp: App {
                 backupTimelineView: AnyView(
                     BackupTimelineView()
                         .environment(appState)
+                ),
+                updateSectionView: AnyView(
+                    UpdateSettingsSection()
+                        .environment(appState)
                 )
             )
             .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)

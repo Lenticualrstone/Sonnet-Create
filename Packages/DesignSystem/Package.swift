@@ -18,6 +18,7 @@ let package = Package(
             ],
             resources: [
                 .copy("Fonts"),
+                .process("Shaders"), // .metal → 번들 metallib 컴파일 (AI 스피어 플라즈마)
             ]
         ),
         .testTarget(name: "DesignSystemTests", dependencies: ["DesignSystem"]),

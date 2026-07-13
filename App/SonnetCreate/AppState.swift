@@ -200,6 +200,13 @@ final class AppState {
     /// Touch Bar 지원 (베타)
     let touchBar = TouchBarController()
 
+    // MARK: 업데이트 (GitHub 릴리스 연동 — 로직은 UpdateSystem.swift)
+
+    /// 현재보다 새로운 릴리스 — 탭바 인디케이터/퀵메뉴의 데이터 (nil = 없음)
+    var availableUpdate: UpdateInfo?
+    var isCheckingUpdate = false
+    var isDownloadingUpdate = false
+
     init() {
         let root = URL(fileURLWithPath: settings.applied.workspacePath, isDirectory: true)
         workspace = WorkspaceStore(rootURL: root)
@@ -221,6 +228,10 @@ final class AppState {
         touchBar.appState = self
         stats.load(rootURL: workspace.rootURL)
         loadInbox()
+
+        if settings.applied.autoCheckUpdates {
+            checkForUpdates()
+        }
     }
 
     private func applySettings(_ applied: AppSettings) {
