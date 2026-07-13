@@ -1,4 +1,5 @@
 import AppCore
+import AppKit
 import DesignSystem
 import DocumentKit
 import FileManagerKit
@@ -22,19 +23,28 @@ struct HomeView: View {
 
                 // 인사말 위 ASCII 웨이브 — 터미널 감성의 문자 물결 (픽셀 디밍 필드 대체).
                 // 밤에는 느리고 잔잔하게, 아침엔 또렷하게 흐른다 (시간대 반응).
-                ASCIIWaveField(
-                    columns: 48, rows: 6,
-                    fontSize: 11,
-                    color: accent,
-                    quality: quality,
-                    speed: timeOfDay.waveSpeed
-                )
-                .frame(maxWidth: 560)
+                // 히어로 전체가 Sonnet AI 진입점 — 클릭하면 AI 채팅 탭이 열린다.
+                VStack(spacing: DesignTokens.Spacing.l) {
+                    ASCIIWaveField(
+                        columns: 48, rows: 6,
+                        fontSize: 11,
+                        color: accent,
+                        quality: quality,
+                        speed: timeOfDay.waveSpeed
+                    )
+                    .frame(maxWidth: 560)
 
-                Text(greetingText)
-                    .font(.system(size: 28, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .textStateSwap()
+                    Text(greetingText)
+                        .font(.system(size: 28, weight: .bold, design: .rounded))
+                        .multilineTextAlignment(.center)
+                        .textStateSwap()
+                }
+                .contentShape(Rectangle())
+                .onTapGesture { app.openAIChatTab() }
+                .onHover { inside in
+                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+                }
+                .help(l10n.t(.askAnything))
 
                 searchField(l10n)
 

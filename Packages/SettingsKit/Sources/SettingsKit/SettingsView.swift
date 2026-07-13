@@ -361,10 +361,20 @@ public struct SettingsRootView: View {
                         size: 76,
                         style: AISphereStyle(rawValue: store.draft.aiSphereStyleRaw) ?? .particle
                     )
+                    .environment(\.aiSphereDensity, AISphereDensity(rawValue: store.draft.aiSphereDensityRaw) ?? .normal)
                     DSSegmentedPicker(
                         selection: $store.draft.aiSphereStyleRaw,
                         options: AISphereStyle.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
                     )
+                    // 밀도는 파티클 스타일에서만 의미 있다
+                    if store.draft.aiSphereStyleRaw == AISphereStyle.particle.rawValue {
+                        LabeledContent(l10n.t(.sphereDensity)) {
+                            DSSegmentedPicker(
+                                selection: $store.draft.aiSphereDensityRaw,
+                                options: AISphereDensity.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
+                            )
+                        }
+                    }
                 }
                 .frame(maxWidth: .infinity)
             }

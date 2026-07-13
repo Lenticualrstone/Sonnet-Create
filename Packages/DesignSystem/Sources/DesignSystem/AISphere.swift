@@ -31,8 +31,45 @@ public enum AISphereStyle: String, CaseIterable, Sendable, Identifiable {
     }
 }
 
+/// 파티클 스피어의 입자 밀도 — 설정에서 선택. 입자 수 배율로 작용한다.
+public enum AISphereDensity: String, CaseIterable, Sendable, Identifiable {
+    case sparse, normal, dense
+
+    public var id: String { rawValue }
+
+    public var labelKey: L10nKey {
+        switch self {
+        case .sparse: .sphereDensitySparse
+        case .normal: .sphereDensityNormal
+        case .dense: .sphereDensityDense
+        }
+    }
+
+    /// 큰 스피어(≥44pt)의 입자 수.
+    var largeCount: Int {
+        switch self {
+        case .sparse: 80
+        case .normal: 140
+        case .dense: 240
+        }
+    }
+
+    /// 작은 스피어(<44pt, 아이콘/헤더)의 입자 수 — 성능·가독 균형.
+    var smallCount: Int {
+        switch self {
+        case .sparse: 44
+        case .normal: 64
+        case .dense: 96
+        }
+    }
+}
+
 private struct AISphereStyleKey: EnvironmentKey {
     static let defaultValue: AISphereStyle = .particle
+}
+
+private struct AISphereDensityKey: EnvironmentKey {
+    static let defaultValue: AISphereDensity = .normal
 }
 
 public extension EnvironmentValues {
@@ -40,6 +77,12 @@ public extension EnvironmentValues {
     var aiSphereStyle: AISphereStyle {
         get { self[AISphereStyleKey.self] }
         set { self[AISphereStyleKey.self] = newValue }
+    }
+
+    /// 앱 전역 파티클 밀도 (설정 주입).
+    var aiSphereDensity: AISphereDensity {
+        get { self[AISphereDensityKey.self] }
+        set { self[AISphereDensityKey.self] = newValue }
     }
 }
 
@@ -78,6 +121,7 @@ public struct AISphere: View {
     @Environment(\.resolvedAccent) private var accent
     @Environment(\.renderQuality) private var quality
     @Environment(\.aiSphereStyle) private var environmentStyle
+    @Environment(\.aiSphereDensity) private var density
 
     /// 호버 위치 (정규화 -1...1, nil = 비호버) — 필드 인터랙션용
     @State private var hover: CGPoint?
@@ -146,8 +190,21 @@ public struct AISphere: View {
         }
     }
 
-    private static let directionsLarge = fibonacciDirections(count: 140)
-    private static let directionsSmall = fibonacciDirections(count: 64)
+    /// 밀도 3종 × 대/소 6개 방향 세트를 미리 계산 (매 프레임 재계산 방지, 불변이라 동시성 안전).
+    private static let directionSets: [String: [SIMD3<Double>]] = {
+        var sets: [String: [SIMD3<Double>]] = [:]
+        for density in AISphereDensity.allCases {
+            sets["\(density.rawValue)-L"] = fibonacciDirections(count: density.largeCount)
+            sets["\(density.rawValue)-S"] = fibonacciDirections(count: density.smallCount)
+        }
+        return sets
+    }()
+
+    private func directions() -> [SIMD3<Double>] {
+        let key = "\(density.rawValue)-\(size < 44 ? "S" : "L")"
+        // 키는 항상 존재하지만(전 밀도 사전 계산), 방어적으로 폴백을 둔다.
+        return Self.directionSets[key] ?? Self.directionSets["normal-L"] ?? Self.fibonacciDirections(count: 140)
+    }
 
     @ViewBuilder
     private func particleSphere(_ t: Double) -> some View {
@@ -162,7 +219,7 @@ public struct AISphere: View {
             Canvas { context, canvasSize in
                 let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
                 let sphereRadius = min(canvasSize.width, canvasSize.height) * 0.42
-                let directions = size < 44 ? Self.directionsSmall : Self.directionsLarge
+                let directions = directions()
 
                 // 느린 2축 회전 — 살아 있는 느낌의 핵심
                 let yaw = t * 0.4

@@ -41,6 +41,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var scenarioInspectorOnRight: Bool = false
     /// AI 스피어 스타일 — "particle"(기본) | "glass" | "holographic" | "ink" | "plasma"
     public var aiSphereStyleRaw: String = "particle"
+    /// 파티클 스피어 입자 밀도 — "sparse" | "normal"(기본) | "dense"
+    public var aiSphereDensityRaw: String = "normal"
     public var quality: RenderQuality = .standard
     public var backgroundSpeed: Double = 0.6
     public var backgroundDensity: Double = 34
@@ -113,6 +115,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         touchBarEnabled = try c.decodeIfPresent(Bool.self, forKey: .touchBarEnabled) ?? d.touchBarEnabled
         scenarioInspectorOnRight = try c.decodeIfPresent(Bool.self, forKey: .scenarioInspectorOnRight) ?? d.scenarioInspectorOnRight
         aiSphereStyleRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereStyleRaw) ?? d.aiSphereStyleRaw
+        aiSphereDensityRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereDensityRaw) ?? d.aiSphereDensityRaw
         quality = try c.decodeIfPresent(RenderQuality.self, forKey: .quality) ?? d.quality
         backgroundSpeed = try c.decodeIfPresent(Double.self, forKey: .backgroundSpeed) ?? d.backgroundSpeed
         backgroundDensity = try c.decodeIfPresent(Double.self, forKey: .backgroundDensity) ?? d.backgroundDensity

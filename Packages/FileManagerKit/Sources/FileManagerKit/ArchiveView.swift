@@ -74,6 +74,10 @@ public struct ArchiveView: View {
     @State private var projectFilter: UUID?
     @State private var selection: Set<String> = []
     @State private var lastSelectedID: String?
+    /// 키보드 탐색 포커스 (↑↓ 이동, ⏎ 열기) — 마우스 선택과 독립
+    @State private var keyFocusID: String?
+    /// 리스트가 키보드 포커스를 갖고 있는지 (.focusable + FocusState)
+    @FocusState private var listFocused: Bool
 
     @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
@@ -473,34 +477,87 @@ public struct ArchiveView: View {
 
     // MARK: 리스트 (락업)
 
+    // List 대신 ScrollView+LazyVStack — List의 내부 NSTableView가 방향키를 소비해
+    // .onMoveCommand가 동작하지 않는다. 멀티선택/컨텍스트 메뉴는 행 내부에서 처리하므로
+    // List 스타일에 의존하지 않아 안전하게 대체된다.
     private var listView: some View {
-        List {
-            ForEach(entries) { entry in
-                switch entry {
-                case .document(let item):
-                    ArchiveRow(
-                        item: item,
-                        clickCount: openOnSingleClick ? 1 : 2,
-                        isSelected: selection.contains(entry.id),
-                        hasSelection: !selection.isEmpty,
-                        showTrashMeta: category == .trash,
-                        originLabel: category == .trash ? workspace.trashOriginLabel(for: item) : nil,
-                        onOpen: onOpen,
-                        onToggleSelect: { toggleSelection(entry.id) },
-                        onExtendSelect: { extendSelection(to: entry.id) },
-                        onReplaceSelect: { replaceSelection(with: entry.id) }
-                    )
-                    .contextMenu { contextMenu(for: item) }
-                case .other(let file):
-                    OtherFileRow(item: file)
-                        .contextMenu { otherContextMenu(for: file) }
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(entries) { entry in
+                        switch entry {
+                        case .document(let item):
+                            ArchiveRow(
+                                item: item,
+                                clickCount: openOnSingleClick ? 1 : 2,
+                                isSelected: selection.contains(entry.id),
+                                isKeyFocused: keyFocusID == entry.id,
+                                hasSelection: !selection.isEmpty,
+                                showTrashMeta: category == .trash,
+                                originLabel: category == .trash ? workspace.trashOriginLabel(for: item) : nil,
+                                onOpen: onOpen,
+                                onToggleSelect: { toggleSelection(entry.id) },
+                                onExtendSelect: { extendSelection(to: entry.id) },
+                                onReplaceSelect: { replaceSelection(with: entry.id) }
+                            )
+                            .id(entry.id)
+                            .contextMenu { contextMenu(for: item) }
+                        case .other(let file):
+                            OtherFileRow(item: file)
+                                .id(entry.id)
+                                .contextMenu { otherContextMenu(for: file) }
+                        }
+                    }
                 }
+                .padding(.horizontal, DesignTokens.Spacing.s)
+                .padding(.vertical, 4)
             }
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            // 키보드 탐색 — ↑↓로 이동(스크롤 대신 포커스 이동), ⏎ 열기, ⎋ 해제.
+            // onMoveCommand는 ScrollView 스크롤에 가로채이므로 onKeyPress로 직접 처리하고
+            // .handled를 반환해 기본 스크롤을 막는다. 뷰가 나타나면 자동 포커스.
+            .focusable()
+            .focused($listFocused)
+            .onAppear { listFocused = true }
+            .onKeyPress(.downArrow) {
+                moveKeyFocus(delta: 1, proxy: proxy)
+                return .handled
+            }
+            .onKeyPress(.upArrow) {
+                moveKeyFocus(delta: -1, proxy: proxy)
+                return .handled
+            }
+            .onKeyPress(.return) {
+                openKeyFocused()
+                return keyFocusID != nil ? .handled : .ignored
+            }
+            .onExitCommand {
+                keyFocusID = nil
+            }
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
+    }
+
+    /// 방향키로 포커스 행 이동 (delta: +1 아래 / -1 위) — 이동 후 해당 행으로 스크롤.
+    private func moveKeyFocus(delta: Int, proxy: ScrollViewProxy) {
+        let ids = entries.map(\.id)
+        guard !ids.isEmpty else { return }
+        guard let current = keyFocusID, let index = ids.firstIndex(of: current) else {
+            keyFocusID = ids.first
+            keyFocusID.map { proxy.scrollTo($0, anchor: .center) }
+            return
+        }
+        let target = index + delta
+        guard target >= 0, target < ids.count else { return }
+        keyFocusID = ids[target]
+        proxy.scrollTo(ids[target], anchor: .center)
+    }
+
+    /// 포커스된 문서 열기 (기타 파일이면 기본 앱으로).
+    private func openKeyFocused() {
+        guard let id = keyFocusID, let entry = entries.first(where: { $0.id == id }) else { return }
+        switch entry {
+        case .document(let item): onOpen(item)
+        case .other(let file): NSWorkspace.shared.open(file.url)
+        }
     }
 
     // MARK: 그리드 (아이콘)
@@ -648,6 +705,7 @@ struct ArchiveRow: View {
     let item: DocumentListItem
     let clickCount: Int
     let isSelected: Bool
+    var isKeyFocused: Bool = false
     let hasSelection: Bool
     let showTrashMeta: Bool
     let originLabel: String?
@@ -703,6 +761,11 @@ struct ArchiveRow: View {
         .background(
             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
                 .fill(isSelected ? accent.opacity(0.16) : (hovering ? Color.primary.opacity(0.06) : .clear))
+        )
+        // 키보드 포커스 링 — 마우스 선택과 구분되는 강조색 테두리
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
+                .strokeBorder(accent, lineWidth: isKeyFocused ? 1.5 : 0)
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }

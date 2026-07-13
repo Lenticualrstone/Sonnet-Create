@@ -117,6 +117,8 @@ public enum L10nKey: String, Sendable {
     // 시간대 인사말 (홈 히어로) — %@ 자리에 작가 이름(있으면)
     case greetingMorning, greetingAfternoon, greetingEvening, greetingNight
     case greetingMorningNamed, greetingAfternoonNamed, greetingEveningNamed, greetingNightNamed
+    // 파티클 스피어 밀도
+    case sphereDensity, sphereDensitySparse, sphereDensityNormal, sphereDensityDense
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -505,5 +507,9 @@ public final class Localizer {
         .greetingAfternoonNamed: [.korean: "%@ 님, 무엇을 창작해볼까요?", .japanese: "%@さん、今日は何を創りますか？", .english: "%@, what shall we create?"],
         .greetingEveningNamed: [.korean: "저녁이네요, %@ 님. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね、%@さん。今日の物語を続けましょうか？", .english: "Good evening, %@. Shall we continue the story?"],
         .greetingNightNamed: [.korean: "깊은 밤이에요, %@ 님. 영감이 찾아오는 시간이죠.", .japanese: "深い夜ですね、%@さん。インスピレーションが訪れる時間です。", .english: "Late night, %@ — when inspiration comes."],
+        .sphereDensity: [.korean: "입자 밀도", .japanese: "パーティクル密度", .english: "Particle Density"],
+        .sphereDensitySparse: [.korean: "성기게", .japanese: "疎", .english: "Sparse"],
+        .sphereDensityNormal: [.korean: "보통", .japanese: "標準", .english: "Normal"],
+        .sphereDensityDense: [.korean: "촘촘하게", .japanese: "密", .english: "Dense"],
     ]
 }

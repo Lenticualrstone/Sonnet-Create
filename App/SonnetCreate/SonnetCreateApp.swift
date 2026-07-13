@@ -42,6 +42,7 @@ struct SonnetCreateApp: App {
                 .environment(\.pageTypewriterMode, appState.settings.applied.pageTypewriterEnabled)
                 .environment(\.mindmapAutoOpenInspector, appState.settings.applied.mindmapAutoOpenInspector)
                 .environment(\.aiSphereStyle, AISphereStyle(rawValue: appState.settings.applied.aiSphereStyleRaw) ?? .particle)
+                .environment(\.aiSphereDensity, AISphereDensity(rawValue: appState.settings.applied.aiSphereDensityRaw) ?? .normal)
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)

@@ -72,6 +72,12 @@ struct AIChatView: View {
                         }
                     }
                 }
+                // 타이핑 연출로 마지막 메시지가 자라는 동안에도 하단을 계속 따라간다
+                .onChange(of: chat.messages.last?.text) {
+                    if let last = chat.messages.last {
+                        proxy.scrollTo(last.id, anchor: .bottom)
+                    }
+                }
             }
 
             // 입력

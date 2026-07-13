@@ -29,6 +29,8 @@ final class AIChatStore {
     var messages: [AIChatMessage] = []
     var input = ""
     var isBusy = false
+    /// 현재 타이핑 연출로 노출 중인 어시스턴트 메시지 ID (스크롤 추종·상태 표시용)
+    private(set) var streamingMessageID: UUID?
 
     func send(using provider: any AIProvider) async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -36,17 +38,39 @@ final class AIChatStore {
         input = ""
         messages.append(AIChatMessage(role: .user, text: text))
         isBusy = true
-        defer { isBusy = false }
         do {
             let reply = try await provider.chat(history: messages)
-            messages.append(AIChatMessage(role: .assistant, text: reply))
+            isBusy = false
+            await reveal(reply)
         } catch {
+            isBusy = false
             messages.append(AIChatMessage(role: .assistant, text: "⚠️ \(error.localizedDescription)"))
+        }
+    }
+
+    /// 완성된 응답을 글자 단위로 점진 노출 — 타이핑되는 듯한 연출. 취소(clear) 안전.
+    private func reveal(_ full: String) async {
+        let message = AIChatMessage(role: .assistant, text: "")
+        messages.append(message)
+        streamingMessageID = message.id
+        defer { streamingMessageID = nil }
+
+        let characters = Array(full)
+        // 길이에 따라 스텝 크기를 키워 긴 답변도 과하게 오래 걸리지 않게 (최대 ~2.5초)
+        let step = max(1, characters.count / 120)
+        var shown = 0
+        while shown < characters.count {
+            shown = min(characters.count, shown + step)
+            guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return } // clear됨
+            messages[index].text = String(characters[0..<shown])
+            try? await Task.sleep(for: .milliseconds(16))
+            if Task.isCancelled { return }
         }
     }
 
     func clear() {
         messages = []
+        streamingMessageID = nil
     }
 }
 
