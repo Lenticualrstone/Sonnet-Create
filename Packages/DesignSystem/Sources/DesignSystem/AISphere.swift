@@ -48,8 +48,27 @@ public extension EnvironmentValues {
 /// Sonnet AI의 아이덴티티 오브 — 스타일 바리에이션 + 호버 인터랙션.
 /// 마우스를 올리면 하이라이트/블롭이 커서를 따라 기울고, `thinking`이면 더 빠르게 요동친다.
 public struct AISphere: View {
+    /// 스피어의 활동 상태 — idle(평온) < typing(사용자 입력 중, 미세 동요) < thinking(생성 중, 요동).
     public enum Activity: Sendable {
-        case idle, thinking
+        case idle, typing, thinking
+
+        /// 회전/흐름 속도 배율.
+        var speed: Double {
+            switch self {
+            case .idle: 1.0
+            case .typing: 1.5
+            case .thinking: 2.4
+            }
+        }
+
+        /// 입자 반경 요동의 세기 (평온=0).
+        var agitation: Double {
+            switch self {
+            case .idle: 0.0
+            case .typing: 0.5
+            case .thinking: 1.0
+            }
+        }
     }
 
     let size: CGFloat
@@ -70,7 +89,7 @@ public struct AISphere: View {
     }
 
     private var style: AISphereStyle { styleOverride ?? environmentStyle }
-    private var speed: Double { activity == .thinking ? 2.4 : 1.0 }
+    private var speed: Double { activity.speed }
 
     public var body: some View {
         Group {
@@ -98,7 +117,7 @@ public struct AISphere: View {
     @ViewBuilder
     private func sphere(time: TimeInterval) -> some View {
         let t = time * speed
-        let breathe = activity == .thinking ? 1 + 0.04 * sin(t * 3.1) : 1
+        let breathe = 1 + 0.04 * activity.agitation * sin(t * 3.1)
         Group {
             switch style {
             case .particle: particleSphere(t)
@@ -134,9 +153,9 @@ public struct AISphere: View {
     private func particleSphere(_ t: Double) -> some View {
         let base = vividBase
         ZStack {
-            // 은은한 후광 — 입자 사이로 배어 나오는 빛
+            // 은은한 후광 — 입자 사이로 배어 나오는 빛 (활동이 높을수록 밝아진다)
             Circle()
-                .fill(base.opacity(activity == .thinking ? 0.30 : 0.18))
+                .fill(base.opacity(0.16 + 0.14 * activity.agitation))
                 .blur(radius: size * 0.13)
                 .scaleEffect(0.95)
 
@@ -161,9 +180,11 @@ public struct AISphere: View {
                     )
                 }
                 let disperseRadius = sphereRadius * 0.85
+                let agitationLevel = activity.agitation
 
-                // 투영 후 깊이순 정렬 (뒤 → 앞) — 앞 입자가 위에 그려진다
-                var projected: [(position: CGPoint, depth: Double)] = []
+                // 투영 후 깊이순 정렬 (뒤 → 앞) — 앞 입자가 위에 그려진다.
+                // rest는 요동/분산 전 원위치, position은 분산 후 최종 위치 (둘 사이가 잔상 트레일).
+                var projected: [(position: CGPoint, rest: CGPoint, depth: Double, scatter: Double)] = []
                 projected.reserveCapacity(directions.count)
                 for (index, direction) in directions.enumerated() {
                     // yaw(수직축) 회전
@@ -173,17 +194,19 @@ public struct AISphere: View {
                     let y2 = direction.y * cosPitch - z1 * sinPitch
                     let z2 = direction.y * sinPitch + z1 * cosPitch
 
-                    // 반경 요동 — 평소엔 잔잔한 숨, 생성 중엔 입자가 크게 흩날린다
+                    // 반경 요동 — 평소엔 잔잔한 숨, 입력/생성 중엔 입자가 흩날린다
                     let phase = Double(index) * 2.399963
-                    let agitation = activity == .thinking
-                        ? 0.18 * sin(t * 3.6 + phase) + 0.06 * sin(t * 7.1 + phase * 1.7)
-                        : 0.03 * sin(t * 1.3 + phase)
+                    let calm = 0.03 * sin(t * 1.3 + phase)
+                    let energetic = 0.18 * sin(t * 3.6 + phase) + 0.06 * sin(t * 7.1 + phase * 1.7)
+                    let agitation = calm + agitationLevel * (energetic - calm)
                     let particleRadius = sphereRadius * (1 + agitation)
 
-                    var position = CGPoint(
+                    let rest = CGPoint(
                         x: center.x + x1 * particleRadius,
                         y: center.y + y2 * particleRadius
                     )
+                    var position = rest
+                    var scatter = 0.0
 
                     // 커서 분산 — 가까운 입자일수록 강하게 밀려난다 (가우시안 감쇠)
                     if let hoverPoint {
@@ -191,12 +214,13 @@ public struct AISphere: View {
                         let dy = position.y - hoverPoint.y
                         let distance = max(2, (dx * dx + dy * dy).squareRoot())
                         let influence = exp(-(distance * distance) / (disperseRadius * disperseRadius * 0.5))
+                        scatter = influence
                         let push = influence * sphereRadius * 0.55
                         position.x += dx / distance * push
                         position.y += dy / distance * push
                     }
 
-                    projected.append((position: position, depth: (z2 + 1) / 2))
+                    projected.append((position: position, rest: rest, depth: (z2 + 1) / 2, scatter: scatter))
                 }
                 projected.sort { $0.depth < $1.depth }
 
@@ -204,6 +228,18 @@ public struct AISphere: View {
                     let depth = particle.depth
                     let dotRadius = sphereRadius * 0.045 * (0.55 + 0.85 * depth)
                     let tone = base.mixedWithWhite(0.12 + 0.5 * depth)
+
+                    // 분산된 입자는 원위치까지 옅은 잔상 꼬리를 남긴다 (밀려난 궤적)
+                    if particle.scatter > 0.04 {
+                        var trail = Path()
+                        trail.move(to: particle.rest)
+                        trail.addLine(to: particle.position)
+                        context.stroke(
+                            trail,
+                            with: .color(tone.opacity(0.10 + 0.28 * depth * particle.scatter)),
+                            style: StrokeStyle(lineWidth: dotRadius * 0.9, lineCap: .round)
+                        )
+                    }
                     let rect = CGRect(
                         x: particle.position.x - dotRadius,
                         y: particle.position.y - dotRadius,
@@ -366,7 +402,7 @@ public struct AISphere: View {
                         .boundingRect,
                         .float(Float(time)),
                         .float(Float(baseHue)),
-                        .float(activity == .thinking ? 1 : 0),
+                        .float(Float(activity.agitation)),
                         .float2(Float(hover?.x ?? 0), Float(hover?.y ?? 0))
                     )
                 )

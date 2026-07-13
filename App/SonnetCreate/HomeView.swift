@@ -20,17 +20,20 @@ struct HomeView: View {
             VStack(spacing: DesignTokens.Spacing.l) {
                 Spacer().frame(height: 44)
 
-                // 인사말 위 ASCII 웨이브 — 터미널 감성의 문자 물결 (픽셀 디밍 필드 대체)
+                // 인사말 위 ASCII 웨이브 — 터미널 감성의 문자 물결 (픽셀 디밍 필드 대체).
+                // 밤에는 느리고 잔잔하게, 아침엔 또렷하게 흐른다 (시간대 반응).
                 ASCIIWaveField(
                     columns: 48, rows: 6,
                     fontSize: 11,
                     color: accent,
-                    quality: quality
+                    quality: quality,
+                    speed: timeOfDay.waveSpeed
                 )
                 .frame(maxWidth: 560)
 
-                Text(l10n.t(.greeting))
+                Text(greetingText)
                     .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
                     .textStateSwap()
 
                 searchField(l10n)
@@ -64,6 +67,57 @@ struct HomeView: View {
             guard !Task.isCancelled else { return }
             searchResults = await app.workspace.deepSearch(query)
         }
+    }
+
+    // MARK: 시간대 반응 인사말
+
+    /// 하루의 네 구간 — 인사말 문구와 웨이브 속도가 여기에 따라 갈린다.
+    private enum TimeOfDay {
+        case morning, afternoon, evening, night
+
+        var waveSpeed: Double {
+            switch self {
+            case .morning: 1.15 // 또렷하게
+            case .afternoon: 1.0
+            case .evening: 0.8
+            case .night: 0.6 // 잔잔하게
+            }
+        }
+
+        var plainKey: L10nKey {
+            switch self {
+            case .morning: .greetingMorning
+            case .afternoon: .greetingAfternoon
+            case .evening: .greetingEvening
+            case .night: .greetingNight
+            }
+        }
+
+        var namedKey: L10nKey {
+            switch self {
+            case .morning: .greetingMorningNamed
+            case .afternoon: .greetingAfternoonNamed
+            case .evening: .greetingEveningNamed
+            case .night: .greetingNightNamed
+            }
+        }
+    }
+
+    private var timeOfDay: TimeOfDay {
+        switch Calendar.current.component(.hour, from: Date()) {
+        case 5..<12: .morning
+        case 12..<18: .afternoon
+        case 18..<23: .evening
+        default: .night
+        }
+    }
+
+    /// 작가 이름이 설정돼 있으면 이름을 넣은 인사말, 아니면 일반 문구.
+    private var greetingText: String {
+        let l10n = Localizer.shared
+        let name = app.settings.applied.authorName.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty else { return l10n.t(timeOfDay.plainKey) }
+        return String(format: l10n.t(timeOfDay.namedKey), name)
     }
 
     // MARK: 중앙 검색

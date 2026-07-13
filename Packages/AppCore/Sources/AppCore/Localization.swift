@@ -114,6 +114,9 @@ public enum L10nKey: String, Sendable {
     case updateDownload, updateViewRelease, updateSkipVersion, updateCurrentFormat, updateDownloadFailed
     // AI 스피어 스타일
     case aiSphereStyle, sphereStyleGlass, sphereStyleHolographic, sphereStyleInk, sphereStylePlasma, sphereStyleParticle
+    // 시간대 인사말 (홈 히어로) — %@ 자리에 작가 이름(있으면)
+    case greetingMorning, greetingAfternoon, greetingEvening, greetingNight
+    case greetingMorningNamed, greetingAfternoonNamed, greetingEveningNamed, greetingNightNamed
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -494,5 +497,13 @@ public final class Localizer {
         .sphereStyleInk: [.korean: "잉크", .japanese: "インク", .english: "Ink"],
         .sphereStylePlasma: [.korean: "플라즈마", .japanese: "プラズマ", .english: "Plasma"],
         .sphereStyleParticle: [.korean: "파티클", .japanese: "パーティクル", .english: "Particle"],
+        .greetingMorning: [.korean: "좋은 아침이에요. 무엇을 써볼까요?", .japanese: "おはようございます。何を書きましょう？", .english: "Good morning. What shall we write?"],
+        .greetingAfternoon: [.korean: "무엇을 창작해볼까요?", .japanese: "今日は何を創りますか？", .english: "What shall we create?"],
+        .greetingEvening: [.korean: "저녁이네요. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね。今日の物語を続けましょうか？", .english: "Good evening. Shall we continue the story?"],
+        .greetingNight: [.korean: "깊은 밤, 영감이 찾아오는 시간이에요.", .japanese: "深い夜、インスピレーションが訪れる時間です。", .english: "Late night — when inspiration comes."],
+        .greetingMorningNamed: [.korean: "좋은 아침이에요, %@ 님. 무엇을 써볼까요?", .japanese: "おはようございます、%@さん。何を書きましょう？", .english: "Good morning, %@. What shall we write?"],
+        .greetingAfternoonNamed: [.korean: "%@ 님, 무엇을 창작해볼까요?", .japanese: "%@さん、今日は何を創りますか？", .english: "%@, what shall we create?"],
+        .greetingEveningNamed: [.korean: "저녁이네요, %@ 님. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね、%@さん。今日の物語を続けましょうか？", .english: "Good evening, %@. Shall we continue the story?"],
+        .greetingNightNamed: [.korean: "깊은 밤이에요, %@ 님. 영감이 찾아오는 시간이죠.", .japanese: "深い夜ですね、%@さん。インスピレーションが訪れる時間です。", .english: "Late night, %@ — when inspiration comes."],
     ]
 }

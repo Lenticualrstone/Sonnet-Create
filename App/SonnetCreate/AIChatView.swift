@@ -16,9 +16,10 @@ struct AIChatView: View {
         let l10n = Localizer.shared
         let chat = app.aiChat
         VStack(spacing: 0) {
-            // 헤더 — 살아 있는 미니 스피어가 Sonnet AI의 아이덴티티 (생성 중엔 더 빠르게 요동)
+            // 헤더 — 살아 있는 미니 스피어가 Sonnet AI의 아이덴티티.
+            // 입력 중엔 미세 동요(typing), 생성 중엔 크게 요동(thinking).
             HStack(spacing: DesignTokens.Spacing.s) {
-                AISphere(size: 18, activity: chat.isBusy ? .thinking : .idle)
+                AISphere(size: 18, activity: sphereActivity)
                 Text(l10n.t(.aiAgent))
                     .font(.headline)
                 Spacer()
@@ -115,6 +116,13 @@ struct AIChatView: View {
         !app.aiChat.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !app.aiChat.isBusy
     }
 
+    /// 스피어 활동 — 생성 중 > 입력 중(포커스+내용) > 평온.
+    private var sphereActivity: AISphere.Activity {
+        if app.aiChat.isBusy { return .thinking }
+        if inputFocused, !app.aiChat.input.isEmpty { return .typing }
+        return .idle
+    }
+
     private func send() {
         guard canSend else { return }
         let provider = app.currentProvider()
@@ -123,8 +131,8 @@ struct AIChatView: View {
 
     private func emptyHint(_ l10n: Localizer) -> some View {
         VStack(spacing: DesignTokens.Spacing.l) {
-            // 대화가 비었을 때의 히어로 — 유영하는 AI 스피어
-            AISphere(size: 116)
+            // 대화가 비었을 때의 히어로 — 유영하는 AI 스피어 (입력 시작하면 동요)
+            AISphere(size: 116, activity: sphereActivity)
             Text(l10n.t(.askAnything))
                 .font(.callout)
                 .foregroundStyle(.secondary)
@@ -182,7 +190,7 @@ struct SidebarAIChatSection: View {
         let chat = app.aiChat
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
-                AISphere(size: 14, activity: chat.isBusy ? .thinking : .idle)
+                AISphere(size: 14, activity: chat.isBusy ? .thinking : (chat.input.isEmpty ? .idle : .typing))
                 Text(l10n.t(.aiAgent))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
