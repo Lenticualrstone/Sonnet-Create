@@ -34,6 +34,14 @@ struct ProjectNavigatorView: View {
 
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 3) {
+                    if docs.isEmpty, others.isEmpty {
+                        // 빈 프로젝트 — 새 문서 유도 (미저장 문서는 첫 편집 후에 나타난다)
+                        Text(l10n.t(.emptyCategory))
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.top, 24)
+                    }
                     kindSection(l10n.t(.scenario), symbol: DocumentKind.scenario.symbolName, items: scenarios)
                     kindSection(l10n.t(.mindmap), symbol: DocumentKind.mindmap.symbolName, items: mindmaps)
                     kindSection(l10n.t(.page), symbol: DocumentKind.page.symbolName, items: pages)

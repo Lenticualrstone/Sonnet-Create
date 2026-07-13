@@ -168,6 +168,20 @@ final class AppState {
         pushNavigation(.archive(category: category, projectID: projectID))
     }
 
+    /// 헤더 + 메뉴/⌘K의 '새 문서'가 들어갈 프로젝트 — 지금 보고 있는 맥락을 따른다.
+    /// 프로젝트로 필터된 아카이브 탭이나 프로젝트 소속 문서 탭에서는 그 프로젝트 안에,
+    /// 그 외(홈 등)에서는 워크스페이스 최상위에 만든다.
+    var creationTargetProject: ProjectFolder? {
+        switch selectedTab?.content {
+        case .archive:
+            return workspace.project(id: lastKnownArchiveState.projectID)
+        case .document(let docID):
+            return workspace.project(id: sessions[docID]?.document.envelope.projectID)
+        default:
+            return nil
+        }
+    }
+
     /// 일별 저장 활동 (yyyy-MM-dd → 횟수) — 프로필 기여도 그래프용
     /// 활동·집필 통계 원장 (기여도 그래프 / 집필 목표 카드)
     let stats = StatsLedger()
@@ -758,7 +772,11 @@ final class AppState {
 
     func breadcrumb(for session: DocumentSession) -> [String] {
         var parts: [String] = []
-        if let projectName = workspace.item(id: session.id)?.projectName {
+        // envelope의 projectID가 소속의 원본 — 디스크 스캔(item) 기반이면 아직 저장되지
+        // 않은 새 문서가 프로젝트 안에 만들어졌어도 상위 프로젝트가 표시되지 않는다.
+        if let projectName = workspace.project(id: session.document.envelope.projectID)?.manifest.name {
+            parts.append(projectName)
+        } else if let projectName = workspace.item(id: session.id)?.projectName {
             parts.append(projectName)
         }
         parts.append(session.title.isEmpty ? Localizer.shared.t(.untitled) : session.title)

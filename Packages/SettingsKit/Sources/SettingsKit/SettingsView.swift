@@ -41,6 +41,36 @@ private enum SettingsCategory: String, CaseIterable, Identifiable {
 }
 
 /// 사이드바형 설정창 — 카테고리 목록 + 상세 폼. 변경은 draft에 쌓이고 저장 버튼으로 반영된다.
+/// 설정 사이드바 행 — 선택 하이라이트가 앱의 실효 강조색(resolvedAccent)을 따른다.
+private struct SettingsSidebarRow: View {
+    let title: String
+    let symbol: String
+    let isSelected: Bool
+    let action: () -> Void
+
+    @State private var hovering = false
+    @Environment(\.resolvedAccent) private var accent
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.callout)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .padding(.vertical, 7)
+                .padding(.horizontal, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(isSelected ? accent : (hovering ? Color.primary.opacity(0.06) : .clear))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(DesignTokens.Motion.snappy, value: hovering)
+    }
+}
+
 public struct SettingsRootView: View {
     @Bindable var store: SettingsStore
     /// 백업 타임라인 등 앱 수준 액션 (일반 탭에 노출)
@@ -58,14 +88,22 @@ public struct SettingsRootView: View {
         let l10n = Localizer.shared
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                List(selection: $category) {
-                    ForEach(SettingsCategory.allCases) { candidate in
-                        Label(l10n.t(candidate.key), systemImage: candidate.symbol)
-                            .tag(candidate)
+                // 시스템 List(selection:)의 선택 하이라이트는 .tint를 무시하고 OS 강조색을
+                // 쓴다 — 앱의 강조 색상 설정과 어긋나므로 직접 그린다.
+                ScrollView {
+                    VStack(spacing: 2) {
+                        ForEach(SettingsCategory.allCases) { candidate in
+                            SettingsSidebarRow(
+                                title: l10n.t(candidate.key),
+                                symbol: candidate.symbol,
+                                isSelected: category == candidate
+                            ) {
+                                category = candidate
+                            }
+                        }
                     }
+                    .padding(8)
                 }
-                .listStyle(.sidebar)
-                .scrollContentBackground(.hidden)
                 .frame(width: 176)
 
                 Divider().opacity(0.4)
@@ -280,12 +318,13 @@ public struct SettingsRootView: View {
                 }
             }
 
-            Picker(l10n.t(.themeMode), selection: $store.draft.themeMode) {
-                Text(l10n.t(.themeSystem)).tag(ThemeMode.system)
-                Text(l10n.t(.themeLight)).tag(ThemeMode.light)
-                Text(l10n.t(.themeDark)).tag(ThemeMode.dark)
+            LabeledContent(l10n.t(.themeMode)) {
+                DSSegmentedPicker(selection: $store.draft.themeMode, options: [
+                    (ThemeMode.system, l10n.t(.themeSystem)),
+                    (ThemeMode.light, l10n.t(.themeLight)),
+                    (ThemeMode.dark, l10n.t(.themeDark)),
+                ])
             }
-            .pickerStyle(.segmented)
 
             LabeledContent(l10n.t(.accentColor)) {
                 HStack(spacing: 8) {
@@ -306,18 +345,20 @@ public struct SettingsRootView: View {
                 )
             }
 
-            Picker(l10n.t(.tabStyle), selection: $store.draft.tabStyleRaw) {
-                Text(l10n.t(.tabStyleChrome)).tag("chrome")
-                Text(l10n.t(.tabStyleCapsule)).tag("capsule")
+            LabeledContent(l10n.t(.tabStyle)) {
+                DSSegmentedPicker(selection: $store.draft.tabStyleRaw, options: [
+                    ("chrome", l10n.t(.tabStyleChrome)),
+                    ("capsule", l10n.t(.tabStyleCapsule)),
+                ])
             }
-            .pickerStyle(.segmented)
 
-            Picker(l10n.t(.qualityTier), selection: $store.draft.quality) {
-                Text(l10n.t(.qualityLow)).tag(RenderQuality.low)
-                Text(l10n.t(.qualityStandard)).tag(RenderQuality.standard)
-                Text(l10n.t(.qualityHigh)).tag(RenderQuality.high)
+            LabeledContent(l10n.t(.qualityTier)) {
+                DSSegmentedPicker(selection: $store.draft.quality, options: [
+                    (RenderQuality.low, l10n.t(.qualityLow)),
+                    (RenderQuality.standard, l10n.t(.qualityStandard)),
+                    (RenderQuality.high, l10n.t(.qualityHigh)),
+                ])
             }
-            .pickerStyle(.segmented)
         }
         .formStyle(.grouped)
     }
@@ -449,12 +490,13 @@ public struct SettingsRootView: View {
                     format: { String(format: "%.1f×", $0) }
                 )
             }
-            Picker(l10n.t(.blockSpacing), selection: $store.draft.blockSpacing) {
-                Text(l10n.t(.spacingCompact)).tag(6.0)
-                Text(l10n.t(.spacingMedium)).tag(12.0)
-                Text(l10n.t(.spacingWide)).tag(20.0)
+            LabeledContent(l10n.t(.blockSpacing)) {
+                DSSegmentedPicker(selection: $store.draft.blockSpacing, options: [
+                    (6.0, l10n.t(.spacingCompact)),
+                    (12.0, l10n.t(.spacingMedium)),
+                    (20.0, l10n.t(.spacingWide)),
+                ])
             }
-            .pickerStyle(.segmented)
 
             Section {
                 Text("본문 미리보기 — The quick brown fox / 다람쥐 헌 쳇바퀴에 타고파")
@@ -473,13 +515,14 @@ public struct SettingsRootView: View {
             // 캐릭터 인스펙터 위치 옵션은 v1.2에서 제거 — 우측은 프로젝트 파일
             // 인스펙터 자리가 되었고, 캐릭터 인스펙터는 항상 좌측에 배치된다.
             Section(l10n.t(.dialogueDisplayHeader)) {
-                Picker(l10n.t(.dialogueDisplayMethod), selection: $store.draft.dialogueDisplayRaw) {
-                    Text(l10n.t(.dialogueDisplayBoth)).tag("avatarAndName")
-                    Text(l10n.t(.dialogueDisplayAvatarOnly)).tag("avatarOnly")
-                    Text(l10n.t(.dialogueDisplayNameOnly)).tag("nameOnly")
-                    Text(l10n.t(.dialogueDisplayHidden)).tag("hidden")
+                LabeledContent(l10n.t(.dialogueDisplayMethod)) {
+                    DSSegmentedPicker(selection: $store.draft.dialogueDisplayRaw, options: [
+                        ("avatarAndName", l10n.t(.dialogueDisplayBoth)),
+                        ("avatarOnly", l10n.t(.dialogueDisplayAvatarOnly)),
+                        ("nameOnly", l10n.t(.dialogueDisplayNameOnly)),
+                        ("hidden", l10n.t(.dialogueDisplayHidden)),
+                    ])
                 }
-                .pickerStyle(.segmented)
 
                 LabeledContent(l10n.t(.dialogueAvatarSize)) {
                     BarSlider(
@@ -526,11 +569,12 @@ public struct SettingsRootView: View {
 
     private func archiveTab(_ l10n: Localizer) -> some View {
         Form {
-            Picker(l10n.t(.openBehavior), selection: $store.draft.openOnSingleClick) {
-                Text(l10n.t(.singleClick)).tag(true)
-                Text(l10n.t(.doubleClick)).tag(false)
+            LabeledContent(l10n.t(.openBehavior)) {
+                DSSegmentedPicker(selection: $store.draft.openOnSingleClick, options: [
+                    (true, l10n.t(.singleClick)),
+                    (false, l10n.t(.doubleClick)),
+                ])
             }
-            .pickerStyle(.segmented)
         }
         .formStyle(.grouped)
     }

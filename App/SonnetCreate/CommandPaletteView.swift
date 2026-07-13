@@ -145,18 +145,21 @@ struct CommandPaletteView: View {
 
     private var actions: [PaletteAction] {
         let l10n = Localizer.shared
+        // 새 문서는 헤더 + 메뉴와 같은 컨텍스트 규칙 — 프로젝트 맥락에서는 그 프로젝트 안에.
+        let target = app.creationTargetProject
+        let suffix = target.map { " → \($0.manifest.name)" } ?? ""
         return [
-            PaletteAction(id: "new-scenario", title: l10n.t(.newScenario), symbol: "text.bubble") {
-                app.createAndOpen(kind: .scenario)
+            PaletteAction(id: "new-scenario", title: l10n.t(.newScenario) + suffix, symbol: "text.bubble") {
+                app.createAndOpen(kind: .scenario, in: target)
             },
-            PaletteAction(id: "new-mindmap", title: l10n.t(.newMindMap), symbol: "point.3.connected.trianglepath.dotted") {
-                app.createAndOpen(kind: .mindmap)
+            PaletteAction(id: "new-mindmap", title: l10n.t(.newMindMap) + suffix, symbol: "point.3.connected.trianglepath.dotted") {
+                app.createAndOpen(kind: .mindmap, in: target)
             },
-            PaletteAction(id: "new-page", title: l10n.t(.newPage), symbol: "doc.richtext") {
-                app.createAndOpen(kind: .page)
+            PaletteAction(id: "new-page", title: l10n.t(.newPage) + suffix, symbol: "doc.richtext") {
+                app.createAndOpen(kind: .page, in: target)
             },
-            PaletteAction(id: "new-character", title: l10n.t(.newCharacter), symbol: "person.crop.circle.badge.plus") {
-                app.createAndOpen(kind: .page, pageRole: .character)
+            PaletteAction(id: "new-character", title: l10n.t(.newCharacter) + suffix, symbol: "person.crop.circle.badge.plus") {
+                app.createAndOpen(kind: .page, pageRole: .character, in: target)
             },
             PaletteAction(id: "new-project", title: l10n.t(.newProject), symbol: "folder.badge.plus") {
                 _ = try? app.workspace.createProject(name: l10n.t(.newProject))

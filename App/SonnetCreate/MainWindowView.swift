@@ -1,5 +1,6 @@
 import AppCore
 import DesignSystem
+import DocumentKit
 import FileManagerKit
 import MarkdownEditor
 import MindMapEditor
@@ -382,19 +383,16 @@ struct ChromeTabBar: View {
                 }
             }
 
-            // 새 문서 종류 선택 메뉴
+            // 새 문서 종류 선택 메뉴 — 프로젝트 아카이브/프로젝트 문서 탭에서는
+            // 그 프로젝트 안에 생성한다 (헤더에서 만든 문서가 무소속으로 떨어지던 문제 수정).
             Menu {
-                Button(l10n.t(.newScenario), systemImage: "text.bubble") {
-                    app.createAndOpen(kind: .scenario)
-                }
-                Button(l10n.t(.newMindMap), systemImage: "point.3.connected.trianglepath.dotted") {
-                    app.createAndOpen(kind: .mindmap)
-                }
-                Button(l10n.t(.newPage), systemImage: "doc.richtext") {
-                    app.createAndOpen(kind: .page)
-                }
-                Button(l10n.t(.newCharacter), systemImage: "person.crop.circle.badge.plus") {
-                    app.createAndOpen(kind: .page, pageRole: .character)
+                let target = app.creationTargetProject
+                if let target {
+                    Section("→ \(target.manifest.name)") {
+                        newDocumentButtons(l10n, in: target)
+                    }
+                } else {
+                    newDocumentButtons(l10n, in: nil)
                 }
                 Divider()
                 Button(l10n.t(.newProject), systemImage: "folder.badge.plus") {
@@ -458,6 +456,23 @@ struct ChromeTabBar: View {
             Color.clear
                 .contentShape(Rectangle())
                 .gesture(WindowDragGesture())
+        }
+    }
+
+    /// 새 문서 4종 버튼 — 대상 프로젝트가 있으면 그 안에, 없으면 최상위에.
+    @ViewBuilder
+    private func newDocumentButtons(_ l10n: Localizer, in project: ProjectFolder?) -> some View {
+        Button(l10n.t(.newScenario), systemImage: "text.bubble") {
+            app.createAndOpen(kind: .scenario, in: project)
+        }
+        Button(l10n.t(.newMindMap), systemImage: "point.3.connected.trianglepath.dotted") {
+            app.createAndOpen(kind: .mindmap, in: project)
+        }
+        Button(l10n.t(.newPage), systemImage: "doc.richtext") {
+            app.createAndOpen(kind: .page, in: project)
+        }
+        Button(l10n.t(.newCharacter), systemImage: "person.crop.circle.badge.plus") {
+            app.createAndOpen(kind: .page, pageRole: .character, in: project)
         }
     }
 

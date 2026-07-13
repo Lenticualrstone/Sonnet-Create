@@ -522,6 +522,55 @@ public struct SearchCapsule: View {
 }
 
 /// 툴바 아이콘 버튼 (호버 하이라이팅).
+/// 강조색을 따르는 세그먼트 컨트롤 — macOS의 시스템 세그먼트 픽커는 `.tint`를 무시하고
+/// 항상 시스템 강조색으로 선택 칸을 칠해서, 앱의 강조 색상 설정과 어긋나 보인다.
+/// 설정처럼 눈에 띄는 곳은 이 컨트롤로 대체한다 (사이드바 탭 픽커와 같은 문법).
+public struct DSSegmentedPicker<Value: Hashable>: View {
+    let options: [(value: Value, label: String)]
+    @Binding var selection: Value
+
+    @Environment(\.resolvedAccent) private var accent
+    @Namespace private var highlight
+
+    public init(selection: Binding<Value>, options: [(value: Value, label: String)]) {
+        _selection = selection
+        self.options = options
+    }
+
+    public var body: some View {
+        HStack(spacing: 2) {
+            ForEach(options, id: \.value) { option in
+                Button {
+                    withAnimation(DesignTokens.Motion.snappy) { selection = option.value }
+                } label: {
+                    Text(option.label)
+                        .font(.callout)
+                        .lineLimit(1)
+                        .foregroundStyle(selection == option.value ? accent : Color.secondary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity)
+                        .background {
+                            if selection == option.value {
+                                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                                    .fill(accent.opacity(0.14))
+                                    .matchedGeometryEffect(id: "dsSegHighlight", in: highlight)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color.primary.opacity(0.055))
+        )
+        .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
 public struct ToolbarIconButton: View {
     let systemName: String
     let help: String
