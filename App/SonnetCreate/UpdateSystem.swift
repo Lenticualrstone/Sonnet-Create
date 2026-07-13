@@ -26,13 +26,7 @@ enum UpdateChecker {
     }
 
     static func fetchLatest() async -> UpdateInfo? {
-        guard let url = URL(string: "https://api.github.com/repos/\(repo)/releases/latest") else { return nil }
-        var request = URLRequest(url: url)
-        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
-        request.timeoutInterval = 15
-        guard let (data, response) = try? await URLSession.shared.data(for: request),
-              (response as? HTTPURLResponse)?.statusCode == 200,
-              let release = try? JSONDecoder().decode(Release.self, from: data),
+        guard let release = await fetchRelease(path: "releases/latest"),
               let pageURL = URL(string: release.htmlURL)
         else { return nil }
         let dmg = release.assets.first { $0.name.lowercased().hasSuffix(".dmg") }
@@ -44,6 +38,20 @@ enum UpdateChecker {
             assetURL: dmg.flatMap { URL(string: $0.downloadURL) },
             assetName: dmg?.name
         )
+    }
+
+    /// GitHub Releases API의 임의 경로(`releases/latest`, `releases/tags/v1.3.0` 등)를 조회한다.
+    /// 다른 자산(가이드 프로젝트 등)을 찾는 코드에서도 재사용한다.
+    static func fetchRelease(path: String) async -> Release? {
+        guard let url = URL(string: "https://api.github.com/repos/\(repo)/\(path)") else { return nil }
+        var request = URLRequest(url: url)
+        request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = 15
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              (response as? HTTPURLResponse)?.statusCode == 200,
+              let release = try? JSONDecoder().decode(Release.self, from: data)
+        else { return nil }
+        return release
     }
 
     static func normalized(_ tag: String) -> String {
@@ -62,7 +70,7 @@ enum UpdateChecker {
         return false
     }
 
-    private struct Release: Decodable {
+    struct Release: Decodable {
         let tagName: String
         let name: String?
         let body: String?
@@ -76,7 +84,7 @@ enum UpdateChecker {
         }
     }
 
-    private struct Asset: Decodable {
+    struct Asset: Decodable {
         let name: String
         let downloadURL: String
 

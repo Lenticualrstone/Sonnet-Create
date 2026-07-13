@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Sonnet Create DMG 설치 화면 배경(PNG)을 생성한다.
+"""Generates the Sonnet Create DMG installer background (PNG).
 
-Sonnet 테마(앤티크 페이퍼 캔버스 + 적갈 액센트 + 그레인)를 그대로 옮겨,
-Finder DMG 창의 브랜드 경험이 앱 자체와 이어지도록 한다.
-create-dmg의 --window-size 700 460 (pt) 기준 2x(레티나) 픽셀로 렌더링한다.
+Carries over the Sonnet theme (antique paper canvas + rust accent + grain)
+so the Finder DMG window feels like an extension of the app itself.
+Rendered at 2x (Retina) pixels for create-dmg's --window-size 700 460 (pt).
+Text is kept in English — see the "dmg-english-only" decision: the DMG
+background is a baked image, so per-language variants aren't worth the
+maintenance cost. The app itself is localized via AppCore's Localizer.
 """
 import random
 from pathlib import Path
@@ -70,12 +73,12 @@ draw.text(
 rule_y = 104 * SCALE
 draw.line([(CENTER_X - 90 * SCALE, rule_y), (CENTER_X + 90 * SCALE, rule_y)], fill=ACCENT, width=max(1, SCALE // 2))
 
-# --- 1행: 앱 → Applications 화살표 안내 ---
+# --- 1행: 앱 → Applications 화살표 안내 (아이콘 위치: 220/480) ---
 row1_y = 160 * SCALE
-draw.text((CENTER_X, row1_y - 34 * SCALE), "앱을 Applications 폴더로 드래그하세요", font=pretendard_body, fill=INK, anchor="mm")
+draw.text((CENTER_X, row1_y - 34 * SCALE), "Drag the app into Applications", font=pretendard_body, fill=INK, anchor="mm")
 
-arrow_left = 150 * SCALE + 58 * SCALE
-arrow_right = 550 * SCALE - 58 * SCALE
+arrow_left = 220 * SCALE + 58 * SCALE
+arrow_right = 480 * SCALE - 58 * SCALE
 draw.line([(arrow_left, row1_y), (arrow_right, row1_y)], fill=ACCENT, width=3 * SCALE // 2)
 draw.polygon(
     [
@@ -86,11 +89,11 @@ draw.polygon(
     fill=ACCENT,
 )
 
-# --- 2행: 튜토리얼 프로젝트 안내 ---
+# --- 2행: Read Me 안내 (아이콘 위치: 350/330) ---
 row2_y = 300 * SCALE
 draw.text(
     (CENTER_X, row2_y),
-    "↓  튜토리얼 프로젝트 · 읽어보세요",
+    "↓  Read Me for setup notes",
     font=pretendard_body, fill=INK, anchor="mm"
 )
 
@@ -98,7 +101,7 @@ draw.text(
 footer_y = H - 26 * SCALE
 draw.text(
     (CENTER_X, footer_y),
-    "처음 실행 시 확인되지 않은 개발자 경고가 뜨면, 아이콘을 우클릭 → 열기를 선택하세요.",
+    "If macOS warns about an unidentified developer, right-click the icon and choose Open.",
     font=pretendard_small, fill=INK_MUTED, anchor="mm"
 )
 

@@ -1,0 +1,14 @@
+Sonnet Create
+=============
+
+1. Drag "Sonnet Create.app" into the Applications folder.
+2. On first launch, a ~/Documents/SonnetCreate folder is created automatically.
+3. Want a tutorial project? Open the app, go to Settings > Guide Project,
+   and click "Create Guide Project" — it downloads a sample project in
+   your app's language (Korean, Japanese, or English).
+
+Note
+----
+This build isn't notarized yet, so macOS may show an "unidentified
+developer" warning on first launch. Right-click the app icon and choose
+"Open" to run it anyway.

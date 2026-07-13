@@ -112,6 +112,9 @@ public enum L10nKey: String, Sendable {
     // v1.3 업데이트 시스템 (GitHub 릴리스 연동)
     case updates, updateAvailableFormat, updateCheckNow, updateAutoCheck, updateUpToDate
     case updateDownload, updateViewRelease, updateSkipVersion, updateCurrentFormat, updateDownloadFailed
+    // v1.3 가이드 프로젝트 (언어별 튜토리얼, GitHub 릴리스 자산에서 다운로드)
+    case guideProject, createGuideProject, guideProjectHint, guideProjectCreating
+    case guideProjectCreated, guideProjectFailed, guideProjectUnavailable
     // AI 스피어 스타일
     case aiSphereStyle, sphereStyleGlass, sphereStyleHolographic, sphereStyleInk, sphereStylePlasma, sphereStyleParticle
     // 시간대 인사말 (홈 히어로) — %@ 자리에 작가 이름(있으면)
@@ -493,6 +496,13 @@ public final class Localizer {
         .updateSkipVersion: [.korean: "이 버전 건너뛰기", .japanese: "このバージョンをスキップ", .english: "Skip This Version"],
         .updateCurrentFormat: [.korean: "현재 v%@", .japanese: "現在 v%@", .english: "Current v%@"],
         .updateDownloadFailed: [.korean: "업데이트 다운로드 실패", .japanese: "アップデートのダウンロードに失敗", .english: "Update download failed"],
+        .guideProject: [.korean: "가이드 프로젝트", .japanese: "ガイドプロジェクト", .english: "Guide Project"],
+        .createGuideProject: [.korean: "가이드 프로젝트 생성", .japanese: "ガイドプロジェクトを作成", .english: "Create Guide Project"],
+        .guideProjectHint: [.korean: "현재 언어로 된 튜토리얼 프로젝트를 GitHub에서 받아 워크스페이스에 추가합니다.", .japanese: "現在の言語のチュートリアルプロジェクトをGitHubから取得し、ワークスペースに追加します。", .english: "Downloads a tutorial project in your current language from GitHub and adds it to your workspace."],
+        .guideProjectCreating: [.korean: "가이드 프로젝트를 받는 중…", .japanese: "ガイドプロジェクトを取得中…", .english: "Downloading guide project…"],
+        .guideProjectCreated: [.korean: "가이드 프로젝트가 추가되었습니다", .japanese: "ガイドプロジェクトを追加しました", .english: "Guide project added"],
+        .guideProjectFailed: [.korean: "가이드 프로젝트를 받지 못했습니다", .japanese: "ガイドプロジェクトの取得に失敗しました", .english: "Couldn't download guide project"],
+        .guideProjectUnavailable: [.korean: "이 버전에는 가이드 프로젝트가 아직 없습니다", .japanese: "このバージョンのガイドプロジェクトはまだありません", .english: "No guide project is available for this version yet"],
         .aiSphereStyle: [.korean: "AI 스피어 스타일", .japanese: "AIスフィアのスタイル", .english: "AI Sphere Style"],
         .sphereStyleGlass: [.korean: "글래스", .japanese: "ガラス", .english: "Glass"],
         .sphereStyleHolographic: [.korean: "홀로그램", .japanese: "ホログラム", .english: "Holographic"],

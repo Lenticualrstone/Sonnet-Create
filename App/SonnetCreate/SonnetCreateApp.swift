@@ -109,6 +109,10 @@ struct SonnetCreateApp: App {
                 updateSectionView: AnyView(
                     UpdateSettingsSection()
                         .environment(appState)
+                ),
+                guideProjectSectionView: AnyView(
+                    GuideProjectSettingsSection()
+                        .environment(appState)
                 )
             )
             .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)

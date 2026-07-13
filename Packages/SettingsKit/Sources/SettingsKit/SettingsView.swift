@@ -77,14 +77,22 @@ public struct SettingsRootView: View {
     let backupTimelineView: AnyView?
     /// 업데이트 섹션 (자동 확인 토글 + 지금 확인) — 앱이 AnyView로 주입 (backupTimelineView와 동일 패턴)
     let updateSectionView: AnyView?
+    /// 가이드 프로젝트 섹션 (언어별 튜토리얼 다운로드) — 앱이 AnyView로 주입 (updateSectionView와 동일 패턴)
+    let guideProjectSectionView: AnyView?
     @Environment(\.resolvedAccent) private var accent
     @State private var showCropEditor = false
     @State private var category: SettingsCategory = .general
 
-    public init(store: SettingsStore, backupTimelineView: AnyView? = nil, updateSectionView: AnyView? = nil) {
+    public init(
+        store: SettingsStore,
+        backupTimelineView: AnyView? = nil,
+        updateSectionView: AnyView? = nil,
+        guideProjectSectionView: AnyView? = nil
+    ) {
         self.store = store
         self.backupTimelineView = backupTimelineView
         self.updateSectionView = updateSectionView
+        self.guideProjectSectionView = guideProjectSectionView
     }
 
     public var body: some View {
@@ -226,6 +234,12 @@ public struct SettingsRootView: View {
             if let updateSectionView {
                 Section(l10n.t(.updates)) {
                     updateSectionView
+                }
+            }
+
+            if let guideProjectSectionView {
+                Section(l10n.t(.guideProject)) {
+                    guideProjectSectionView
                 }
             }
         }

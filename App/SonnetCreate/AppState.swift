@@ -232,6 +232,7 @@ final class AppState {
     var availableUpdate: UpdateInfo?
     var isCheckingUpdate = false
     var isDownloadingUpdate = false
+    var isCreatingGuideProject = false
 
     init() {
         let root = URL(fileURLWithPath: settings.applied.workspacePath, isDirectory: true)
