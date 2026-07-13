@@ -354,6 +354,21 @@ public struct SettingsRootView: View {
                 }
             }
 
+            // AI 스피어 스타일 — 라이브 프리뷰를 보며 고른다 (draft 즉시 반영, 저장 시 앱 전역 적용)
+            Section(l10n.t(.aiSphereStyle)) {
+                VStack(spacing: DesignTokens.Spacing.m) {
+                    AISphere(
+                        size: 76,
+                        style: AISphereStyle(rawValue: store.draft.aiSphereStyleRaw) ?? .glass
+                    )
+                    DSSegmentedPicker(
+                        selection: $store.draft.aiSphereStyleRaw,
+                        options: AISphereStyle.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
+                    )
+                }
+                .frame(maxWidth: .infinity)
+            }
+
             LabeledContent(l10n.t(.uiScale)) {
                 BarSlider(
                     value: $store.draft.uiScale, in: 0.9...1.3, step: 0.05,

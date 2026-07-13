@@ -112,6 +112,8 @@ public enum L10nKey: String, Sendable {
     // v1.3 업데이트 시스템 (GitHub 릴리스 연동)
     case updates, updateAvailableFormat, updateCheckNow, updateAutoCheck, updateUpToDate
     case updateDownload, updateViewRelease, updateSkipVersion, updateCurrentFormat, updateDownloadFailed
+    // AI 스피어 스타일
+    case aiSphereStyle, sphereStyleGlass, sphereStyleHolographic, sphereStyleInk, sphereStylePlasma
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -486,5 +488,10 @@ public final class Localizer {
         .updateSkipVersion: [.korean: "이 버전 건너뛰기", .japanese: "このバージョンをスキップ", .english: "Skip This Version"],
         .updateCurrentFormat: [.korean: "현재 v%@", .japanese: "現在 v%@", .english: "Current v%@"],
         .updateDownloadFailed: [.korean: "업데이트 다운로드 실패", .japanese: "アップデートのダウンロードに失敗", .english: "Update download failed"],
+        .aiSphereStyle: [.korean: "AI 스피어 스타일", .japanese: "AIスフィアのスタイル", .english: "AI Sphere Style"],
+        .sphereStyleGlass: [.korean: "글래스", .japanese: "ガラス", .english: "Glass"],
+        .sphereStyleHolographic: [.korean: "홀로그램", .japanese: "ホログラム", .english: "Holographic"],
+        .sphereStyleInk: [.korean: "잉크", .japanese: "インク", .english: "Ink"],
+        .sphereStylePlasma: [.korean: "플라즈마", .japanese: "プラズマ", .english: "Plasma"],
     ]
 }

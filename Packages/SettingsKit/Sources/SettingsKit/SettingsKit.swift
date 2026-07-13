@@ -39,6 +39,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var touchBarEnabled: Bool = false
     /// 시나리오 캐릭터 인스펙터를 오른쪽에 배치
     public var scenarioInspectorOnRight: Bool = false
+    /// AI 스피어 스타일 — "glass"(기본) | "holographic" | "ink" | "plasma"
+    public var aiSphereStyleRaw: String = "glass"
     public var quality: RenderQuality = .standard
     public var backgroundSpeed: Double = 0.6
     public var backgroundDensity: Double = 34
@@ -110,6 +112,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         tabStyleRaw = try c.decodeIfPresent(String.self, forKey: .tabStyleRaw) ?? d.tabStyleRaw
         touchBarEnabled = try c.decodeIfPresent(Bool.self, forKey: .touchBarEnabled) ?? d.touchBarEnabled
         scenarioInspectorOnRight = try c.decodeIfPresent(Bool.self, forKey: .scenarioInspectorOnRight) ?? d.scenarioInspectorOnRight
+        aiSphereStyleRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereStyleRaw) ?? d.aiSphereStyleRaw
         quality = try c.decodeIfPresent(RenderQuality.self, forKey: .quality) ?? d.quality
         backgroundSpeed = try c.decodeIfPresent(Double.self, forKey: .backgroundSpeed) ?? d.backgroundSpeed
         backgroundDensity = try c.decodeIfPresent(Double.self, forKey: .backgroundDensity) ?? d.backgroundDensity
