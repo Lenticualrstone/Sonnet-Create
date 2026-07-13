@@ -106,6 +106,9 @@ public enum L10nKey: String, Sendable {
     // v1.2 인터페이스: 프로젝트 파일 인스펙터 · 손상 복구
     case projectFiles
     case recoverFromSnapshot, eventRecovered
+    // v1.2 신기능: 대본 내보내기 · 씬 목차 · 주간 리포트
+    case exportText, exportScript, sceneList, sceneFormat
+    case weeklyReport, weeklyTotal, weeklyBestDay, vsLastWeek
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -462,5 +465,13 @@ public final class Localizer {
         .projectFiles: [.korean: "프로젝트 파일", .japanese: "プロジェクトファイル", .english: "Project Files"],
         .recoverFromSnapshot: [.korean: "최근 스냅샷에서 복구", .japanese: "最新スナップショットから復元", .english: "Recover from Latest Snapshot"],
         .eventRecovered: [.korean: "스냅샷에서 복구됨", .japanese: "スナップショットから復元しました", .english: "Recovered from snapshot"],
+        .exportText: [.korean: "텍스트 내보내기", .japanese: "テキストを書き出す", .english: "Export Text"],
+        .exportScript: [.korean: "대본 내보내기", .japanese: "台本を書き出す", .english: "Export Script"],
+        .sceneList: [.korean: "씬 목차", .japanese: "シーン一覧", .english: "Scenes"],
+        .sceneFormat: [.korean: "장면 %d", .japanese: "シーン%d", .english: "Scene %d"],
+        .weeklyReport: [.korean: "주간 집필", .japanese: "週間執筆", .english: "This Week"],
+        .weeklyTotal: [.korean: "7일 합계", .japanese: "7日間合計", .english: "7-day total"],
+        .weeklyBestDay: [.korean: "최고 기록", .japanese: "ベスト", .english: "Best day"],
+        .vsLastWeek: [.korean: "지난주 대비", .japanese: "先週比", .english: "vs last week"],
     ]
 }

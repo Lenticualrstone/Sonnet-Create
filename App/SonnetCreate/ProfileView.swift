@@ -48,6 +48,9 @@ struct ProfileView: View {
                 // 집필 목표 — 오늘 쓴 글자 수 / 목표, 연속 일수
                 writingGoalCard(l10n)
 
+                // 주간 집필 리포트 — 최근 7일 막대 + 합계/최고/지난주 대비
+                weeklyReportCard(l10n)
+
                 // 기여도 그래프 (GitHub식)
                 VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
                     Label(l10n.t(.contributions), systemImage: "square.grid.4x3.fill")
@@ -150,6 +153,88 @@ struct ProfileView: View {
             RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
                 .fill(SonnetPalette.surface)
         )
+    }
+
+    private func weeklyReportCard(_ l10n: Localizer) -> some View {
+        let week = app.stats.recentWeekWriting
+        let total = week.reduce(0) { $0 + $1.count }
+        let best = week.max { $0.count < $1.count }
+        let previous = app.stats.previousWeekTotal
+        let maxCount = max(1, week.map(\.count).max() ?? 1)
+        let goal = max(1, Int(app.settings.applied.dailyWritingGoal))
+
+        return VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+            HStack {
+                Label(l10n.t(.weeklyReport), systemImage: "chart.bar.fill")
+                    .font(.headline)
+                Spacer()
+                if previous > 0 || total > 0 {
+                    weeklyDelta(l10n, total: total, previous: previous)
+                }
+            }
+
+            HStack(alignment: .bottom, spacing: DesignTokens.Spacing.l) {
+                // 7일 미니 막대 — 목표 달성일은 액센트 풀톤
+                HStack(alignment: .bottom, spacing: 6) {
+                    ForEach(week, id: \.date) { day in
+                        VStack(spacing: 3) {
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(day.count >= goal ? accent : accent.opacity(day.count >= 1 ? 0.45 : 0.12))
+                                .frame(width: 18, height: max(4, 46 * CGFloat(day.count) / CGFloat(maxCount)))
+                            Text(day.date, format: .dateTime.weekday(.narrow))
+                                .font(.caption2)
+                                .foregroundStyle(Calendar.current.isDateInToday(day.date) ? accent : Color.secondary)
+                        }
+                        .help("\(day.date.formatted(date: .abbreviated, time: .omitted)) — \(day.count)\(l10n.t(.charsUnit))")
+                    }
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 4) {
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text("\(total)")
+                            .font(.system(size: 20, weight: .bold, design: .rounded).monospacedDigit())
+                        Text(l10n.t(.weeklyTotal))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    // 튜플의 count 필드 — swiftformat isEmpty 규칙을 피하려고 >= 1 사용
+                    if let best, best.count >= 1 {
+                        VStack(alignment: .trailing, spacing: 0) {
+                            Text("\(best.count)")
+                                .font(.callout.weight(.semibold).monospacedDigit())
+                            Text("\(l10n.t(.weeklyBestDay)) · \(best.date.formatted(.dateTime.weekday(.abbreviated)))")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(DesignTokens.Spacing.m)
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(SonnetPalette.surface)
+        )
+    }
+
+    /// 지난주(8~14일 전) 대비 증감 배지.
+    @ViewBuilder
+    private func weeklyDelta(_ l10n: Localizer, total: Int, previous: Int) -> some View {
+        let delta = total - previous
+        let symbol = delta > 0 ? "arrow.up.right" : (delta < 0 ? "arrow.down.right" : "minus")
+        let color: Color = delta > 0 ? .green : (delta < 0 ? .orange : .secondary)
+        HStack(spacing: 3) {
+            Image(systemName: symbol)
+                .font(.caption2.weight(.bold))
+            Text(delta == 0 ? "±0" : (delta > 0 ? "+\(delta)" : "\(delta)"))
+                .font(.caption.weight(.semibold).monospacedDigit())
+            Text(l10n.t(.vsLastWeek))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .foregroundStyle(color)
     }
 
     private func statsRow(_ l10n: Localizer) -> some View {

@@ -83,6 +83,30 @@ final class StatsLedger {
         writing[Self.dayFormatter.string(from: Date())] ?? 0
     }
 
+    func writingCount(on date: Date) -> Int {
+        writing[Self.dayFormatter.string(from: date)] ?? 0
+    }
+
+    /// 오늘 포함 최근 7일의 (날짜, 글자 수) — 오래된 날부터. 주간 리포트 막대용.
+    var recentWeekWriting: [(date: Date, count: Int)] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return (0..<7).reversed().compactMap { offset in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
+            return (date: day, count: writingCount(on: day))
+        }
+    }
+
+    /// 그 이전 7일(8~14일 전) 합계 — 주간 증감 비교 기준.
+    var previousWeekTotal: Int {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        return (7..<14).reduce(0) { sum, offset in
+            guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return sum }
+            return sum + writingCount(on: day)
+        }
+    }
+
     /// 연속 집필 일수 — 오늘 썼다면 오늘부터, 아직이면 어제부터 거슬러 센다.
     var writingStreak: Int {
         let calendar = Calendar.current

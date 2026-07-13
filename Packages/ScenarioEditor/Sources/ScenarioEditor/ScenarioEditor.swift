@@ -3,6 +3,7 @@ import AppCore
 import DesignSystem
 import DocumentKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// 채팅형 시나리오 뷰어/에디터.
 public struct ScenarioEditorView: View {
@@ -141,6 +142,10 @@ public struct ScenarioEditorView: View {
 
             branchPicker(l10n)
 
+            if scenes.count >= 2 {
+                sceneMenu(l10n)
+            }
+
             Spacer()
 
             ReadOnlyBadge()
@@ -155,6 +160,17 @@ public struct ScenarioEditorView: View {
             SaveStatusBadge(state: saveState, label: l10n.t(saveState.labelKey), action: onManualSave)
 
             ReadOnlyToggle()
+
+            Menu {
+                Button(l10n.t(.exportText)) { exportText() }
+                Button(l10n.t(.exportPDF)) { exportPDF() }
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 13, weight: .medium))
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help(l10n.t(.exportScript))
 
             if isReadOnly {
                 rehearsalControls(l10n)
@@ -206,6 +222,92 @@ public struct ScenarioEditorView: View {
         }
         .padding(.horizontal, DesignTokens.Spacing.m)
         .padding(.vertical, DesignTokens.Spacing.s)
+    }
+
+    // MARK: 씬 목차 (구분선 블록 = 장면 경계)
+
+    /// 활성 시퀀스를 구분선으로 잘라 장면 목록을 만든다. (id: 장면 첫 블록, title: 첫 텍스트 미리보기)
+    private var scenes: [(id: UUID, title: String)] {
+        var result: [(UUID, String)] = []
+        var segment: [ScenarioBlock] = []
+        func flush() {
+            defer { segment = [] }
+            guard let first = segment.first else { return }
+            let preview = segment.first(where: { !$0.text.isEmpty })?.text.prefix(20)
+            result.append((first.id, preview.map(String.init) ?? ""))
+        }
+        for block in store.activeBlocks {
+            if block.kind == .divider {
+                flush()
+            } else {
+                segment.append(block)
+            }
+        }
+        flush()
+        return result
+    }
+
+    private func sceneMenu(_ l10n: Localizer) -> some View {
+        Menu {
+            ForEach(Array(scenes.enumerated()), id: \.element.id) { index, scene in
+                Button {
+                    jumpToScene(scene.id)
+                } label: {
+                    let number = String(format: l10n.t(.sceneFormat), index + 1)
+                    Text(scene.title.isEmpty ? number : "\(number) — \(scene.title)")
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "list.bullet.rectangle")
+                    .font(.caption)
+                Text("\(scenes.count)")
+                    .font(.caption.weight(.semibold).monospacedDigit())
+            }
+            .foregroundStyle(Color.secondary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(Color.primary.opacity(0.07)))
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(l10n.t(.sceneList))
+    }
+
+    /// 같은 장면을 연속으로 선택해도 스크롤되도록 nil을 한 틱 거쳐 목표를 갱신한다.
+    private func jumpToScene(_ id: UUID) {
+        searchScrollTarget = nil
+        DispatchQueue.main.async { searchScrollTarget = id }
+    }
+
+    // MARK: 대본 내보내기
+
+    private var exportTitle: String {
+        breadcrumb.last ?? "Scenario"
+    }
+
+    private func exportText() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.plainText]
+        panel.nameFieldStringValue = exportTitle + ".txt"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let script = ScenarioExport.text(
+            title: exportTitle, content: store.content, blocks: store.effectiveFlowForAI
+        )
+        try? script.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private func exportPDF() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.pdf]
+        panel.nameFieldStringValue = exportTitle + ".pdf"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        if let data = ScenarioExport.pdf(
+            title: exportTitle, content: store.content, blocks: store.effectiveFlowForAI
+        ) {
+            try? data.write(to: url)
+        }
     }
 
     // MARK: 분기 피커
