@@ -259,6 +259,9 @@ struct MainWindowView: View {
                 },
                 onNavigate: { category, projectID in
                     app.recordArchiveNav(category, projectID)
+                },
+                onCreate: { kind, role in
+                    app.createAndOpen(kind: kind, pageRole: role, in: app.creationTargetProject)
                 }
             )
         case .document(let docID):
@@ -447,7 +450,11 @@ struct ChromeTabBar: View {
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            .help(l10n.t(.newDocument))
+            // 어디에 만들어지는지 누르기 전에 알 수 있게 — 대상 프로젝트를 툴팁에 표시
+            .help(
+                app.creationTargetProject.map { "\(l10n.t(.newDocument)) → \($0.manifest.name)" }
+                    ?? l10n.t(.newDocument)
+            )
             .onHover { newDocMenuHover = $0 }
             .animation(DesignTokens.Motion.snappy, value: newDocMenuHover)
 

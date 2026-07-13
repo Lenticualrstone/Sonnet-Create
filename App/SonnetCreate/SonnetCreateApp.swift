@@ -41,7 +41,7 @@ struct SonnetCreateApp: App {
                 .environment(\.pageFocusMode, appState.settings.applied.pageFocusModeEnabled)
                 .environment(\.pageTypewriterMode, appState.settings.applied.pageTypewriterEnabled)
                 .environment(\.mindmapAutoOpenInspector, appState.settings.applied.mindmapAutoOpenInspector)
-                .environment(\.aiSphereStyle, AISphereStyle(rawValue: appState.settings.applied.aiSphereStyleRaw) ?? .glass)
+                .environment(\.aiSphereStyle, AISphereStyle(rawValue: appState.settings.applied.aiSphereStyleRaw) ?? .particle)
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
@@ -60,6 +60,16 @@ struct SonnetCreateApp: App {
         .windowStyle(.hiddenTitleBar)
         .commands {
             CommandGroup(after: .newItem) {
+                // 새 문서 — 현재 컨텍스트(프로젝트 아카이브/프로젝트 문서 탭)의 프로젝트를 따른다
+                Button(Localizer.shared.t(.newScenario)) {
+                    appState.createAndOpen(kind: .scenario, in: appState.creationTargetProject)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+                Button(Localizer.shared.t(.newPage)) {
+                    appState.createAndOpen(kind: .page, in: appState.creationTargetProject)
+                }
+                .keyboardShortcut("n", modifiers: [.command, .shift])
+                Divider()
                 Button(Localizer.shared.t(.home)) { appState.selectOrOpenHome() }
                     .keyboardShortcut("t", modifiers: .command)
                 Button(Localizer.shared.t(.archive)) { appState.openArchiveTab() }

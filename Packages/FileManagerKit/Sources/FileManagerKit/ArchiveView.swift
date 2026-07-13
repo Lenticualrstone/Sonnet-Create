@@ -63,6 +63,8 @@ public struct ArchiveView: View {
     let onRestoreFallback: (() -> Void)?
     /// 카테고리/프로젝트 필터가 바뀔 때마다 호출 — 뒤로/앞으로 탐색 히스토리 기록용
     let onNavigate: ((Category, UUID?) -> Void)?
+    /// 빈 카테고리의 빠른 생성 버튼 — 앱이 컨텍스트 프로젝트를 반영해 생성한다
+    let onCreate: ((DocumentKind, PageRole?) -> Void)?
 
     @State private var category: Category = .all
     @State private var sortOrder: SortOrder = .modified
@@ -88,7 +90,8 @@ public struct ArchiveView: View {
         requestPermanentDelete: (([DocumentListItem]) -> Void)? = nil,
         isSessionUnlocked: Bool = false,
         onRestoreFallback: (() -> Void)? = nil,
-        onNavigate: ((Category, UUID?) -> Void)? = nil
+        onNavigate: ((Category, UUID?) -> Void)? = nil,
+        onCreate: ((DocumentKind, PageRole?) -> Void)? = nil
     ) {
         self.workspace = workspace
         self.onOpen = onOpen
@@ -100,6 +103,7 @@ public struct ArchiveView: View {
         self.isSessionUnlocked = isSessionUnlocked
         self.onRestoreFallback = onRestoreFallback
         self.onNavigate = onNavigate
+        self.onCreate = onCreate
     }
 
     public var body: some View {
@@ -431,8 +435,30 @@ public struct ArchiveView: View {
             Text(emptyMessage(l10n))
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            // 빈 문서 카테고리에서는 바로 만들 수 있게 — 목적지(프로젝트 필터)도 따라간다
+            if query.isEmpty, let creation = emptyCreationTarget, let onCreate {
+                Button {
+                    onCreate(creation.kind, creation.role)
+                } label: {
+                    Label(l10n.t(creation.labelKey), systemImage: "plus")
+                }
+                .controlSize(.small)
+                .padding(.top, 4)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// 빈 카테고리에서 제안할 생성 대상 — 문서 종류 카테고리에서만.
+    private var emptyCreationTarget: (kind: DocumentKind, role: PageRole?, labelKey: L10nKey)? {
+        switch category {
+        case .scenario: (.scenario, nil, .newScenario)
+        case .mindmap: (.mindmap, nil, .newMindMap)
+        case .page: (.page, nil, .newPage)
+        case .character: (.page, .character, .newCharacter)
+        default: nil
+        }
     }
 
     private func emptyMessage(_ l10n: Localizer) -> String {

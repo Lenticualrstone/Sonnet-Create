@@ -39,8 +39,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var touchBarEnabled: Bool = false
     /// 시나리오 캐릭터 인스펙터를 오른쪽에 배치
     public var scenarioInspectorOnRight: Bool = false
-    /// AI 스피어 스타일 — "glass"(기본) | "holographic" | "ink" | "plasma"
-    public var aiSphereStyleRaw: String = "glass"
+    /// AI 스피어 스타일 — "particle"(기본) | "glass" | "holographic" | "ink" | "plasma"
+    public var aiSphereStyleRaw: String = "particle"
     public var quality: RenderQuality = .standard
     public var backgroundSpeed: Double = 0.6
     public var backgroundDensity: Double = 34

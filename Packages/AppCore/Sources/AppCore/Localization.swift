@@ -113,7 +113,7 @@ public enum L10nKey: String, Sendable {
     case updates, updateAvailableFormat, updateCheckNow, updateAutoCheck, updateUpToDate
     case updateDownload, updateViewRelease, updateSkipVersion, updateCurrentFormat, updateDownloadFailed
     // AI 스피어 스타일
-    case aiSphereStyle, sphereStyleGlass, sphereStyleHolographic, sphereStyleInk, sphereStylePlasma
+    case aiSphereStyle, sphereStyleGlass, sphereStyleHolographic, sphereStyleInk, sphereStylePlasma, sphereStyleParticle
 }
 
 /// 딕셔너리 기반 경량 로컬라이저. 시스템 .strings 대신 패키지 간 공유가 쉬운 단일 테이블을 쓴다.
@@ -493,5 +493,6 @@ public final class Localizer {
         .sphereStyleHolographic: [.korean: "홀로그램", .japanese: "ホログラム", .english: "Holographic"],
         .sphereStyleInk: [.korean: "잉크", .japanese: "インク", .english: "Ink"],
         .sphereStylePlasma: [.korean: "플라즈마", .japanese: "プラズマ", .english: "Plasma"],
+        .sphereStyleParticle: [.korean: "파티클", .japanese: "パーティクル", .english: "Particle"],
     ]
 }

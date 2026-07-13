@@ -3,8 +3,10 @@ import SwiftUI
 
 /// ASCII 웨이브 필드 — 삼각함수 간섭장을 글자 램프(밝기 → 문자)에 매핑해
 /// 터미널 감성의 물결 애니메이션을 그린다. 홈 히어로의 픽셀 디밍 필드를 대체.
-/// (참고: waves-ascii 시뮬레이터의 행·열 위상 이동 기법 — 행마다 살짝 어긋난
-/// 사인파가 겹치며 문자들이 리듬감 있게 떠오르고 가라앉는다.)
+///
+/// 인터랙션: 커서가 지나간 궤적을 교란점 트레일로 기록하고, 근처 글자들이
+/// 교란점에서 **밀려나 흩어졌다가**(변위 + 흐려짐) 시간이 지나면 제자리로
+/// 돌아온다 — 위상만 바꾸는 리플이 아니라 실제 분산 느낌을 준다.
 public struct ASCIIWaveField: View {
     let columns: Int
     let rows: Int
@@ -16,8 +18,13 @@ public struct ASCIIWaveField: View {
     /// 어두움 → 밝음 순의 글자 램프. 공백이 "꺼짐"이라 필드 가장자리가 자연히 사라진다.
     private static let ramp: [Character] = Array(" ·:∗+✳#@")
 
-    /// 호버 위치 (뷰 좌표) — 커서에서 물결이 퍼져나가는 리플의 중심 (waves-ascii 참고)
-    @State private var hoverPoint: CGPoint?
+    /// 커서 궤적의 교란점 하나 — 시간이 지나며 힘이 사그라든다.
+    private struct Disturbance {
+        let point: CGPoint
+        let time: TimeInterval
+    }
+
+    @State private var disturbances: [Disturbance] = []
 
     public init(
         columns: Int = 44,
@@ -42,18 +49,30 @@ public struct ASCIIWaveField: View {
                 canvas(time: 0)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / (quality == .high ? 24.0 : 15.0))) { context in
-                    canvas(time: context.date.timeIntervalSinceReferenceDate * speed)
+                    canvas(time: context.date.timeIntervalSinceReferenceDate)
                 }
             }
         }
         .frame(height: CGFloat(rows) * fontSize * 1.25)
         .onContinuousHover { phase in
-            switch phase {
-            case .active(let point): hoverPoint = point
-            case .ended: hoverPoint = nil
-            }
+            guard case .active(let point) = phase else { return }
+            recordDisturbance(at: point)
         }
         .accessibilityHidden(true)
+    }
+
+    /// 커서 이동을 교란점으로 기록 — 너무 촘촘히 쌓이지 않게 최소 이동 거리로 걸러낸다.
+    private func recordDisturbance(at point: CGPoint) {
+        let now = Date().timeIntervalSinceReferenceDate
+        if let last = disturbances.last {
+            let dx = point.x - last.point.x
+            let dy = point.y - last.point.y
+            guard dx * dx + dy * dy > 36 || now - last.time > 0.08 else { return }
+        }
+        disturbances.append(Disturbance(point: point, time: now))
+        if disturbances.count > 14 {
+            disturbances.removeFirst(disturbances.count - 14)
+        }
     }
 
     private func canvas(time: TimeInterval) -> some View {
@@ -68,44 +87,68 @@ public struct ASCIIWaveField: View {
                         .foregroundStyle(color.opacity(0.62))
                 )
             }
-            // 호버 리플 중심을 셀 좌표로 변환 (없으면 nil)
-            let rippleCenter: (x: Double, y: Double)? = hoverPoint.map {
-                (x: Double($0.x / cellWidth), y: Double($0.y / cellHeight))
-            }
+
+            // 살아 있는 교란점만 (1.1초 감쇠) — 프레임 시계 기준
+            let now = Date().timeIntervalSinceReferenceDate
+            let active = disturbances.filter { now - $0.time < 1.1 }
+            let scatterRadius = cellWidth * 5.5 // 교란 영향 반경
+
             for row in 0..<rows {
                 for col in 0..<columns {
-                    let value = fieldValue(col: col, row: row, time: time, ripple: rippleCenter)
-                    let index = min(Self.ramp.count - 1, max(0, Int(value * Double(Self.ramp.count))))
-                    guard index > 0 else { continue } // 공백은 그리지 않는다
-                    let point = CGPoint(
+                    let value = fieldValue(col: col, row: row, time: time * speed)
+                    var point = CGPoint(
                         x: (CGFloat(col) + 0.5) * cellWidth,
                         y: (CGFloat(row) + 0.5) * cellHeight
                     )
-                    context.draw(glyphs[index], at: point)
+
+                    // 교란점들로부터 밀려나는 변위 — 가까울수록·최근일수록 강하게,
+                    // 감쇠가 끝나면 부드럽게 제자리로 돌아온다.
+                    var pushX: CGFloat = 0
+                    var pushY: CGFloat = 0
+                    var scatterEnergy: CGFloat = 0
+                    for disturbance in active {
+                        let age = CGFloat(now - disturbance.time)
+                        let decay = exp(-age * 3.2) // 시간 감쇠
+                        let dx = point.x - disturbance.point.x
+                        let dy = point.y - disturbance.point.y
+                        let distance = max(4, (dx * dx + dy * dy).squareRoot())
+                        guard distance < scatterRadius else { continue }
+                        let falloff = 1 - distance / scatterRadius // 거리 감쇠 (0...1)
+                        let strength = decay * falloff * falloff
+                        let magnitude = strength * cellWidth * 2.6
+                        pushX += dx / distance * magnitude
+                        pushY += dy / distance * magnitude
+                        scatterEnergy = max(scatterEnergy, strength)
+                    }
+                    point.x += pushX
+                    point.y += pushY
+
+                    // 흩어진 글자는 흐려진다 — 밀도가 빠져나간 느낌
+                    let effective = value * Double(1 - scatterEnergy * 0.75)
+                    let index = min(Self.ramp.count - 1, max(0, Int(effective * Double(Self.ramp.count))))
+                    guard index > 0 else { continue }
+                    if scatterEnergy > 0.02 {
+                        var scattered = context
+                        scattered.opacity = Double(1 - scatterEnergy * 0.45)
+                        scattered.draw(glyphs[index], at: point)
+                    } else {
+                        context.draw(glyphs[index], at: point)
+                    }
                 }
             }
         }
     }
 
-    /// 세 사인파의 간섭 + 가장자리 페이드 + 호버 리플 → 0...1 밝기.
-    private func fieldValue(col: Int, row: Int, time: Double, ripple: (x: Double, y: Double)?) -> Double {
+    /// 세 사인파의 간섭 + 가장자리 페이드 → 0...1 밝기.
+    private func fieldValue(col: Int, row: Int, time: Double) -> Double {
         let x = Double(col)
         let y = Double(row)
-        var wave = (
+        let wave = (
             sin(x * 0.42 + time * 1.5)
                 + sin(x * 0.23 + y * 0.9 - time * 1.05)
                 + sin(y * 1.35 + time * 0.65)
         ) / 3.0 // -1...1
-
-        // 커서에서 동심원 물결이 퍼져나간다 — 거리 감쇠 지수 파문
-        if let ripple {
-            let dx = x - ripple.x
-            let dy = (y - ripple.y) * 2.2 // 셀이 가로로 넓으니 세로 거리 보정
-            let distance = (dx * dx + dy * dy).squareRoot()
-            wave += 0.9 * sin(distance * 1.15 - time * 5.0) * exp(-distance * 0.16)
-        }
-
-        let normalized = 0.5 + 0.5 * max(-1, min(1, wave))
+        let normalized = 0.5 + 0.5 * wave
 
         // 가로 가장자리로 갈수록 사라지게 (히어로 중앙 강조)
         let centerDistance = abs(x / Double(columns - 1) - 0.5) * 2 // 0(중앙)...1(가장자리)

@@ -359,7 +359,7 @@ public struct SettingsRootView: View {
                 VStack(spacing: DesignTokens.Spacing.m) {
                     AISphere(
                         size: 76,
-                        style: AISphereStyle(rawValue: store.draft.aiSphereStyleRaw) ?? .glass
+                        style: AISphereStyle(rawValue: store.draft.aiSphereStyleRaw) ?? .particle
                     )
                     DSSegmentedPicker(
                         selection: $store.draft.aiSphereStyleRaw,

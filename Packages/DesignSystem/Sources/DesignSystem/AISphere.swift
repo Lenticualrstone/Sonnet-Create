@@ -6,7 +6,10 @@ import SwiftUI
 
 /// AI 스피어 디자인 바리에이션 — 설정 > 모양에서 프리뷰를 보며 선택한다.
 public enum AISphereStyle: String, CaseIterable, Sendable, Identifiable {
-    /// 리퀴드 글래스 — 유리구슬 안에서 색 블롭이 유영 (기본, metasidd/Orb 레이어링 참고)
+    /// 파티클 — 입자로 이루어진 구 (기본). 평소엔 부드럽게 회전하고,
+    /// 커서가 스치면 입자가 밀려나 흩어졌다 돌아오며, 생성 중엔 전체가 요동친다.
+    case particle
+    /// 리퀴드 글래스 — 유리구슬 안에서 색 블롭이 유영 (metasidd/Orb 레이어링 참고)
     case glass
     /// 홀로그래픽 — 진주광택 박막 간섭 무지개 (Metal)
     case holographic
@@ -19,6 +22,7 @@ public enum AISphereStyle: String, CaseIterable, Sendable, Identifiable {
 
     public var labelKey: L10nKey {
         switch self {
+        case .particle: .sphereStyleParticle
         case .glass: .sphereStyleGlass
         case .holographic: .sphereStyleHolographic
         case .ink: .sphereStyleInk
@@ -28,7 +32,7 @@ public enum AISphereStyle: String, CaseIterable, Sendable, Identifiable {
 }
 
 private struct AISphereStyleKey: EnvironmentKey {
-    static let defaultValue: AISphereStyle = .glass
+    static let defaultValue: AISphereStyle = .particle
 }
 
 public extension EnvironmentValues {
@@ -97,6 +101,7 @@ public struct AISphere: View {
         let breathe = activity == .thinking ? 1 + 0.04 * sin(t * 3.1) : 1
         Group {
             switch style {
+            case .particle: particleSphere(t)
             case .glass: glassSphere(t)
             case .holographic: shaderSphere(function: "aiSphereHolo", time: time)
             case .ink: inkSphere(t)
@@ -109,7 +114,112 @@ public struct AISphere: View {
         .animation(DesignTokens.Motion.gentle, value: hover == nil)
     }
 
-    // MARK: 글래스 — 유리구슬 속 색 블롭 (기본)
+    // MARK: 파티클 — 입자 구 (기본)
+
+    /// 피보나치 나선으로 구면에 고르게 뿌린 단위 방향 벡터들.
+    private static func fibonacciDirections(count: Int) -> [SIMD3<Double>] {
+        let golden = Double.pi * (3 - 5.0.squareRoot())
+        return (0..<count).map { index in
+            let y = 1 - (Double(index) + 0.5) / Double(count) * 2 // 1 → -1
+            let ringRadius = (1 - y * y).squareRoot()
+            let theta = golden * Double(index)
+            return SIMD3(cos(theta) * ringRadius, y, sin(theta) * ringRadius)
+        }
+    }
+
+    private static let directionsLarge = fibonacciDirections(count: 140)
+    private static let directionsSmall = fibonacciDirections(count: 64)
+
+    @ViewBuilder
+    private func particleSphere(_ t: Double) -> some View {
+        let base = vividBase
+        ZStack {
+            // 은은한 후광 — 입자 사이로 배어 나오는 빛
+            Circle()
+                .fill(base.opacity(activity == .thinking ? 0.30 : 0.18))
+                .blur(radius: size * 0.13)
+                .scaleEffect(0.95)
+
+            Canvas { context, canvasSize in
+                let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+                let sphereRadius = min(canvasSize.width, canvasSize.height) * 0.42
+                let directions = size < 44 ? Self.directionsSmall : Self.directionsLarge
+
+                // 느린 2축 회전 — 살아 있는 느낌의 핵심
+                let yaw = t * 0.4
+                let pitch = 0.4 + sin(t * 0.19) * 0.22
+                let cosYaw = cos(yaw)
+                let sinYaw = sin(yaw)
+                let cosPitch = cos(pitch)
+                let sinPitch = sin(pitch)
+
+                // 호버 지점 (뷰 좌표) — 입자들이 이 점에서 밀려난다
+                let hoverPoint: CGPoint? = hover.map {
+                    CGPoint(
+                        x: ($0.x * 0.5 + 0.5) * canvasSize.width,
+                        y: ($0.y * 0.5 + 0.5) * canvasSize.height
+                    )
+                }
+                let disperseRadius = sphereRadius * 0.85
+
+                // 투영 후 깊이순 정렬 (뒤 → 앞) — 앞 입자가 위에 그려진다
+                var projected: [(position: CGPoint, depth: Double)] = []
+                projected.reserveCapacity(directions.count)
+                for (index, direction) in directions.enumerated() {
+                    // yaw(수직축) 회전
+                    let x1 = direction.x * cosYaw + direction.z * sinYaw
+                    let z1 = -direction.x * sinYaw + direction.z * cosYaw
+                    // pitch(수평축) 회전
+                    let y2 = direction.y * cosPitch - z1 * sinPitch
+                    let z2 = direction.y * sinPitch + z1 * cosPitch
+
+                    // 반경 요동 — 평소엔 잔잔한 숨, 생성 중엔 입자가 크게 흩날린다
+                    let phase = Double(index) * 2.399963
+                    let agitation = activity == .thinking
+                        ? 0.18 * sin(t * 3.6 + phase) + 0.06 * sin(t * 7.1 + phase * 1.7)
+                        : 0.03 * sin(t * 1.3 + phase)
+                    let particleRadius = sphereRadius * (1 + agitation)
+
+                    var position = CGPoint(
+                        x: center.x + x1 * particleRadius,
+                        y: center.y + y2 * particleRadius
+                    )
+
+                    // 커서 분산 — 가까운 입자일수록 강하게 밀려난다 (가우시안 감쇠)
+                    if let hoverPoint {
+                        let dx = position.x - hoverPoint.x
+                        let dy = position.y - hoverPoint.y
+                        let distance = max(2, (dx * dx + dy * dy).squareRoot())
+                        let influence = exp(-(distance * distance) / (disperseRadius * disperseRadius * 0.5))
+                        let push = influence * sphereRadius * 0.55
+                        position.x += dx / distance * push
+                        position.y += dy / distance * push
+                    }
+
+                    projected.append((position: position, depth: (z2 + 1) / 2))
+                }
+                projected.sort { $0.depth < $1.depth }
+
+                for particle in projected {
+                    let depth = particle.depth
+                    let dotRadius = sphereRadius * 0.045 * (0.55 + 0.85 * depth)
+                    let tone = base.mixedWithWhite(0.12 + 0.5 * depth)
+                    let rect = CGRect(
+                        x: particle.position.x - dotRadius,
+                        y: particle.position.y - dotRadius,
+                        width: dotRadius * 2,
+                        height: dotRadius * 2
+                    )
+                    context.fill(
+                        Path(ellipseIn: rect),
+                        with: .color(tone.opacity(0.28 + 0.62 * depth))
+                    )
+                }
+            }
+        }
+    }
+
+    // MARK: 글래스 — 유리구슬 속 색 블롭
 
     @ViewBuilder
     private func glassSphere(_ t: Double) -> some View {
