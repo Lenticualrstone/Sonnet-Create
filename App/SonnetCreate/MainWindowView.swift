@@ -15,6 +15,9 @@ struct MainWindowView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var showCommandPalette = false
+    /// 프로젝트 파일 인스펙터 폭 — 드래그로 조절, 재시작 후에도 유지
+    @AppStorage("project-navigator-width") private var navigatorWidth = 232.0
+    @State private var navigatorDragBaseWidth: Double?
 
     var body: some View {
         // 헤더는 사이드바/콘텐츠 그 어느 쪽에도 귀속되지 않는 프로그램 전체의 유일한
@@ -151,6 +154,29 @@ struct MainWindowView: View {
         }
     }
 
+    /// 프로젝트 파일 인스펙터 좌측 가장자리의 보이지 않는 리사이즈 스트립.
+    private var navigatorResizeHandle: some View {
+        Color.clear
+            .frame(width: 6)
+            .contentShape(Rectangle())
+            .onHover { inside in
+                if inside {
+                    NSCursor.resizeLeftRight.push()
+                } else {
+                    NSCursor.pop()
+                }
+            }
+            .gesture(
+                DragGesture(minimumDistance: 1)
+                    .onChanged { value in
+                        let base = navigatorDragBaseWidth ?? navigatorWidth
+                        navigatorDragBaseWidth = base
+                        navigatorWidth = min(320, max(200, base - value.translation.width))
+                    }
+                    .onEnded { _ in navigatorDragBaseWidth = nil }
+            )
+    }
+
     /// 시그니처 배경 — 설정에서 켠 경우에만 (기본 꺼짐).
     @ViewBuilder
     private var background: some View {
@@ -245,7 +271,9 @@ struct MainWindowView: View {
                        let project = app.workspace.project(id: session.document.envelope.projectID) {
                         Divider().opacity(0.4)
                         ProjectNavigatorView(session: session, project: project)
-                            .frame(width: 232)
+                            .frame(width: navigatorWidth)
+                            // 좌측 가장자리 드래그로 폭 조절 (200~320pt)
+                            .overlay(alignment: .leading) { navigatorResizeHandle }
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                     if app.showReferencePanel {

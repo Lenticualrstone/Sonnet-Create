@@ -42,10 +42,9 @@ struct SonnetCreateApp: App {
                 .environment(\.pageTypewriterMode, appState.settings.applied.pageTypewriterEnabled)
                 .environment(\.mindmapAutoOpenInspector, appState.settings.applied.mindmapAutoOpenInspector)
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
-                .environment(\.resolvedAccent, appState.resolvedAccent)
+                .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
                 .font(DSFonts.font(size: 13, family: appState.settings.applied.fontFamily))
-                .tint(appState.resolvedAccent)
                 .preferredColorScheme(appState.settings.applied.themeMode.colorScheme)
                 .frame(minWidth: 980, minHeight: 640)
                 .onAppear {
@@ -97,9 +96,8 @@ struct SonnetCreateApp: App {
                 )
             )
             .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
-            .environment(\.resolvedAccent, appState.resolvedAccent)
+            .modifier(AdaptiveAccent(base: appState.resolvedAccent))
             .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
-            .tint(appState.resolvedAccent)
             .preferredColorScheme(appState.settings.applied.themeMode.colorScheme)
         }
     }
@@ -113,6 +111,20 @@ struct SonnetCreateApp: App {
         case .system: "BrandMark-System"
         }
         NSApp.applicationIconImage = imageName.flatMap { NSImage(named: $0) }
+    }
+}
+
+/// 실효 강조색을 화면 모드에 맞춰 주입 — 다크 모드에서는 어두운 강조색(커스텀 네이비 등)이
+/// 배경에 묻히므로 자동으로 밝혀서 environment와 tint 양쪽에 공급한다.
+private struct AdaptiveAccent: ViewModifier {
+    let base: Color
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        let adapted = colorScheme == .dark ? base.adaptedForDarkMode() : base
+        content
+            .environment(\.resolvedAccent, adapted)
+            .tint(adapted)
     }
 }
 

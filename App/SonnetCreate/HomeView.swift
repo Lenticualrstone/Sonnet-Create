@@ -20,13 +20,14 @@ struct HomeView: View {
             VStack(spacing: DesignTokens.Spacing.l) {
                 Spacer().frame(height: 44)
 
-                // 인사말 위 대형 픽셀 필드 — 사이드바와 동일하게 균일한 크기로 브리딩
-                PixelBreathField(
-                    columns: 18, rows: 4,
-                    baseSize: 3.5, spacing: 4,
+                // 인사말 위 ASCII 웨이브 — 터미널 감성의 문자 물결 (픽셀 디밍 필드 대체)
+                ASCIIWaveField(
+                    columns: 48, rows: 6,
+                    fontSize: 11,
                     color: accent,
                     quality: quality
                 )
+                .frame(maxWidth: 560)
 
                 Text(l10n.t(.greeting))
                     .font(.system(size: 28, weight: .bold, design: .rounded))

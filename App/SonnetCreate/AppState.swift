@@ -88,8 +88,10 @@ final class AppState {
     /// 참조 패널 표시 여부 (문서 탭에서만 의미 있음)
     var showReferencePanel = false
     var showSnapshotPanel = false
-    /// 프로젝트 파일 인스펙터 (프로젝트 소속 문서 탭에서만 의미 있음) — 기본 표시
-    var showProjectNavigator = true
+    /// 프로젝트 파일 인스펙터 (프로젝트 소속 문서 탭에서만 의미 있음) — 표시 여부는 재시작 후에도 유지
+    var showProjectNavigator = UserDefaults.standard.object(forKey: "show-project-navigator") as? Bool ?? true {
+        didSet { UserDefaults.standard.set(showProjectNavigator, forKey: "show-project-navigator") }
+    }
     /// 탭바에서 드래그 재정렬 중인 탭
     var draggingTabID: UUID?
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다

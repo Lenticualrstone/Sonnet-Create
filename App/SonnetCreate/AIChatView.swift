@@ -16,9 +16,10 @@ struct AIChatView: View {
         let l10n = Localizer.shared
         let chat = app.aiChat
         VStack(spacing: 0) {
-            // 헤더
+            // 헤더 — 살아 있는 미니 스피어가 Sonnet AI의 아이덴티티 (생성 중엔 더 빠르게 요동)
             HStack(spacing: DesignTokens.Spacing.s) {
-                Label(l10n.t(.aiAgent), systemImage: "sparkles")
+                AISphere(size: 18, activity: chat.isBusy ? .thinking : .idle)
+                Text(l10n.t(.aiAgent))
                     .font(.headline)
                 Spacer()
                 if !chat.messages.isEmpty {
@@ -47,14 +48,15 @@ struct AIChatView: View {
                                 ))
                         }
                         if chat.isBusy {
-                            HStack(spacing: 6) {
-                                ProgressView().controlSize(.small)
+                            HStack(spacing: 8) {
+                                AISphere(size: 22, activity: .thinking)
                                 Text(l10n.t(.aiSuggesting))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                             }
                             .padding(.horizontal, DesignTokens.Spacing.l)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
                     .padding(.vertical, DesignTokens.Spacing.m)
@@ -120,15 +122,14 @@ struct AIChatView: View {
     }
 
     private func emptyHint(_ l10n: Localizer) -> some View {
-        VStack(spacing: DesignTokens.Spacing.s) {
-            Image(systemName: "sparkles")
-                .font(.system(size: 30))
-                .foregroundStyle(accent)
+        VStack(spacing: DesignTokens.Spacing.l) {
+            // 대화가 비었을 때의 히어로 — 유영하는 AI 스피어
+            AISphere(size: 116)
             Text(l10n.t(.askAnything))
                 .font(.callout)
                 .foregroundStyle(.secondary)
         }
-        .padding(.top, 90)
+        .padding(.top, 70)
     }
 }
 

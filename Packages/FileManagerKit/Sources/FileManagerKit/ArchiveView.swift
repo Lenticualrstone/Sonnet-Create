@@ -74,6 +74,9 @@ public struct ArchiveView: View {
     @State private var lastSelectedID: String?
 
     @Environment(\.renderQuality) private var quality
+    @Environment(\.resolvedAccent) private var accent
+    /// 카테고리 칩의 선택 하이라이트가 칩 사이를 미끄러지게 하는 네임스페이스
+    @Namespace private var categoryHighlight
 
     public init(
         workspace: WorkspaceStore,
@@ -253,31 +256,24 @@ public struct ArchiveView: View {
 
     private func toolbar(_ l10n: Localizer) -> some View {
         HStack(spacing: DesignTokens.Spacing.s) {
-            Picker("", selection: $category) {
-                ForEach(Category.allCases) { c in
-                    if c == .hidden {
-                        Label(categoryLabel(c, l10n), systemImage: "eye.slash").tag(c)
-                    } else if c == .trash {
-                        Label(categoryLabel(c, l10n), systemImage: "trash").tag(c)
-                    } else if c == .other {
-                        Label(categoryLabel(c, l10n), systemImage: "paperclip").tag(c)
-                    } else {
-                        Text(categoryLabel(c, l10n)).tag(c)
+            // 카테고리 칩 — 시스템 드롭다운 대신 강조색 하이라이트가 미끄러지는 칩 행
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    ForEach(Category.allCases) { candidate in
+                        categoryChip(candidate, l10n)
                     }
                 }
+                .padding(2)
             }
-            .pickerStyle(.menu)
-            .fixedSize()
+            .scrollClipDisabled()
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(Color.primary.opacity(0.055))
+            )
+            .fixedSize(horizontal: true, vertical: true)
 
             if !workspace.projects.isEmpty {
-                Picker("", selection: $projectFilter) {
-                    Text(l10n.t(.allProjects)).tag(UUID?.none)
-                    ForEach(workspace.projects) { project in
-                        Text(project.manifest.name).tag(UUID?.some(project.id))
-                    }
-                }
-                .pickerStyle(.menu)
-                .fixedSize()
+                projectFilterMenu(l10n)
             }
 
             Spacer()
@@ -846,5 +842,95 @@ struct OtherFileCard: View {
         .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
         .help(Localizer.shared.t(.viewOnlyHint))
         .animation(DesignTokens.Motion.snappy, value: hovering)
+    }
+}
+
+// MARK: - 도구막대 필터 컨트롤 (칩/프로젝트 메뉴)
+
+private extension ArchiveView {
+    /// 카테고리 칩 하나 — 가림/휴지통/기타는 아이콘 동반.
+    private func categoryChip(_ candidate: Category, _ l10n: Localizer) -> some View {
+        let symbol: String? = switch candidate {
+        case .hidden: "eye.slash"
+        case .trash: "trash"
+        case .other: "paperclip"
+        default: nil
+        }
+        let isSelected = category == candidate
+        return Button {
+            withAnimation(DesignTokens.Motion.snappy) { category = candidate }
+        } label: {
+            HStack(spacing: 4) {
+                if let symbol {
+                    Image(systemName: symbol)
+                        .font(.caption)
+                }
+                Text(categoryLabel(candidate, l10n))
+                    .font(.callout)
+                    .lineLimit(1)
+            }
+            .foregroundStyle(isSelected ? accent : Color.secondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(accent.opacity(0.14))
+                        .matchedGeometryEffect(id: "archiveCategoryHighlight", in: categoryHighlight)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 프로젝트 필터 — 필터가 걸리면 강조색 캡슐로 표시되는 커스텀 메뉴.
+    private func projectFilterMenu(_ l10n: Localizer) -> some View {
+        let filteredName = projectFilter.flatMap { id in
+            workspace.projects.first { $0.id == id }?.manifest.name
+        }
+        return Menu {
+            Button {
+                projectFilter = nil
+            } label: {
+                if projectFilter == nil {
+                    Label(l10n.t(.allProjects), systemImage: "checkmark")
+                } else {
+                    Text(l10n.t(.allProjects))
+                }
+            }
+            Divider()
+            ForEach(workspace.projects) { project in
+                Button {
+                    projectFilter = project.id
+                } label: {
+                    if projectFilter == project.id {
+                        Label(project.manifest.name, systemImage: "checkmark")
+                    } else {
+                        Text(project.manifest.name)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "folder")
+                    .font(.caption)
+                Text(filteredName ?? l10n.t(.allProjects))
+                    .font(.callout)
+                    .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 8, weight: .semibold))
+            }
+            .foregroundStyle(filteredName == nil ? Color.secondary : accent)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule().fill(filteredName == nil ? Color.primary.opacity(0.055) : accent.opacity(0.14))
+            )
+            .contentShape(Capsule())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 }

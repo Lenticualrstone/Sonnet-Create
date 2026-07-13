@@ -332,8 +332,15 @@ public struct SettingsRootView: View {
                     ForEach(Array(AccentChoice.brandCases.enumerated()), id: \.offset) { _, choice in
                         accentSwatch(choice)
                     }
+                    // 커스텀 색이 활성일 때도 스와치들과 같은 문법의 선택 링을 보여준다 —
+                    // 예전엔 어느 것이 선택됐는지 표시가 없어 애매했다.
                     ColorPicker("", selection: customAccentBinding, supportsOpacity: false)
                         .labelsHidden()
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                .strokeBorder(isCustomAccentSelected ? Color.primary : .clear, lineWidth: 2)
+                                .padding(-2)
+                        )
                         .help(l10n.t(.accentCustom))
                 }
             }
@@ -384,6 +391,11 @@ public struct SettingsRootView: View {
             )
         }
         .buttonStyle(.plain)
+    }
+
+    private var isCustomAccentSelected: Bool {
+        if case .custom = store.draft.accent { return true }
+        return false
     }
 
     private var customAccentBinding: Binding<Color> {
