@@ -77,6 +77,8 @@ public struct ASCIIWaveField: View {
 
     private func canvas(time: TimeInterval) -> some View {
         Canvas { context, size in
+            // columns/rows가 1 이하이거나 크기가 0이면 나눗셈이 NaN을 만든다 — 방어적으로 중단
+            guard columns > 1, rows > 0, size.width > 0, size.height > 0 else { return }
             let cellWidth = size.width / CGFloat(columns)
             let cellHeight = size.height / CGFloat(rows)
             // 램프 글자를 프레임당 1회씩만 리졸브 — 셀마다 리졸브하면 프레임 비용이 급증한다

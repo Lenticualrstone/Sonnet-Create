@@ -38,18 +38,20 @@ final class AIChatStore {
         input = ""
         messages.append(AIChatMessage(role: .user, text: text))
         isBusy = true
+        // isBusy는 타이핑 연출(reveal)이 끝날 때까지 유지한다 — 그래야 send 가드가
+        // 연출 도중 재전송을 막아, 두 reveal 루프가 동시에 messages를 건드리지 않는다.
+        defer { isBusy = false }
         do {
             let reply = try await provider.chat(history: messages)
-            isBusy = false
             await reveal(reply)
         } catch {
-            isBusy = false
             messages.append(AIChatMessage(role: .assistant, text: "⚠️ \(error.localizedDescription)"))
         }
     }
 
     /// 완성된 응답을 글자 단위로 점진 노출 — 타이핑되는 듯한 연출. 취소(clear) 안전.
     private func reveal(_ full: String) async {
+        guard !full.isEmpty else { return }
         let message = AIChatMessage(role: .assistant, text: "")
         messages.append(message)
         streamingMessageID = message.id
