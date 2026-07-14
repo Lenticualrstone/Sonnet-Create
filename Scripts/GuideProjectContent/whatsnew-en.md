@@ -1,4 +1,4 @@
-# What's New in v1.3
+# What's New in v1.2.2
 
 ## Guide Project
 - Download the tutorial project directly from Settings > Guide Project. It comes in Korean, Japanese, or English depending on your app language.
