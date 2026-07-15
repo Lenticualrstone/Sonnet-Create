@@ -439,6 +439,139 @@ private struct ScriptedToolProvider: AIProvider {
     #expect(result.content == "안녕")
 }
 
+// MARK: - 파괴적 작업 확인
+
+/// 실행 여부를 기록하는 액터 — 확인 절차가 실제로 실행을 막았는지 검사한다.
+private actor RunFlag {
+    private(set) var didRun = false
+    func mark() { didRun = true }
+}
+
+@Test func destructiveToolIsRefusedWhenNoConfirmationHandlerExists() async {
+    // 안전 기본값: 확인 절차를 주입하지 않으면 파괴적 도구는 실행되지 않는다.
+    let flag = RunFlag()
+    let toolbox = AIToolbox([
+        AIToolHandler(
+            AITool(name: "delete_all", description: "전부 삭제"),
+            confirmationSummary: { _ in "전부 지웁니다" }
+        ) { _ in
+            await flag.mark()
+            return "지움"
+        },
+    ])
+    let result = await toolbox.execute(AIToolCall(id: "1", name: "delete_all", argumentsJSON: "{}"))
+    #expect(result.isError)
+    #expect(await flag.didRun == false, "확인 절차 없이 파괴적 도구가 실행됐다")
+}
+
+@Test func destructiveToolRunsOnlyAfterApproval() async {
+    let flag = RunFlag()
+    let toolbox = AIToolbox(
+        [AIToolHandler(
+            AITool(name: "trash", description: "휴지통"),
+            confirmationSummary: { _ in "'문서A'를 휴지통으로 옮깁니다" }
+        ) { _ in
+            await flag.mark()
+            return "옮김"
+        }],
+        confirmationHandler: { _ in true }
+    )
+    let result = await toolbox.execute(AIToolCall(id: "1", name: "trash", argumentsJSON: "{}"))
+    #expect(!result.isError)
+    #expect(result.content == "옮김")
+    #expect(await flag.didRun)
+}
+
+@Test func deniedDestructiveToolDoesNotRunAndIsNotAnError() async {
+    let flag = RunFlag()
+    let toolbox = AIToolbox(
+        [AIToolHandler(
+            AITool(name: "trash", description: "휴지통"),
+            confirmationSummary: { _ in "지웁니다" }
+        ) { _ in
+            await flag.mark()
+            return "옮김"
+        }],
+        confirmationHandler: { _ in false }
+    )
+    let result = await toolbox.execute(AIToolCall(id: "1", name: "trash", argumentsJSON: "{}"))
+    #expect(await flag.didRun == false, "거부했는데도 실행됐다")
+    // 거부는 오류가 아니다 — 오류로 주면 모델이 재시도를 반복한다.
+    #expect(!result.isError)
+    #expect(result.content.contains("거부"))
+    #expect(result.content.contains("다시 시도하지"), "모델이 재시도하지 않도록 지시해야 한다")
+}
+
+@Test func confirmationSummaryReachesTheUser() async {
+    // 사용자는 핸들이 아니라 '무엇이 사라지는지'를 보고 판단해야 한다.
+    let seen = ConfirmationSink()
+    let toolbox = AIToolbox(
+        [AIToolHandler(
+            AITool(name: "trash", description: "휴지통", properties: ["title": .string("제목")]),
+            confirmationSummary: { arguments in
+                "'\(try arguments.string("title"))'을(를) 휴지통으로 옮깁니다"
+            }
+        ) { _ in "옮김" }],
+        confirmationHandler: { request in
+            await seen.store(request)
+            return true
+        }
+    )
+    _ = await toolbox.execute(
+        AIToolCall(id: "call_9", name: "trash", argumentsJSON: #"{"title": "1장 초고"}"#)
+    )
+    let request = await seen.value
+    #expect(request?.summary == "'1장 초고'을(를) 휴지통으로 옮깁니다")
+    #expect(request?.toolName == "trash")
+    #expect(request?.id == "call_9")
+}
+
+private actor ConfirmationSink {
+    private(set) var value: AIToolConfirmationRequest?
+    func store(_ request: AIToolConfirmationRequest) { value = request }
+}
+
+@Test func failingConfirmationSummaryBlocksExecution() async {
+    // 요약을 못 만들면(대상이 없음 등) 사용자를 귀찮게 하지 않고 오류로 끝낸다.
+    let flag = RunFlag()
+    let toolbox = AIToolbox(
+        [AIToolHandler(
+            AITool(name: "trash", description: "휴지통"),
+            confirmationSummary: { _ in throw AIToolArgumentError(key: "id", reason: "대상 없음") }
+        ) { _ in
+            await flag.mark()
+            return "옮김"
+        }],
+        confirmationHandler: { _ in true }
+    )
+    let result = await toolbox.execute(AIToolCall(id: "1", name: "trash", argumentsJSON: "{}"))
+    #expect(result.isError)
+    #expect(await flag.didRun == false)
+}
+
+@Test func nonDestructiveToolSkipsConfirmationEntirely() async {
+    let asked = RunFlag()
+    let toolbox = AIToolbox(
+        [AIToolHandler(AITool(name: "read", description: "읽기")) { _ in "내용" }],
+        confirmationHandler: { _ in
+            await asked.mark()
+            return true
+        }
+    )
+    let result = await toolbox.execute(AIToolCall(id: "1", name: "read", argumentsJSON: "{}"))
+    #expect(result.content == "내용")
+    #expect(await asked.didRun == false, "추가/읽기 작업까지 확인을 물으면 사용자가 피로해진다")
+}
+
+@Test func handlerDeclaresDestructiveness() {
+    let safe = AIToolHandler(AITool(name: "a", description: "a")) { _ in "" }
+    let risky = AIToolHandler(
+        AITool(name: "b", description: "b"), confirmationSummary: { _ in "요약" }
+    ) { _ in "" }
+    #expect(!safe.isDestructive)
+    #expect(risky.isDestructive)
+}
+
 // MARK: - 에이전트 루프
 
 @MainActor

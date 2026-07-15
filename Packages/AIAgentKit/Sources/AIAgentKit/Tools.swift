@@ -184,15 +184,42 @@ public struct AIToolResult: Sendable, Equatable {
 
 // MARK: - 툴박스 (확장 지점)
 
+// MARK: - 파괴적 작업 확인
+
+/// 되돌리기 어려운 도구를 실행하기 직전에 사용자에게 묻는 요청.
+public struct AIToolConfirmationRequest: Sendable, Identifiable {
+    public let id: String
+    public let toolName: String
+    /// 무엇이 일어날지 사람이 읽을 요약 — 도구가 인자를 해석해 만든다.
+    public let summary: String
+
+    public init(id: String, toolName: String, summary: String) {
+        self.id = id
+        self.toolName = toolName
+        self.summary = summary
+    }
+}
+
 /// 도구 정의 + 실행부 한 쌍.
 public struct AIToolHandler: Sendable {
     public let tool: AITool
+    /// 파괴적 도구만 채운다 — 실행 전 사용자에게 보여줄 요약을 인자에서 만든다.
+    /// nil이면 확인 없이 바로 실행한다 (추가/생성처럼 되돌리기로 충분한 작업).
+    public let confirmationSummary: (@Sendable (AIToolArguments) async throws -> String)?
     public let run: @Sendable (AIToolArguments) async throws -> String
 
-    public init(_ tool: AITool, run: @escaping @Sendable (AIToolArguments) async throws -> String) {
+    public init(
+        _ tool: AITool,
+        confirmationSummary: (@Sendable (AIToolArguments) async throws -> String)? = nil,
+        run: @escaping @Sendable (AIToolArguments) async throws -> String
+    ) {
         self.tool = tool
+        self.confirmationSummary = confirmationSummary
         self.run = run
     }
+
+    /// 사용자 확인이 필요한 도구인지.
+    public var isDestructive: Bool { confirmationSummary != nil }
 }
 
 /// 도구 모음. 기능 모듈이 각자 핸들러를 기여하고, 합쳐서 에이전트에 넘긴다 —
@@ -200,8 +227,17 @@ public struct AIToolHandler: Sendable {
 public struct AIToolbox: Sendable {
     private var handlers: [String: AIToolHandler]
 
-    public init(_ handlers: [AIToolHandler] = []) {
+    /// 파괴적 도구 실행 전 사용자 확인 — 앱이 주입한다.
+    /// **주입하지 않으면 파괴적 도구는 실행되지 않고 거부된다** (확인 없이 지우는 일이
+    /// 절대 없도록 기본값이 안전한 쪽으로 열려 있다).
+    public var confirmationHandler: (@Sendable (AIToolConfirmationRequest) async -> Bool)?
+
+    public init(
+        _ handlers: [AIToolHandler] = [],
+        confirmationHandler: (@Sendable (AIToolConfirmationRequest) async -> Bool)? = nil
+    ) {
         self.handlers = Dictionary(handlers.map { ($0.tool.name, $0) }) { _, latest in latest }
+        self.confirmationHandler = confirmationHandler
     }
 
     /// 이름 오름차순 — 순서가 매 요청 같아야 프롬프트 캐시가 유지된다.
@@ -223,6 +259,7 @@ public struct AIToolbox: Sendable {
 
     /// 호출 실행. 알 수 없는 도구·인자 오류·핸들러 예외를 전부 오류 '결과'로 감싼다 —
     /// 모델이 그걸 읽고 스스로 고쳐 다시 호출할 수 있어야 한다.
+    /// 파괴적 도구는 실행 전에 사용자 확인을 거친다.
     public func execute(_ call: AIToolCall) async -> AIToolResult {
         guard let handler = handlers[call.name] else {
             let known = tools.map(\.name).joined(separator: ", ")
@@ -233,6 +270,28 @@ public struct AIToolbox: Sendable {
             )
         }
         do {
+            if let summarize = handler.confirmationSummary {
+                // 요약을 먼저 만든다 — 대상이 없으면 여기서 걸러져 사용자를 귀찮게 하지 않는다.
+                let summary = try await summarize(call.arguments)
+                guard let confirmationHandler else {
+                    return AIToolResult(
+                        callID: call.id, toolName: call.name,
+                        content: "이 작업은 사용자 확인이 필요하지만 확인 절차가 없어 실행하지 않았습니다.",
+                        isError: true
+                    )
+                }
+                let request = AIToolConfirmationRequest(
+                    id: call.id, toolName: call.name, summary: summary
+                )
+                guard await confirmationHandler(request) else {
+                    // 거부는 오류가 아니다 — 모델이 재시도하지 말고 방향을 바꾸도록 알린다.
+                    return AIToolResult(
+                        callID: call.id, toolName: call.name,
+                        content: "사용자가 이 작업을 거부했습니다. 다시 시도하지 말고, 필요하면 다른 방법을 제안하세요.",
+                        isError: false
+                    )
+                }
+            }
             return AIToolResult(
                 callID: call.id, toolName: call.name,
                 content: try await handler.run(call.arguments)

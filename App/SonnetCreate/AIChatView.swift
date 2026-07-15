@@ -155,6 +155,15 @@ struct AIChatView: View {
             .padding(.bottom, DesignTokens.Spacing.m)
         }
         .onAppear { inputFocused = true }
+        // 파괴적 작업은 실행 전에 멈춰 서서 묻는다 — 에이전트가 조용히 지우는 일은 없다.
+        .sheet(item: Binding(
+            get: { app.aiChat.pendingConfirmation },
+            set: { if $0 == nil { app.aiChat.answerConfirmation(approved: false) } }
+        )) { pending in
+            ToolConfirmationSheet(pending: pending) { approved in
+                app.aiChat.answerConfirmation(approved: approved)
+            }
+        }
     }
 
     private var bindingInput: Binding<String> {
@@ -214,6 +223,48 @@ struct AIChatView: View {
     }
 }
 
+/// 파괴적 작업 승인 시트 — 무엇이 사라지는지 먼저 보여주고 묻는다.
+struct ToolConfirmationSheet: View {
+    let pending: AIChatStore.PendingConfirmation
+    let respond: (Bool) -> Void
+
+    @Environment(\.resolvedAccent) private var accent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.m) {
+            HStack(spacing: DesignTokens.Spacing.s) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                Text("에이전트가 이 작업을 하려고 합니다")
+                    .font(.headline)
+            }
+
+            Text(pending.summary)
+                .font(.callout)
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(DesignTokens.Spacing.s)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
+                        .fill(Color.primary.opacity(0.05))
+                )
+
+            HStack {
+                Spacer()
+                Button("취소") { respond(false) }
+                    .keyboardShortcut(.escape, modifiers: [])
+                Button("실행") { respond(true) }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(DesignTokens.Spacing.l)
+        .frame(width: 380)
+    }
+}
+
 /// 에이전트가 앱 기능을 실행 중임을 보여주는 칩 — 무슨 일이 일어나는지 감추지 않는다.
 struct ToolActivityChip: View {
     let activity: ToolActivity
@@ -235,12 +286,27 @@ struct ToolActivityChip: View {
         case "create_scenario": "시나리오 작성"
         case "append_to_page": "문서에 이어 쓰기"
         case "rename_document": "문서 이름 변경"
+        case "add_scenario_blocks": "시나리오에 블록 추가"
+        case "update_scenario_block": "대사 수정"
+        case "add_mindmap_nodes": "마인드맵에 노드 추가"
+        case "update_mindmap_node": "노드 수정"
+        case "update_character_profile": "캐릭터 프로필 수정"
+        case "trash_document": "문서 휴지통으로 이동"
+        case "delete_scenario_blocks": "시나리오 블록 삭제"
+        case "delete_mindmap_nodes": "마인드맵 노드 삭제"
+        case "replace_page": "문서 본문 교체"
         default: activity.name
         }
     }
 
+    /// 되돌리기 어려운 작업은 칩에서도 다르게 보이게 한다.
+    private var isDestructive: Bool {
+        ["trash_document", "delete_scenario_blocks", "delete_mindmap_nodes", "replace_page"]
+            .contains(activity.name)
+    }
+
     private var symbol: String {
-        if activity.isRunning { return "gearshape.2" }
+        if activity.isRunning { return isDestructive ? "exclamationmark.triangle" : "gearshape.2" }
         return activity.isError ? "exclamationmark.triangle" : "checkmark.circle"
     }
 

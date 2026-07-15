@@ -47,7 +47,43 @@ final class AIChatStore {
     /// 이 세대가 아닌 스트림의 늦은 이벤트를 무시하기 위한 토큰 (clear 안전)
     private var generation = 0
 
+    /// 사용자 승인을 기다리는 파괴적 작업 (있으면 UI가 확인 시트를 띄운다)
+    private(set) var pendingConfirmation: PendingConfirmation?
+
+    /// 실행 직전 멈춰 선 파괴적 도구 — 사용자가 답할 때까지 에이전트 루프가 대기한다.
+    struct PendingConfirmation: Identifiable {
+        let id: String
+        let toolName: String
+        let summary: String
+        /// 정확히 한 번만 불려야 한다 (continuation 이중 재개 = 크래시)
+        fileprivate let resume: (Bool) -> Void
+    }
+
     var displayMessages: [AIChatMessage] { messages.filter(\.isDisplayable) }
+
+    /// 툴박스가 파괴적 도구를 실행하기 전에 부른다 — 사용자가 답할 때까지 정지한다.
+    func requestConfirmation(_ request: AIToolConfirmationRequest) async -> Bool {
+        await withCheckedContinuation { continuation in
+            var answered = false
+            pendingConfirmation = PendingConfirmation(
+                id: request.id,
+                toolName: request.toolName,
+                summary: request.summary
+            ) { approved in
+                // 시트가 두 번 응답하거나 clear와 겹쳐도 continuation은 한 번만 재개한다.
+                guard !answered else { return }
+                answered = true
+                continuation.resume(returning: approved)
+            }
+        }
+    }
+
+    /// 확인 시트의 응답.
+    func answerConfirmation(approved: Bool) {
+        guard let pending = pendingConfirmation else { return }
+        pendingConfirmation = nil
+        pending.resume(approved)
+    }
 
     func send(using runner: AIAgentRunner) async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -101,6 +137,8 @@ final class AIChatStore {
 
     func clear() {
         generation += 1
+        // 확인 대기 중에 지우면 러너가 continuation에 영원히 매달린다 — 거부로 풀어준다.
+        answerConfirmation(approved: false)
         messages = []
         streamingText = ""
         toolActivity = []

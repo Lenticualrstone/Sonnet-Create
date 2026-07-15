@@ -14,7 +14,14 @@ import MarkdownEditor
 /// 손댈 필요가 없다. 도구 이름/설명이 곧 모델이 보는 사용 설명서다.
 extension AppState {
     func makeAgentToolbox() -> AIToolbox {
-        AIToolbox(discoveryTools + authoringTools + editingTools)
+        AIToolbox(
+            discoveryTools + authoringTools + editingTools + scenarioTools
+                + mindMapTools + characterTools + destructiveTools,
+            confirmationHandler: { [weak self] request in
+                guard let self else { return false }
+                return await self.aiChat.requestConfirmation(request)
+            }
+        )
     }
 
     // MARK: 탐색 · 읽기
@@ -410,8 +417,509 @@ extension AppState {
         ]
     }
 
+    // MARK: 시나리오 부분 편집
+
+    private var scenarioTools: [AIToolHandler] {
+        [
+            AIToolHandler(AITool(
+                name: "add_scenario_blocks",
+                description: "기존 시나리오에 대사/지침 블록을 추가한다. 없는 화자는 캐스트에 자동 추가된다.",
+                properties: [
+                    "document_id": .string("시나리오 문서 ID"),
+                    "blocks": .array("추가할 블록", of: .object("블록", properties: [
+                        "type": .string("line=대사, instruction=지침", enumValues: ["line", "instruction"]),
+                        "speaker": .string("화자 이름 (type=line일 때)"),
+                        "text": .string("내용"),
+                    ], required: ["type", "text"])),
+                    "after_block": .string("이 블록 핸들 바로 뒤에 삽입. 생략하면 맨 끝."),
+                ],
+                required: ["document_id", "blocks"]
+            )) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let specs = arguments.objects("blocks")
+                guard !specs.isEmpty else { throw ToolFailure("블록이 최소 1개는 필요합니다.") }
+                let afterHandle = arguments.optionalString("after_block")
+
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .scenario(var scenario) = content else {
+                            throw ToolFailure("이 문서는 시나리오가 아닙니다.")
+                        }
+                        var added: [ScenarioBlock] = []
+                        var newCast = 0
+                        for spec in specs {
+                            guard let text = try? spec.string("text") else { continue }
+                            if spec.string("type", or: "line") == "instruction" {
+                                added.append(ScenarioBlock(kind: .instruction, text: text))
+                            } else {
+                                var speakerIDs: [UUID] = []
+                                if let name = spec.optionalString("speaker") {
+                                    if let existing = scenario.cast.first(where: { $0.name == name }) {
+                                        speakerIDs = [existing.id]
+                                    } else {
+                                        let member = Self.makeCastMember(name: name, index: scenario.cast.count)
+                                        scenario.cast.append(member)
+                                        speakerIDs = [member.id]
+                                        newCast += 1
+                                    }
+                                }
+                                added.append(ScenarioBlock(kind: .line, speakerIDs: speakerIDs, text: text))
+                            }
+                        }
+                        guard !added.isEmpty else { throw ToolFailure("블록에 text가 필요합니다.") }
+
+                        if let afterHandle {
+                            let target = try Self.resolve(
+                                handle: afterHandle, in: scenario.blocks, id: \.id, label: "블록"
+                            )
+                            let index = scenario.blocks.firstIndex { $0.id == target.id } ?? scenario.blocks.count - 1
+                            scenario.blocks.insert(contentsOf: added, at: index + 1)
+                        } else {
+                            scenario.blocks += added
+                        }
+                        content = .scenario(scenario)
+                        var report = "'\(self.documentTitle(id: id))'에 블록 \(added.count)개를 추가했습니다."
+                        if newCast > 0 { report += " 새 등장인물 \(newCast)명이 캐스트에 추가됐습니다." }
+                        return report
+                    }
+                }
+            },
+
+            AIToolHandler(AITool(
+                name: "update_scenario_block",
+                description: "시나리오 블록 하나의 대사 내용이나 화자를 고친다. read_document의 [핸들]로 지목한다.",
+                properties: [
+                    "document_id": .string("시나리오 문서 ID"),
+                    "block": .string("블록 핸들 (read_document가 대괄호로 알려준 값)"),
+                    "text": .string("새 내용. 생략하면 그대로."),
+                    "speaker": .string("새 화자 이름. 생략하면 그대로."),
+                ],
+                required: ["document_id", "block"]
+            )) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let blockHandle = try arguments.string("block")
+                let newText = arguments.optionalString("text")
+                let newSpeaker = arguments.optionalString("speaker")
+                guard newText != nil || newSpeaker != nil else {
+                    throw ToolFailure("text나 speaker 중 하나는 지정해야 합니다.")
+                }
+
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .scenario(var scenario) = content else {
+                            throw ToolFailure("이 문서는 시나리오가 아닙니다.")
+                        }
+                        let target = try Self.resolve(
+                            handle: blockHandle, in: scenario.blocks, id: \.id, label: "블록"
+                        )
+                        guard let index = scenario.blocks.firstIndex(where: { $0.id == target.id }) else {
+                            throw ToolFailure("블록을 찾을 수 없습니다.")
+                        }
+                        if let newText { scenario.blocks[index].text = newText }
+                        if let newSpeaker {
+                            if let existing = scenario.cast.first(where: { $0.name == newSpeaker }) {
+                                scenario.blocks[index].speakerIDs = [existing.id]
+                            } else {
+                                let member = Self.makeCastMember(name: newSpeaker, index: scenario.cast.count)
+                                scenario.cast.append(member)
+                                scenario.blocks[index].speakerIDs = [member.id]
+                            }
+                            scenario.blocks[index].kind = .line
+                        }
+                        content = .scenario(scenario)
+                        return "블록 [\(Self.handle(target.id))]을 수정했습니다."
+                    }
+                }
+            },
+        ]
+    }
+
+    // MARK: 마인드맵 부분 편집
+
+    private var mindMapTools: [AIToolHandler] {
+        [
+            AIToolHandler(AITool(
+                name: "add_mindmap_nodes",
+                description: "기존 마인드맵에 노드와 연결을 추가한다. 새 노드는 자동 배치된다.",
+                properties: [
+                    "document_id": .string("마인드맵 문서 ID"),
+                    "nodes": .array("추가할 노드", of: .object("노드", properties: [
+                        "id": .string("이 요청 안에서만 쓰는 임시 id (연결에서 참조)"),
+                        "title": .string("노드 제목"),
+                        "detail": .string("부연"),
+                    ], required: ["id", "title"])),
+                    "edges": .array("연결. from/to에는 새 노드의 임시 id 또는 기존 노드 핸들을 쓴다.",
+                                    of: .object("연결", properties: [
+                                        "from": .string("출발"),
+                                        "to": .string("도착"),
+                                        "caption": .string("관계 라벨"),
+                                    ], required: ["from", "to"])),
+                ],
+                required: ["document_id", "nodes"]
+            )) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let nodeSpecs = arguments.objects("nodes")
+                let edgeSpecs = arguments.objects("edges")
+                guard !nodeSpecs.isEmpty else { throw ToolFailure("노드가 최소 1개는 필요합니다.") }
+
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .mindmap(var map) = content else {
+                            throw ToolFailure("이 문서는 마인드맵이 아닙니다.")
+                        }
+                        let existingCount = map.nodes.count
+                        var keyToID: [String: UUID] = [:]
+                        for (offset, spec) in nodeSpecs.enumerated() {
+                            guard let key = try? spec.string("id"),
+                                  let title = try? spec.string("title") else { continue }
+                            // 기존 노드 뒤에 이어 붙는 위치로 배치
+                            let position = MindMapLayout.radial(
+                                index: existingCount + offset,
+                                total: existingCount + nodeSpecs.count
+                            )
+                            let node = MindMapNode(
+                                title: title, detail: spec.string("detail", or: ""),
+                                x: position.x, y: position.y
+                            )
+                            keyToID[key] = node.id
+                            map.nodes.append(node)
+                        }
+                        guard !keyToID.isEmpty else { throw ToolFailure("노드에 id와 title이 필요합니다.") }
+
+                        /// 임시 id 우선, 없으면 기존 노드 핸들로 해석
+                        func resolveNode(_ key: String) -> UUID? {
+                            if let id = keyToID[key] { return id }
+                            return try? Self.resolve(handle: key, in: map.nodes, id: \.id, label: "노드").id
+                        }
+                        var addedEdges = 0
+                        var dangling = 0
+                        for spec in edgeSpecs {
+                            guard let fromKey = try? spec.string("from"),
+                                  let toKey = try? spec.string("to") else { continue }
+                            guard let from = resolveNode(fromKey), let to = resolveNode(toKey) else {
+                                dangling += 1
+                                continue
+                            }
+                            map.edges.append(MindMapEdge(
+                                fromID: from, toID: to, caption: spec.string("caption", or: "")
+                            ))
+                            addedEdges += 1
+                        }
+                        content = .mindmap(map)
+                        var report = "노드 \(keyToID.count)개, 연결 \(addedEdges)개를 추가했습니다."
+                        if dangling > 0 { report += " 대상을 못 찾은 연결 \(dangling)개는 무시했습니다." }
+                        return report
+                    }
+                }
+            },
+
+            AIToolHandler(AITool(
+                name: "update_mindmap_node",
+                description: "마인드맵 노드 하나의 제목/부연을 고친다.",
+                properties: [
+                    "document_id": .string("마인드맵 문서 ID"),
+                    "node": .string("노드 핸들"),
+                    "title": .string("새 제목. 생략하면 그대로."),
+                    "detail": .string("새 부연. 생략하면 그대로."),
+                ],
+                required: ["document_id", "node"]
+            )) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let nodeHandle = try arguments.string("node")
+                let newTitle = arguments.optionalString("title")
+                let newDetail = arguments.optionalString("detail")
+                guard newTitle != nil || newDetail != nil else {
+                    throw ToolFailure("title이나 detail 중 하나는 지정해야 합니다.")
+                }
+
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .mindmap(var map) = content else {
+                            throw ToolFailure("이 문서는 마인드맵이 아닙니다.")
+                        }
+                        let target = try Self.resolve(handle: nodeHandle, in: map.nodes, id: \.id, label: "노드")
+                        guard let index = map.nodes.firstIndex(where: { $0.id == target.id }) else {
+                            throw ToolFailure("노드를 찾을 수 없습니다.")
+                        }
+                        if let newTitle { map.nodes[index].title = newTitle }
+                        if let newDetail { map.nodes[index].detail = newDetail }
+                        content = .mindmap(map)
+                        return "노드 [\(Self.handle(target.id))]을 수정했습니다."
+                    }
+                }
+            },
+        ]
+    }
+
+    // MARK: 캐릭터 프로필 편집
+
+    private var characterTools: [AIToolHandler] {
+        [
+            AIToolHandler(AITool(
+                name: "update_character_profile",
+                description: "캐릭터 문서의 프로필을 고친다. 지정한 항목만 바뀌고 나머지는 유지된다. 필드는 같은 이름이면 덮어쓰고 없으면 추가한다.",
+                properties: [
+                    "document_id": .string("캐릭터 문서 ID"),
+                    "role": .string("새 역할"),
+                    "summary": .string("새 요약"),
+                    "fields": .array("추가/수정할 필드", of: .object("필드", properties: [
+                        "name": .string("항목 이름"),
+                        "value": .string("값"),
+                    ], required: ["name", "value"])),
+                    "voice_tone": .string("새 말투"),
+                    "voice_taboo": .string("새 금기"),
+                    "voice_samples": .array("예시 대사 (지정하면 기존 목록을 대체)", of: .string("대사")),
+                ],
+                required: ["document_id"]
+            )) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let role = arguments.optionalString("role")
+                let summary = arguments.optionalString("summary")
+                let fieldSpecs = arguments.objects("fields")
+                let tone = arguments.optionalString("voice_tone")
+                let taboo = arguments.optionalString("voice_taboo")
+                let samples = arguments.stringArray("voice_samples")
+
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .page(var page) = content, var profile = page.profile else {
+                            throw ToolFailure("이 문서는 캐릭터 문서가 아닙니다.")
+                        }
+                        var changes: [String] = []
+                        if let role { profile.role = role; changes.append("역할") }
+                        if let summary { profile.summary = summary; changes.append("요약") }
+
+                        if !fieldSpecs.isEmpty {
+                            var fields = profile.fields ?? []
+                            for spec in fieldSpecs {
+                                guard let name = try? spec.string("name") else { continue }
+                                let value = spec.string("value", or: "")
+                                if let index = fields.firstIndex(where: { $0.name == name }) {
+                                    fields[index].value = value
+                                } else {
+                                    fields.append(CharacterField(name: name, value: value))
+                                }
+                            }
+                            profile.fields = fields
+                            changes.append("필드 \(fieldSpecs.count)개")
+                        }
+
+                        if tone != nil || taboo != nil || !samples.isEmpty {
+                            var voice = profile.voice ?? CharacterVoice()
+                            if let tone { voice.tone = tone }
+                            if let taboo { voice.taboo = taboo }
+                            if !samples.isEmpty { voice.samples = samples }
+                            profile.voice = voice
+                            changes.append("보이스 카드")
+                        }
+
+                        guard !changes.isEmpty else { throw ToolFailure("바꿀 항목을 하나 이상 지정하세요.") }
+                        page.profile = profile
+                        content = .page(page)
+                        return "'\(self.documentTitle(id: id))'의 \(changes.joined(separator: ", "))을(를) 수정했습니다."
+                    }
+                }
+            },
+        ]
+    }
+
+    // MARK: 파괴적 작업 (전부 사용자 확인을 거친다)
+
+    private var destructiveTools: [AIToolHandler] {
+        [
+            AIToolHandler(
+                AITool(
+                    name: "trash_document",
+                    description: "문서를 휴지통으로 옮긴다. 사용자 확인을 거친다.",
+                    properties: ["document_id": .string("문서 ID")],
+                    required: ["document_id"]
+                ),
+                confirmationSummary: { [weak self] arguments in
+                    guard let self else { return ToolError.appGone }
+                    let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                    return await MainActor.run {
+                        "'\(self.documentTitle(id: id))'을(를) 휴지통으로 옮깁니다."
+                    }
+                }
+            ) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                return try await MainActor.run {
+                    guard let item = self.workspace.item(id: id) else {
+                        throw ToolFailure("문서를 찾을 수 없습니다: \(id.uuidString)")
+                    }
+                    let title = item.envelope.title
+                    // 열려 있으면 탭부터 닫는다 (세션이 자동저장으로 되살리지 않도록)
+                    if let tab = self.tabs.first(where: { $0.content == .document(id) }) {
+                        self.closeTab(tab)
+                    }
+                    self.workspace.moveToTrash(item)
+                    self.notify(symbol: "trash", message: "AI: '\(title)' 휴지통으로 이동")
+                    return "'\(title)'을(를) 휴지통으로 옮겼습니다. 파일 아카이브의 휴지통에서 되돌릴 수 있습니다."
+                }
+            },
+
+            AIToolHandler(
+                AITool(
+                    name: "delete_scenario_blocks",
+                    description: "시나리오에서 블록을 지운다. 사용자 확인을 거친다.",
+                    properties: [
+                        "document_id": .string("시나리오 문서 ID"),
+                        "blocks": .array("지울 블록 핸들", of: .string("핸들")),
+                    ],
+                    required: ["document_id", "blocks"]
+                ),
+                confirmationSummary: { [weak self] arguments in
+                    guard let self else { return ToolError.appGone }
+                    let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                    let handles = arguments.stringArray("blocks")
+                    return try await MainActor.run {
+                        guard case .scenario(let scenario) = try self.currentContent(id: id) else {
+                            throw ToolFailure("이 문서는 시나리오가 아닙니다.")
+                        }
+                        // 무엇이 지워지는지 실제 대사를 보여준다 — 핸들만 보고는 판단할 수 없다.
+                        let previews = handles.compactMap { text -> String? in
+                            guard let block = try? Self.resolve(
+                                handle: text, in: scenario.blocks, id: \.id, label: "블록"
+                            ) else { return nil }
+                            return "· " + block.text.prefix(40)
+                        }
+                        guard !previews.isEmpty else { throw ToolFailure("지울 블록을 찾을 수 없습니다.") }
+                        return "'\(self.documentTitle(id: id))'에서 블록 \(previews.count)개를 지웁니다:\n"
+                            + previews.joined(separator: "\n")
+                    }
+                }
+            ) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let handles = arguments.stringArray("blocks")
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .scenario(var scenario) = content else {
+                            throw ToolFailure("이 문서는 시나리오가 아닙니다.")
+                        }
+                        var targets: Set<UUID> = []
+                        for text in handles {
+                            let block = try Self.resolve(
+                                handle: text, in: scenario.blocks, id: \.id, label: "블록"
+                            )
+                            targets.insert(block.id)
+                        }
+                        scenario.blocks.removeAll { targets.contains($0.id) }
+                        content = .scenario(scenario)
+                        return "블록 \(targets.count)개를 지웠습니다. (⌘Z로 되돌릴 수 있습니다)"
+                    }
+                }
+            },
+
+            AIToolHandler(
+                AITool(
+                    name: "delete_mindmap_nodes",
+                    description: "마인드맵에서 노드를 지운다. 그 노드에 붙은 연결도 함께 사라진다. 사용자 확인을 거친다.",
+                    properties: [
+                        "document_id": .string("마인드맵 문서 ID"),
+                        "nodes": .array("지울 노드 핸들", of: .string("핸들")),
+                    ],
+                    required: ["document_id", "nodes"]
+                ),
+                confirmationSummary: { [weak self] arguments in
+                    guard let self else { return ToolError.appGone }
+                    let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                    let handles = arguments.stringArray("nodes")
+                    return try await MainActor.run {
+                        guard case .mindmap(let map) = try self.currentContent(id: id) else {
+                            throw ToolFailure("이 문서는 마인드맵이 아닙니다.")
+                        }
+                        let targets = handles.compactMap {
+                            try? Self.resolve(handle: $0, in: map.nodes, id: \.id, label: "노드")
+                        }
+                        guard !targets.isEmpty else { throw ToolFailure("지울 노드를 찾을 수 없습니다.") }
+                        let ids = Set(targets.map(\.id))
+                        let edgeCount = map.edges.count { ids.contains($0.fromID) || ids.contains($0.toID) }
+                        var summary = "'\(self.documentTitle(id: id))'에서 노드 \(targets.count)개를 지웁니다:\n"
+                            + targets.map { "· \($0.title)" }.joined(separator: "\n")
+                        if edgeCount > 0 { summary += "\n연결 \(edgeCount)개도 함께 사라집니다." }
+                        return summary
+                    }
+                }
+            ) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let handles = arguments.stringArray("nodes")
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .mindmap(var map) = content else {
+                            throw ToolFailure("이 문서는 마인드맵이 아닙니다.")
+                        }
+                        var targets: Set<UUID> = []
+                        for text in handles {
+                            let node = try Self.resolve(handle: text, in: map.nodes, id: \.id, label: "노드")
+                            targets.insert(node.id)
+                        }
+                        map.nodes.removeAll { targets.contains($0.id) }
+                        // 매달린 연결을 남기면 에디터가 허공을 가리킨다
+                        let removedEdges = map.edges.count { targets.contains($0.fromID) || targets.contains($0.toID) }
+                        map.edges.removeAll { targets.contains($0.fromID) || targets.contains($0.toID) }
+                        content = .mindmap(map)
+                        return "노드 \(targets.count)개와 연결 \(removedEdges)개를 지웠습니다. (⌘Z로 되돌릴 수 있습니다)"
+                    }
+                }
+            },
+
+            AIToolHandler(
+                AITool(
+                    name: "replace_page",
+                    description: "일반/캐릭터 문서의 본문을 통째로 새 마크다운으로 갈아엎는다. 기존 본문은 사라진다. 이어 쓰기가 목적이면 append_to_page를 써라. 사용자 확인을 거친다.",
+                    properties: [
+                        "document_id": .string("문서 ID"),
+                        "markdown": .string("새 본문 (기존 본문을 대체)"),
+                    ],
+                    required: ["document_id", "markdown"]
+                ),
+                confirmationSummary: { [weak self] arguments in
+                    guard let self else { return ToolError.appGone }
+                    let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                    return try await MainActor.run {
+                        guard case .page(let page) = try self.currentContent(id: id) else {
+                            throw ToolFailure("이 문서는 페이지가 아닙니다.")
+                        }
+                        let existing = page.blocks.count { !$0.text.isEmpty }
+                        return "'\(self.documentTitle(id: id))'의 본문을 통째로 교체합니다. 기존 블록 \(existing)개가 사라집니다."
+                    }
+                }
+            ) { [weak self] arguments in
+                guard let self else { return ToolError.appGone }
+                let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
+                let markdown = try arguments.string("markdown")
+                let blocks = PageMarkdown.import(markdown)
+                guard !blocks.isEmpty else { throw ToolFailure("새 본문이 비어 있습니다.") }
+
+                return try await MainActor.run {
+                    try self.mutateDocument(id: id) { content in
+                        guard case .page(var page) = content else {
+                            throw ToolFailure("이 문서는 페이지가 아닙니다.")
+                        }
+                        page.blocks = blocks // 프로필(캐릭터)은 유지된다
+                        content = .page(page)
+                        return "'\(self.documentTitle(id: id))'의 본문을 블록 \(blocks.count)개로 교체했습니다. (⌘Z로 되돌릴 수 있습니다)"
+                    }
+                }
+            },
+        ]
+    }
+
     // MARK: 헬퍼
     // 순수 함수들 — 도구 핸들러가 MainActor 밖에서도 부르므로 nonisolated로 둔다.
+
+    nonisolated private static func makeCastMember(name: String, index: Int) -> CastMember {
+        let palette = ["#5AC8FA", "#FF6482", "#63E6B6", "#FFB340", "#B18CFF", "#8E8E93"]
+        return CastMember(name: name, accentHex: palette[index % palette.count])
+    }
 
     nonisolated private static func parseUUID(_ text: String, key: String) throws -> UUID {
         guard let id = UUID(uuidString: text) else {
@@ -441,6 +949,28 @@ extension AppState {
         return line
     }
 
+    /// UUID의 앞 8자 — 편집 도구가 블록/노드를 지목할 짧은 핸들.
+    /// 전체 UUID를 노출하면 블록마다 36자씩 토큰을 먹는다.
+    nonisolated private static func handle(_ id: UUID) -> String {
+        String(id.uuidString.prefix(8)).lowercased()
+    }
+
+    /// 짧은 핸들(또는 전체 UUID)로 대상을 찾는다. 모호하면 오류 — 조용히 엉뚱한 걸
+    /// 고치는 것보다 모델에게 되묻게 하는 편이 안전하다.
+    nonisolated private static func resolve<T>(
+        handle text: String, in items: [T], id: (T) -> UUID, label: String
+    ) throws -> T {
+        let needle = text.trimmingCharacters(in: .whitespaces).lowercased()
+        let matches = items.filter { id($0).uuidString.lowercased().hasPrefix(needle) }
+        guard let first = matches.first else {
+            throw ToolFailure("\(label) '\(text)'를 찾을 수 없습니다. read_document로 현재 핸들을 다시 확인하세요.")
+        }
+        guard matches.count == 1 else {
+            throw ToolFailure("\(label) '\(text)'가 \(matches.count)개와 일치합니다. 더 긴 핸들을 쓰세요.")
+        }
+        return first
+    }
+
     /// 문서 콘텐츠를 모델이 읽을 수 있는 평문으로 직렬화.
     nonisolated private static func serialize(_ content: DocumentContent, title: String) -> String {
         switch content {
@@ -465,27 +995,30 @@ extension AppState {
             return parts.joined(separator: "\n\n")
 
         case .scenario(let scenario):
+            // 대괄호 핸들은 편집 도구가 블록/캐스트를 지목하는 주소다.
             var lines: [String] = []
             if !scenario.cast.isEmpty {
-                lines.append("등장인물: " + scenario.cast.map(\.name).joined(separator: ", "))
+                lines.append("등장인물: " + scenario.cast.map { "\($0.name) [\(handle($0.id))]" }
+                    .joined(separator: ", "))
                 lines.append("")
             }
             for block in scenario.blocks {
+                let tag = "[\(handle(block.id))]"
                 switch block.kind {
                 case .instruction:
-                    lines.append("[지침] \(block.text)")
+                    lines.append("\(tag) [지침] \(block.text)")
                 case .divider:
-                    lines.append("---")
+                    lines.append("\(tag) ---")
                 case .line:
                     let speaker = block.speakerIDs.first.flatMap { id in
                         scenario.cast.first { $0.id == id }?.name
                     } ?? "?"
-                    lines.append("\(speaker): \(block.text)")
+                    lines.append("\(tag) \(speaker): \(block.text)")
                 }
             }
             for branch in scenario.branches {
                 lines.append("")
-                lines.append("[분기: \(branch.name)]")
+                lines.append("[분기: \(branch.name)] (분기는 편집 도구로 수정할 수 없습니다)")
                 for block in branch.blocks {
                     let speaker = block.speakerIDs.first.flatMap { id in
                         scenario.cast.first { $0.id == id }?.name
@@ -498,7 +1031,8 @@ extension AppState {
         case .mindmap(let map):
             var lines = ["노드:"]
             for node in map.nodes {
-                lines.append("- \(node.title)" + (node.detail.isEmpty ? "" : " — \(node.detail)"))
+                lines.append("- [\(handle(node.id))] \(node.title)"
+                    + (node.detail.isEmpty ? "" : " — \(node.detail)"))
             }
             guard !map.edges.isEmpty else { return lines.joined(separator: "\n") }
             lines.append("")
@@ -510,6 +1044,66 @@ extension AppState {
             }
             return lines.joined(separator: "\n")
         }
+    }
+
+    // MARK: 문서 수정 공용 경로
+
+    /// 문서를 열려 있으면 세션 경유(되돌리기 스택 + 자동저장)로, 닫혀 있으면 디스크에서
+    /// 직접 수정한다. 편집 도구 전부가 이 경로를 지난다.
+    fileprivate func mutateDocument(
+        id: UUID,
+        _ transform: (inout DocumentContent) throws -> String
+    ) throws -> String {
+        if let session = sessions[id] {
+            var content = session.document.content
+            let report = try transform(&content)
+            switch (session.editor, content) {
+            case (.page(let store), .page(let page)):
+                store.replaceContent(page)
+            case (.scenario(let store), .scenario(let scenario)):
+                store.replaceContent(scenario)
+            case (.mindmap(let store), .mindmap(let map)):
+                store.replaceContent(map)
+            default:
+                throw ToolFailure("문서 종류가 맞지 않습니다.")
+            }
+            return report
+        }
+
+        guard let item = workspace.item(id: id) else {
+            throw ToolFailure("문서를 찾을 수 없습니다: \(id.uuidString)")
+        }
+        guard let loaded = try? DocumentPackageIO.read(from: item.url) else {
+            throw ToolFailure("문서를 읽지 못했습니다: \(item.envelope.title)")
+        }
+        var content = loaded.content
+        let report = try transform(&content)
+        let updated = LoadedDocument(
+            envelope: loaded.envelope, content: content, refs: loaded.refs, url: loaded.url
+        )
+        do {
+            _ = try DocumentPackageIO.write(updated)
+        } catch {
+            throw ToolFailure("저장하지 못했습니다: \(error.localizedDescription)")
+        }
+        workspace.scanSoon()
+        return report
+    }
+
+    /// 편집 대상 문서의 현재 콘텐츠 (열려 있으면 미저장분 포함).
+    fileprivate func currentContent(id: UUID) throws -> DocumentContent {
+        if let session = sessions[id] { return session.document.content }
+        guard let item = workspace.item(id: id) else {
+            throw ToolFailure("문서를 찾을 수 없습니다: \(id.uuidString)")
+        }
+        guard let loaded = try? DocumentPackageIO.read(from: item.url) else {
+            throw ToolFailure("문서를 읽지 못했습니다: \(item.envelope.title)")
+        }
+        return loaded.content
+    }
+
+    fileprivate func documentTitle(id: UUID) -> String {
+        sessions[id]?.title ?? workspace.item(id: id)?.envelope.title ?? "문서"
     }
 }
 
