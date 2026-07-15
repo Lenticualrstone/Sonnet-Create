@@ -48,18 +48,46 @@ public enum AIAvailability: Sendable, Equatable {
 
 public enum AIChatRole: String, Codable, Sendable {
     case user, assistant
+    /// 도구 실행 결과 턴 — assistant의 toolCalls에 대한 응답. 반드시 그 뒤에 와야 한다.
+    case tool
 }
 
 public struct AIChatMessage: Identifiable, Sendable, Equatable {
     public let id: UUID
     public var role: AIChatRole
     public var text: String
+    /// assistant 턴이 요청한 도구 호출 (비었으면 평범한 텍스트 응답)
+    public var toolCalls: [AIToolCall]
+    /// tool 턴이 담은 실행 결과 — 직전 assistant 턴의 호출과 1:1로 대응해야 한다
+    public var toolResults: [AIToolResult]
 
-    public init(id: UUID = UUID(), role: AIChatRole, text: String) {
+    public init(
+        id: UUID = UUID(),
+        role: AIChatRole,
+        text: String,
+        toolCalls: [AIToolCall] = [],
+        toolResults: [AIToolResult] = []
+    ) {
         self.id = id
         self.role = role
         self.text = text
+        self.toolCalls = toolCalls
+        self.toolResults = toolResults
     }
+
+    /// 대화 표시용 — 도구 결과 턴은 UI에 말풍선으로 띄우지 않는다.
+    public var isDisplayable: Bool {
+        role != .tool && !text.isEmpty
+    }
+}
+
+// MARK: - 스트림 이벤트
+
+/// 스트리밍 응답의 한 조각. 도구 호출은 여러 SSE 프레임에 걸쳐 조각으로 도착하므로
+/// 제공자 어댑터가 내부에서 누적한 뒤 완성된 호출만 방출한다.
+public enum AIStreamEvent: Sendable {
+    case textDelta(String)
+    case toolCall(AIToolCall)
 }
 
 // MARK: - 에이전트 페르소나
@@ -169,11 +197,19 @@ public enum AIProviderKind: String, Codable, CaseIterable, Sendable, Identifiabl
 /// 시나리오 자동작성 등 상위 기능은 기본 구현이 이 둘 위에서 조립된다.
 public protocol AIProvider: Sendable {
     var kind: AIProviderKind { get }
+    /// 도구 호출(function calling)을 지원하는지 — 오프라인/온디바이스는 지원하지 않아
+    /// 에이전트 루프가 도구 없이 텍스트만 주고받는 모드로 떨어진다.
+    var supportsTools: Bool { get }
     func availability() async -> AIAvailability
     /// 단발 텍스트 생성 (문서/구조 생성용)
     func generate(system: String, prompt: String) async throws -> String
-    /// 스트리밍 채팅 — 텍스트 델타를 순서대로 방출
-    func chatStream(history: [AIChatMessage], system: String) -> AsyncThrowingStream<String, Error>
+    /// 스트리밍 채팅 — 텍스트 델타와 완성된 도구 호출을 순서대로 방출.
+    /// `tools`가 비어 있으면 도구 없이 평범한 채팅으로 동작한다.
+    func chatStream(
+        history: [AIChatMessage],
+        system: String,
+        tools: [AITool]
+    ) -> AsyncThrowingStream<AIStreamEvent, Error>
     /// 대사/지침 블록 연속 생성 (최대 maxBlocks개 제안).
     /// 기본 구현은 generate 기반이며 제공자가 재정의할 수 있다 — 재정의분이 실제로
     /// 불리려면 반드시 프로토콜 요구사항이어야 한다 (extension 전용이면 `any AIProvider`
@@ -182,7 +218,27 @@ public protocol AIProvider: Sendable {
 }
 
 public extension AIProvider {
-    /// 비스트리밍 채팅 — 스트림을 모아서 반환.
+    var supportsTools: Bool { false }
+
+    /// 도구 없는 스트리밍 채팅 — 텍스트 델타만.
+    func chatStream(history: [AIChatMessage], system: String) -> AsyncThrowingStream<String, Error> {
+        let upstream = chatStream(history: history, system: system, tools: [])
+        return AsyncThrowingStream { continuation in
+            let task = Task {
+                do {
+                    for try await event in upstream {
+                        if case .textDelta(let delta) = event { continuation.yield(delta) }
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// 비스트리밍 채팅 — 스트림의 텍스트를 모아서 반환.
     func chat(history: [AIChatMessage], system: String = aiChatSystemPrompt) async throws -> String {
         var result = ""
         for try await delta in chatStream(history: history, system: system) {

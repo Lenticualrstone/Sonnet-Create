@@ -12,6 +12,9 @@ struct AIChatView: View {
 
     @FocusState private var inputFocused: Bool
 
+    /// 진행 중 응답/도구 영역의 스크롤 앵커 — 메시지 ID가 아직 없는 구간을 따라가기 위한 것.
+    private static let streamingAnchor = "streaming-anchor"
+
     var body: some View {
         let l10n = Localizer.shared
         let chat = app.aiChat
@@ -23,7 +26,7 @@ struct AIChatView: View {
                 Text(l10n.t(.aiAgent))
                     .font(.headline)
                 Spacer()
-                if !chat.messages.isEmpty {
+                if !chat.displayMessages.isEmpty {
                     Button(l10n.t(.clearChat)) { chat.clear() }
                         .buttonStyle(.borderless)
                         .font(.caption)
@@ -37,10 +40,10 @@ struct AIChatView: View {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: DesignTokens.Spacing.m) {
-                        if chat.messages.isEmpty {
+                        if chat.displayMessages.isEmpty, !chat.isBusy {
                             emptyHint(l10n)
                         }
-                        ForEach(chat.messages) { message in
+                        ForEach(chat.displayMessages) { message in
                             ChatBubble(message: message, fontFamily: fontFamily)
                                 .id(message.id)
                                 .transition(.asymmetric(
@@ -48,7 +51,30 @@ struct AIChatView: View {
                                     removal: .opacity
                                 ))
                         }
-                        if chat.isBusy || app.isComposingDocument {
+
+                        // 이번 턴에 에이전트가 실행 중인/실행한 앱 기능
+                        if !chat.toolActivity.isEmpty {
+                            VStack(alignment: .leading, spacing: 4) {
+                                ForEach(chat.toolActivity) { activity in
+                                    ToolActivityChip(activity: activity)
+                                }
+                            }
+                            .frame(maxWidth: 520, alignment: .leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, DesignTokens.Spacing.l)
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        }
+
+                        // 진행 중인 응답 — 완료되면 messages로 흡수된다
+                        if !chat.streamingText.isEmpty {
+                            ChatBubble(
+                                message: AIChatMessage(role: .assistant, text: chat.streamingText),
+                                fontFamily: fontFamily
+                            )
+                            .id(Self.streamingAnchor)
+                        }
+
+                        if (chat.isBusy && chat.streamingText.isEmpty) || app.isComposingDocument {
                             HStack(spacing: 8) {
                                 AISphere(size: 22, activity: .thinking)
                                 Text(l10n.t(app.isComposingDocument ? .aiComposeCreating : .aiSuggesting))
@@ -58,27 +84,26 @@ struct AIChatView: View {
                                 Spacer()
                             }
                             .padding(.horizontal, DesignTokens.Spacing.l)
+                            .id(Self.streamingAnchor)
                             .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
                     .padding(.vertical, DesignTokens.Spacing.m)
                     .frame(maxWidth: 680)
                     .frame(maxWidth: .infinity)
-                    .animation(DesignTokens.Motion.arrival, value: chat.messages.count)
+                    .animation(DesignTokens.Motion.arrival, value: chat.displayMessages.count)
+                    .animation(DesignTokens.Motion.snappy, value: chat.toolActivity)
                 }
-                .onChange(of: chat.messages.count) {
-                    if let last = chat.messages.last {
+                .onChange(of: chat.displayMessages.count) {
+                    if let last = chat.displayMessages.last {
                         withAnimation(DesignTokens.Motion.arrival) {
                             proxy.scrollTo(last.id, anchor: .bottom)
                         }
                     }
                 }
-                // 타이핑 연출로 마지막 메시지가 자라는 동안에도 하단을 계속 따라간다
-                .onChange(of: chat.messages.last?.text) {
-                    if let last = chat.messages.last {
-                        proxy.scrollTo(last.id, anchor: .bottom)
-                    }
-                }
+                // 응답이 자라는 동안, 도구가 실행되는 동안 하단을 계속 따라간다
+                .onChange(of: chat.streamingText) { proxy.scrollTo(Self.streamingAnchor, anchor: .bottom) }
+                .onChange(of: chat.toolActivity) { proxy.scrollTo(Self.streamingAnchor, anchor: .bottom) }
             }
 
             // 입력
@@ -153,10 +178,10 @@ struct AIChatView: View {
             let brief = app.aiChat.input.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !brief.isEmpty else { return }
             app.aiChat.input = ""
-            app.aiChat.messages.append(AIChatMessage(role: .user, text: "\(title): \(brief)"))
+            app.aiChat.note(role: .user, text: "\(title): \(brief)")
             Task {
                 if let failure = await app.composeDocument(kind: kind, brief: brief) {
-                    app.aiChat.messages.append(AIChatMessage(role: .assistant, text: "⚠️ \(failure)"))
+                    app.aiChat.note(role: .assistant, text: "⚠️ \(failure)")
                 }
             }
         } label: {
@@ -173,9 +198,8 @@ struct AIChatView: View {
 
     private func send() {
         guard canSend else { return }
-        let provider = app.currentProvider()
-        let system = app.currentPersona.systemPrompt()
-        Task { await app.aiChat.send(using: provider, system: system) }
+        let runner = app.makeAgentRunner()
+        Task { await app.aiChat.send(using: runner) }
     }
 
     private func emptyHint(_ l10n: Localizer) -> some View {
@@ -187,6 +211,58 @@ struct AIChatView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.top, 70)
+    }
+}
+
+/// 에이전트가 앱 기능을 실행 중임을 보여주는 칩 — 무슨 일이 일어나는지 감추지 않는다.
+struct ToolActivityChip: View {
+    let activity: ToolActivity
+
+    @Environment(\.resolvedAccent) private var accent
+
+    /// 도구 이름을 사용자 표현으로 — 모르는 이름은 그대로 노출한다 (새 도구가 붙어도 깨지지 않게).
+    private var label: String {
+        switch activity.name {
+        case "list_projects": "프로젝트 목록 확인"
+        case "list_documents": "문서 목록 확인"
+        case "search_documents": "문서 검색"
+        case "read_document": "문서 읽기"
+        case "get_open_document": "열린 문서 확인"
+        case "create_project": "프로젝트 생성"
+        case "create_page": "문서 작성"
+        case "create_character": "캐릭터 문서 작성"
+        case "create_mindmap": "마인드맵 작성"
+        case "create_scenario": "시나리오 작성"
+        case "append_to_page": "문서에 이어 쓰기"
+        case "rename_document": "문서 이름 변경"
+        default: activity.name
+        }
+    }
+
+    private var symbol: String {
+        if activity.isRunning { return "gearshape.2" }
+        return activity.isError ? "exclamationmark.triangle" : "checkmark.circle"
+    }
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: symbol)
+                .font(.caption2)
+                .foregroundStyle(activity.isError ? Color.orange : accent)
+                .symbolEffect(.rotate, isActive: activity.isRunning)
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if activity.isRunning {
+                PulseDotsIndicator(dotSize: 3)
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(
+            Capsule().fill(activity.isError ? Color.orange.opacity(0.1) : accent.opacity(0.08))
+        )
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
     }
 }
 
@@ -255,7 +331,7 @@ struct SidebarAIChatSection: View {
                 .help(l10n.t(.openAsTab))
             }
 
-            ForEach(chat.messages.suffix(maxMessages)) { message in
+            ForEach(chat.displayMessages.suffix(maxMessages)) { message in
                 HStack(alignment: .top, spacing: 4) {
                     Image(systemName: message.role == .user ? "person.fill" : "sparkles")
                         .font(.system(size: 8))
@@ -267,6 +343,10 @@ struct SidebarAIChatSection: View {
                         .foregroundStyle(message.role == .user ? .secondary : .primary)
                 }
             }
+            // 실행 중인 도구가 있으면 사이드바에서도 보이게
+            if let running = chat.toolActivity.last(where: \.isRunning) {
+                ToolActivityChip(activity: running)
+            }
 
             HStack(spacing: 4) {
                 TextField(l10n.t(.askAnything), text: Binding(
@@ -276,9 +356,8 @@ struct SidebarAIChatSection: View {
                 .textFieldStyle(.plain)
                 .font(.caption)
                 .onSubmit {
-                    let provider = app.currentProvider()
-                    let system = app.currentPersona.systemPrompt()
-                    Task { await chat.send(using: provider, system: system) }
+                    let runner = app.makeAgentRunner()
+                    Task { await chat.send(using: runner) }
                 }
                 if chat.isBusy {
                     ProgressView().controlSize(.mini)

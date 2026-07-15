@@ -16,15 +16,66 @@ private struct StubProvider: AIProvider {
 
     func generate(system: String, prompt: String) async throws -> String { reply }
 
-    func chatStream(history: [AIChatMessage], system: String) -> AsyncThrowingStream<String, Error> {
+    func chatStream(
+        history: [AIChatMessage], system: String, tools: [AITool]
+    ) -> AsyncThrowingStream<AIStreamEvent, Error> {
         let text = reply
         let size = chunkSize
         return AsyncThrowingStream { continuation in
             var index = text.startIndex
             while index < text.endIndex {
                 let end = text.index(index, offsetBy: size, limitedBy: text.endIndex) ?? text.endIndex
-                continuation.yield(String(text[index..<end]))
+                continuation.yield(.textDelta(String(text[index..<end])))
                 index = end
+            }
+            continuation.finish()
+        }
+    }
+}
+
+/// 대본대로 도구를 호출하는 스텁 — 에이전트 루프를 검증한다.
+/// `script`의 각 원소가 한 턴이고, 도구 호출이 비면 그 턴이 최종 답변이다.
+private struct ScriptedToolProvider: AIProvider {
+    struct Turn: Sendable {
+        var text: String = ""
+        var calls: [AIToolCall] = []
+    }
+
+    let kind: AIProviderKind = .anthropic
+    let supportsTools = true
+    let script: [Turn]
+    /// 실제로 모델에 전달된 히스토리/도구를 기록해 검사한다.
+    let recorder: Recorder
+
+    final class Recorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var _turns: [(history: [AIChatMessage], tools: [AITool])] = []
+        var turns: [(history: [AIChatMessage], tools: [AITool])] {
+            lock.lock(); defer { lock.unlock() }
+            return _turns
+        }
+
+        func record(_ history: [AIChatMessage], _ tools: [AITool]) {
+            lock.lock(); defer { lock.unlock() }
+            _turns.append((history, tools))
+        }
+    }
+
+    func availability() async -> AIAvailability { .available }
+    func generate(system: String, prompt: String) async throws -> String { "" }
+
+    func chatStream(
+        history: [AIChatMessage], system: String, tools: [AITool]
+    ) -> AsyncThrowingStream<AIStreamEvent, Error> {
+        recorder.record(history, tools)
+        // 이미 몇 턴이 지났는지로 대본 위치를 정한다 (assistant 턴 수)
+        let index = min(history.count(where: { $0.role == .assistant }), script.count - 1)
+        let turn = script[index]
+        return AsyncThrowingStream { continuation in
+            if !turn.text.isEmpty { continuation.yield(.textDelta(turn.text)) }
+            // 도구가 꺼진 마무리 호출에서는 도구를 부르지 않는다
+            if !tools.isEmpty {
+                for call in turn.calls { continuation.yield(.toolCall(call)) }
             }
             continuation.finish()
         }
@@ -267,4 +318,245 @@ private struct StubProvider: AIProvider {
     let provider = StubProvider(reply: "가나다라마바사", chunkSize: 2)
     let full = try await provider.chat(history: [AIChatMessage(role: .user, text: "hi")])
     #expect(full == "가나다라마바사", "델타가 순서대로 이어붙어야 한다")
+}
+
+// MARK: - 도구 스키마
+
+@Test func toolSchemaEmitsProviderNeutralJSONSchema() {
+    let tool = AITool(
+        name: "create_page",
+        description: "문서 생성",
+        properties: [
+            "title": .string("제목"),
+            "kind": .string("종류", enumValues: ["page", "scenario"]),
+            "count": .integer("개수"),
+            "tags": .array("태그", of: .string("태그 하나")),
+            "meta": .object("메타", properties: ["a": .boolean("플래그")], required: ["a"]),
+        ],
+        required: ["title"]
+    )
+    let schema = tool.parameterSchema
+    #expect(schema["type"] as? String == "object")
+    #expect(schema["required"] as? [String] == ["title"])
+
+    let properties = schema["properties"] as? [String: Any]
+    let kind = properties?["kind"] as? [String: Any]
+    #expect(kind?["enum"] as? [String] == ["page", "scenario"])
+
+    let tags = properties?["tags"] as? [String: Any]
+    #expect(tags?["type"] as? String == "array")
+    #expect((tags?["items"] as? [String: Any])?["type"] as? String == "string")
+
+    let meta = properties?["meta"] as? [String: Any]
+    #expect((meta?["properties"] as? [String: Any])?["a"] != nil)
+    #expect(meta?["required"] as? [String] == ["a"])
+}
+
+@Test func toolboxListsToolsInStableOrder() {
+    // 순서가 매번 달라지면 프롬프트 캐시가 깨진다.
+    let toolbox = AIToolbox([
+        AIToolHandler(AITool(name: "zebra", description: "z")) { _ in "" },
+        AIToolHandler(AITool(name: "alpha", description: "a")) { _ in "" },
+        AIToolHandler(AITool(name: "mango", description: "m")) { _ in "" },
+    ])
+    #expect(toolbox.tools.map(\.name) == ["alpha", "mango", "zebra"])
+}
+
+@Test func toolboxLastRegistrationWinsForSameName() {
+    let toolbox = AIToolbox([
+        AIToolHandler(AITool(name: "dup", description: "old")) { _ in "old" },
+        AIToolHandler(AITool(name: "dup", description: "new")) { _ in "new" },
+    ])
+    #expect(toolbox.tools.count == 1)
+    #expect(toolbox.tools.first?.description == "new")
+}
+
+// MARK: - 도구 인자 파싱
+
+@Test func toolArgumentsReadTypedValues() throws {
+    let arguments = AIToolArguments(json: """
+    {"title": "제목", "count": 3, "flag": true, "tags": ["a", "b"],
+     "items": [{"name": "n1"}, {"name": "n2"}]}
+    """)
+    #expect(try arguments.string("title") == "제목")
+    #expect(arguments.int("count", or: 0) == 3)
+    #expect(arguments.bool("flag", or: false))
+    #expect(arguments.stringArray("tags") == ["a", "b"])
+    #expect(arguments.objects("items").compactMap { try? $0.string("name") } == ["n1", "n2"])
+}
+
+@Test func toolArgumentsCoerceStringifiedNumbers() {
+    // 일부 모델이 숫자를 문자열로 보낸다 — 여기서 막지 않으면 핸들러가 조용히 기본값을 쓴다.
+    let arguments = AIToolArguments(json: #"{"count": "7", "ratio": 2.9}"#)
+    #expect(arguments.int("count", or: 0) == 7)
+    #expect(arguments.int("ratio", or: 0) == 2)
+}
+
+@Test func toolArgumentsThrowOnMissingRequiredString() {
+    let arguments = AIToolArguments(json: "{}")
+    #expect(throws: AIToolArgumentError.self) { try arguments.string("title") }
+}
+
+@Test func toolArgumentsSurviveMalformedJSON() {
+    // 스트림이 끊겨 인자 JSON이 깨져도 크래시하면 안 된다.
+    let arguments = AIToolArguments(json: "{broken")
+    #expect(arguments.dictionary.isEmpty)
+    #expect(arguments.string("x", or: "fallback") == "fallback")
+}
+
+// MARK: - 도구 실행
+
+@Test func toolboxWrapsHandlerErrorAsErrorResult() async {
+    // 핸들러 실패가 예외로 새면 에이전트 루프가 끊긴다 — 결과로 감싸 모델이 회복하게 한다.
+    let toolbox = AIToolbox([
+        AIToolHandler(AITool(name: "boom", description: "실패")) { _ in
+            throw AIToolArgumentError(key: "x", reason: "없음")
+        },
+    ])
+    let result = await toolbox.execute(AIToolCall(id: "1", name: "boom", argumentsJSON: "{}"))
+    #expect(result.isError)
+    #expect(result.callID == "1")
+    #expect(result.content.contains("x"))
+}
+
+@Test func toolboxReportsUnknownToolWithAvailableNames() async {
+    let toolbox = AIToolbox([AIToolHandler(AITool(name: "real", description: "r")) { _ in "ok" }])
+    let result = await toolbox.execute(AIToolCall(id: "1", name: "ghost", argumentsJSON: "{}"))
+    #expect(result.isError)
+    #expect(result.content.contains("real"), "모델이 고쳐 부를 수 있게 실제 도구 이름을 알려줘야 한다")
+}
+
+@Test func toolboxPassesArgumentsToHandler() async {
+    let toolbox = AIToolbox([
+        AIToolHandler(AITool(name: "echo", description: "e")) { arguments in
+            try arguments.string("value")
+        },
+    ])
+    let result = await toolbox.execute(
+        AIToolCall(id: "1", name: "echo", argumentsJSON: #"{"value": "안녕"}"#)
+    )
+    #expect(!result.isError)
+    #expect(result.content == "안녕")
+}
+
+// MARK: - 에이전트 루프
+
+@MainActor
+@Test func runnerExecutesToolThenReturnsFinalAnswer() async throws {
+    let call = AIToolCall(id: "call_1", name: "lookup", argumentsJSON: #"{"q": "x"}"#)
+    let provider = ScriptedToolProvider(
+        script: [
+            .init(text: "찾아볼게요.", calls: [call]),
+            .init(text: "찾았습니다: 42"),
+        ],
+        recorder: .init()
+    )
+    let toolbox = AIToolbox([AIToolHandler(AITool(name: "lookup", description: "조회")) { _ in "42" }])
+    let runner = AIAgentRunner(provider: provider, persona: AIAgentPersona(), toolbox: toolbox)
+
+    var events: [String] = []
+    let messages = try await runner.run(history: [AIChatMessage(role: .user, text: "x 알려줘")]) { event in
+        switch event {
+        case .textDelta: events.append("text")
+        case .toolStarted(let call): events.append("start:\(call.name)")
+        case .toolFinished(let result): events.append("finish:\(result.isError ? "error" : "ok")")
+        case .iterationLimitReached: events.append("limit")
+        }
+    }
+
+    // user → assistant(도구요청) → tool(결과) → assistant(최종)
+    #expect(messages.count == 4)
+    #expect(messages[1].toolCalls.first?.name == "lookup")
+    #expect(messages[2].role == .tool)
+    #expect(messages[2].toolResults.first?.content == "42")
+    #expect(messages[3].toolCalls.isEmpty)
+    #expect(messages[3].text == "찾았습니다: 42")
+    #expect(events == ["text", "start:lookup", "finish:ok", "text"])
+}
+
+@Test func runnerFeedsToolResultBackToModel() async throws {
+    let call = AIToolCall(id: "c1", name: "lookup", argumentsJSON: "{}")
+    let recorder = ScriptedToolProvider.Recorder()
+    let provider = ScriptedToolProvider(
+        script: [.init(calls: [call]), .init(text: "끝")],
+        recorder: recorder
+    )
+    let toolbox = AIToolbox([AIToolHandler(AITool(name: "lookup", description: "조회")) { _ in "결과값" }])
+    _ = try await AIAgentRunner(provider: provider, persona: AIAgentPersona(), toolbox: toolbox)
+        .run(history: [AIChatMessage(role: .user, text: "질문")]) { _ in }
+
+    // 2번째 턴의 히스토리에 도구 결과가 들어 있어야 모델이 그걸 보고 답할 수 있다.
+    let secondTurn = recorder.turns[1].history
+    #expect(secondTurn.contains { $0.role == .tool && $0.toolResults.first?.content == "결과값" })
+}
+
+@MainActor
+@Test func runnerStopsAtIterationLimitAndStillAnswers() async throws {
+    // 도구를 끝없이 부르는 모델 — 상한에서 끊고 말로 마무리시켜야 한다.
+    let call = AIToolCall(id: "c", name: "loop", argumentsJSON: "{}")
+    let provider = ScriptedToolProvider(script: [.init(calls: [call])], recorder: .init())
+    let toolbox = AIToolbox([AIToolHandler(AITool(name: "loop", description: "무한")) { _ in "또" }])
+    let runner = AIAgentRunner(
+        provider: provider, persona: AIAgentPersona(), toolbox: toolbox, maxIterations: 3
+    )
+
+    var hitLimit = false
+    let messages = try await runner.run(history: [AIChatMessage(role: .user, text: "가")]) { event in
+        if case .iterationLimitReached = event { hitLimit = true }
+    }
+    #expect(hitLimit)
+    #expect(messages.last?.role == .assistant, "도구 결과가 아니라 답변으로 끝나야 한다")
+    #expect(messages.last?.toolCalls.isEmpty == true)
+}
+
+@Test func runnerSkipsToolsForProvidersWithoutSupport() async throws {
+    // 오프라인/온디바이스는 도구를 못 쓴다 — 도구를 넘기지 않고 한 번만 돈다.
+    let toolbox = AIToolbox([AIToolHandler(AITool(name: "never", description: "n")) { _ in "!" }])
+    let runner = AIAgentRunner(
+        provider: StubProvider(reply: "텍스트 응답"), persona: AIAgentPersona(), toolbox: toolbox
+    )
+    let messages = try await runner.run(history: [AIChatMessage(role: .user, text: "안녕")]) { _ in }
+    #expect(messages.count == 2)
+    #expect(messages.last?.text == "텍스트 응답")
+}
+
+@Test func runnerPassesToolsOnlyWhenProviderSupportsThem() async throws {
+    let recorder = ScriptedToolProvider.Recorder()
+    let provider = ScriptedToolProvider(script: [.init(text: "끝")], recorder: recorder)
+    let toolbox = AIToolbox([AIToolHandler(AITool(name: "t", description: "t")) { _ in "" }])
+    _ = try await AIAgentRunner(provider: provider, persona: AIAgentPersona(), toolbox: toolbox)
+        .run(history: [AIChatMessage(role: .user, text: "가")]) { _ in }
+    #expect(recorder.turns.first?.tools.map(\.name) == ["t"])
+}
+
+@Test func runnerRefusesUnavailableProvider() async throws {
+    let runner = AIAgentRunner(provider: AnthropicProvider(apiKey: ""), persona: AIAgentPersona())
+    await #expect(throws: (any Error).self) {
+        try await runner.run(history: [AIChatMessage(role: .user, text: "가")]) { _ in }
+    }
+}
+
+// MARK: - 메시지 표시 규칙
+
+@Test func toolMessagesAreNotDisplayedInChat() {
+    let toolMessage = AIChatMessage(
+        role: .tool, text: "",
+        toolResults: [AIToolResult(callID: "1", toolName: "t", content: "결과")]
+    )
+    #expect(!toolMessage.isDisplayable, "도구 결과 턴은 말풍선으로 뜨면 안 된다")
+    #expect(AIChatMessage(role: .assistant, text: "답변").isDisplayable)
+    #expect(!AIChatMessage(role: .assistant, text: "").isDisplayable, "도구만 부른 턴은 빈 말풍선을 만들지 않는다")
+}
+
+// MARK: - 마인드맵 배치
+
+@Test func mindMapLayoutPlacesFirstNodeAtCenter() {
+    #expect(MindMapLayout.radial(index: 0, total: 5) == (0, 0))
+}
+
+@Test func mindMapLayoutSpreadsRemainingNodesOffCenter() {
+    for index in 1..<12 {
+        let position = MindMapLayout.radial(index: index, total: 12)
+        #expect(position.x != 0 || position.y != 0)
+    }
 }

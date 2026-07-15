@@ -1,6 +1,23 @@
 import DocumentKit
 import Foundation
 
+// MARK: - 마인드맵 자동 배치
+
+/// 모델은 노드/연결만 주고 좌표는 앱이 정한다 — 컴포저와 에이전트 도구가 공유한다.
+public enum MindMapLayout {
+    /// 첫 노드는 중심(0,0), 이후 노드는 링을 이루며 방사형으로 퍼진다.
+    public static func radial(index: Int, total: Int) -> (x: Double, y: Double) {
+        guard index > 0 else { return (0, 0) }
+        let ringCapacity = 8
+        let ring = (index - 1) / ringCapacity
+        let slot = (index - 1) % ringCapacity
+        let inRing = min(ringCapacity, max(1, total - 1 - ring * ringCapacity))
+        let angle = (Double(slot) / Double(inRing)) * 2 * Double.pi - Double.pi / 2
+        let radius = 220.0 + Double(ring) * 190.0
+        return (cos(angle) * radius, sin(angle) * radius)
+    }
+}
+
 // MARK: - 에이전트 문서 생성
 
 /// 에이전트가 생성할 수 있는 문서 작업 종류 (채팅 외 액션).
@@ -143,7 +160,7 @@ public struct AIAgentComposer: Sendable {
         for (index, entry) in nodeList.enumerated() {
             guard let key = entry["id"] as? String ?? entry["title"] as? String else { continue }
             let title = entry["title"] as? String ?? key
-            let position = Self.radialPosition(index: index, total: count)
+            let position = MindMapLayout.radial(index: index, total: count)
             let node = MindMapNode(
                 title: title,
                 detail: entry["detail"] as? String ?? "",
@@ -168,18 +185,6 @@ public struct AIAgentComposer: Sendable {
             title: title.isEmpty ? brief : title,
             content: .mindmap(MindMapContent(nodes: nodes, edges: edges))
         )
-    }
-
-    /// 첫 노드는 중심(0,0), 이후 노드는 두 겹의 링으로 배치.
-    private static func radialPosition(index: Int, total: Int) -> (x: Double, y: Double) {
-        guard index > 0 else { return (0, 0) }
-        let ringCapacity = 8
-        let ring = (index - 1) / ringCapacity
-        let slot = (index - 1) % ringCapacity
-        let inRing = min(ringCapacity, max(1, total - 1 - ring * ringCapacity))
-        let angle = (Double(slot) / Double(inRing)) * 2 * Double.pi - Double.pi / 2
-        let radius = 220.0 + Double(ring) * 190.0
-        return (cos(angle) * radius, sin(angle) * radius)
     }
 
     // MARK: 시나리오

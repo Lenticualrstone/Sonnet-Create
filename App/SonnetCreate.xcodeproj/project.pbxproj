@@ -43,6 +43,7 @@
 		F3A9288811842CF2CEF9F518 /* BackupKit in Frameworks */ = {isa = PBXBuildFile; productRef = F258D05B19638E682FD5109D /* BackupKit */; };
 		FC099ED60FC655FAEC220640 /* AppCore in Frameworks */ = {isa = PBXBuildFile; productRef = B66C46C1CF946DC42CF32CC2 /* AppCore */; };
 		FC2A014B0269B528555A98D5 /* AIChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E97FEA9BD30A9EBCDFF468D0 /* AIChatView.swift */; };
+		FFFA892331E744FA409EFB45 /* WorkspaceTools.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79BB5136C5FBFAB8B8F43F40 /* WorkspaceTools.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -87,6 +88,7 @@
 		6C1C8E2C6457466A3B1E2759 /* GuideProjectSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GuideProjectSystem.swift; sourceTree = "<group>"; };
 		732C34C9124878FB3421665B /* TouchBarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TouchBarController.swift; sourceTree = "<group>"; };
 		7858C36D928A18AE009A7109 /* DocumentSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSession.swift; sourceTree = "<group>"; };
+		79BB5136C5FBFAB8B8F43F40 /* WorkspaceTools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceTools.swift; sourceTree = "<group>"; };
 		8573EF3D5CB4A904AC4508A6 /* SonnetCreate.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SonnetCreate.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		8B5242E6D85B6063EED37A75 /* PersistenceKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PersistenceKit; path = ../Packages/PersistenceKit; sourceTree = SOURCE_ROOT; };
 		8D11BB4282BA195D4F440C97 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
@@ -166,6 +168,7 @@
 				1D69E2937C576231B4DE757D /* StatsLedger.swift */,
 				732C34C9124878FB3421665B /* TouchBarController.swift */,
 				EDBC0833EB295B65F94EE7D6 /* UpdateSystem.swift */,
+				79BB5136C5FBFAB8B8F43F40 /* WorkspaceTools.swift */,
 			);
 			path = SonnetCreate;
 			sourceTree = "<group>";
@@ -362,6 +365,7 @@
 				38DE31DACDA9CBF0F29371FD /* StatsLedger.swift in Sources */,
 				0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */,
 				D07FC1590E903DE8C0F8D3DE /* UpdateSystem.swift in Sources */,
+				FFFA892331E744FA409EFB45 /* WorkspaceTools.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

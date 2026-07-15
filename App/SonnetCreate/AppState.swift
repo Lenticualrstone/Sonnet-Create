@@ -22,60 +22,89 @@ enum TabContent: Hashable {
     case document(UUID)
 }
 
+/// 에이전트가 이번 턴에 실행한(또는 실행 중인) 도구 하나 — 채팅 UI의 도구 칩.
+struct ToolActivity: Identifiable, Equatable {
+    let id: String
+    let name: String
+    var isRunning: Bool
+    var isError: Bool
+}
+
 /// AI 에이전트 채팅 세션 (앱 전역 1개, 탭과 사이드패널이 공유).
+///
+/// `messages`는 모델에 그대로 되돌려 보내는 히스토리라 도구 호출/결과 턴까지 담는다 —
+/// UI는 `isDisplayable`로 걸러서 말풍선만 그린다.
 @MainActor
 @Observable
 final class AIChatStore {
-    var messages: [AIChatMessage] = []
+    private(set) var messages: [AIChatMessage] = []
     var input = ""
-    var isBusy = false
-    /// 현재 스트리밍으로 자라는 중인 어시스턴트 메시지 ID (스크롤 추종·상태 표시용)
-    private(set) var streamingMessageID: UUID?
+    private(set) var isBusy = false
+    /// 진행 중인 응답 텍스트 — 완료되면 messages로 흡수된다.
+    private(set) var streamingText = ""
+    /// 이번 턴의 도구 실행 현황
+    private(set) var toolActivity: [ToolActivity] = []
+    /// 이 세대가 아닌 스트림의 늦은 이벤트를 무시하기 위한 토큰 (clear 안전)
+    private var generation = 0
 
-    func send(using provider: any AIProvider, system: String) async {
+    var displayMessages: [AIChatMessage] { messages.filter(\.isDisplayable) }
+
+    func send(using runner: AIAgentRunner) async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isBusy else { return }
         input = ""
         messages.append(AIChatMessage(role: .user, text: text))
         isBusy = true
-        // isBusy는 스트림이 끝날 때까지 유지 — send 가드가 도중 재전송을 막아
-        // 두 스트림이 동시에 messages를 건드리지 않게 한다.
-        defer { isBusy = false }
+        generation += 1
+        let token = generation
+        defer {
+            if token == generation {
+                isBusy = false
+                streamingText = ""
+                toolActivity = []
+            }
+        }
 
-        let history = messages
-        let reply = AIChatMessage(role: .assistant, text: "")
-        var appended = false
-        streamingMessageID = reply.id
-        defer { streamingMessageID = nil }
         do {
-            // 실제 API 스트리밍 — 델타를 도착 즉시 반영한다.
-            for try await delta in provider.chatStream(history: history, system: system) {
-                guard streamingMessageID == reply.id else { return } // clear됨
-                if !appended {
-                    messages.append(reply)
-                    appended = true
-                }
-                guard let index = messages.firstIndex(where: { $0.id == reply.id }) else { return }
-                messages[index].text += delta
+            // 러너가 히스토리를 받아 도구 루프를 돌고, 도구 호출/결과까지 붙여 돌려준다.
+            let updated = try await runner.run(history: messages) { [weak self] event in
+                self?.handle(event, token: token)
             }
-            // 빈 응답이면 흔적을 남기지 않는다
-            if let index = messages.firstIndex(where: { $0.id == reply.id }),
-               messages[index].text.isEmpty {
-                messages.remove(at: index)
-            }
+            guard token == generation else { return } // clear됨
+            messages = updated
         } catch {
-            let notice = "⚠️ \(error.localizedDescription)"
-            if let index = messages.firstIndex(where: { $0.id == reply.id }) {
-                messages[index].text += messages[index].text.isEmpty ? notice : "\n\n\(notice)"
-            } else {
-                messages.append(AIChatMessage(role: .assistant, text: notice))
-            }
+            guard token == generation else { return }
+            messages.append(AIChatMessage(role: .assistant, text: "⚠️ \(error.localizedDescription)"))
         }
     }
 
+    private func handle(_ event: AIAgentEvent, token: Int) {
+        guard token == generation else { return }
+        switch event {
+        case .textDelta(let delta):
+            streamingText += delta
+        case .toolStarted(let call):
+            toolActivity.append(ToolActivity(id: call.id, name: call.name, isRunning: true, isError: false))
+        case .toolFinished(let result):
+            guard let index = toolActivity.firstIndex(where: { $0.id == result.callID }) else { return }
+            toolActivity[index].isRunning = false
+            toolActivity[index].isError = result.isError
+        case .iterationLimitReached:
+            streamingText += "\n\n(도구 호출 상한에 도달해 마무리합니다.)"
+        }
+    }
+
+    /// 대화 밖에서 일어난 일(+ 메뉴의 문서 생성 등)을 기록으로 남긴다.
+    func note(role: AIChatRole, text: String) {
+        messages.append(AIChatMessage(role: role, text: text))
+    }
+
     func clear() {
+        generation += 1
         messages = []
-        streamingMessageID = nil
+        streamingText = ""
+        toolActivity = []
+        isBusy = false
     }
 }
 
@@ -660,6 +689,12 @@ final class AppState {
         )
     }
 
+    /// 채팅용 에이전트 — 현재 제공자·페르소나·앱 도구를 묶는다.
+    /// 워크스페이스 상태가 계속 바뀌므로 매 턴 새로 조립한다.
+    func makeAgentRunner() -> AIAgentRunner {
+        AIAgentRunner(provider: makeProvider(), persona: currentPersona, toolbox: makeAgentToolbox())
+    }
+
     private func makeProvider() -> any AIProvider {
         let applied = settings.applied
         let kind = AIProviderKind(rawValue: applied.aiProviderRaw) ?? .offline
@@ -687,6 +722,40 @@ final class AppState {
     /// 에이전트 문서 생성 진행 상태 (홈/채팅 UI가 진행 표시에 사용).
     private(set) var isComposingDocument = false
 
+    /// 완성된 콘텐츠로 문서를 만들어 열고 즉시 디스크에 저장한다.
+    /// 컴포저(+ 메뉴)와 에이전트 도구가 공유하는 생성 경로.
+    @discardableResult
+    func createAndOpenDocument(
+        title: String,
+        content: DocumentContent,
+        pageRole: PageRole? = nil,
+        in project: ProjectFolder? = nil
+    ) -> UUID {
+        var document = workspace.createDocument(
+            title: title,
+            kind: content.kind,
+            pageRole: pageRole,
+            in: project
+        )
+        document = LoadedDocument(
+            envelope: document.envelope,
+            content: content,
+            refs: document.refs,
+            url: document.url
+        )
+        let session = DocumentSession(document: document, isPersisted: false)
+        session.shouldSnapshotOnManualSave = { [weak self] in
+            self?.settings.applied.snapshotOnManualSave ?? false
+        }
+        session.onWritingDelta = { [weak self] delta in
+            self?.stats.recordWriting(delta: delta)
+        }
+        presentSession(session, id: document.envelope.id)
+        // 생성 문서는 바로 저장 — 열자마자 닫아도 결과물이 남는다.
+        session.persistInitial()
+        return document.envelope.id
+    }
+
     /// 에이전트가 문서를 통째로 생성해 워크스페이스에 저장하고 연다.
     /// 실패하면 수신함에 남기고 오류 메시지를 반환한다 (성공 시 nil).
     @discardableResult
@@ -703,34 +772,12 @@ final class AppState {
                 brief: brief,
                 projectContext: targetProject?.manifest.name
             )
-            let documentKind: DocumentKind = switch composed.content {
-            case .scenario: .scenario
-            case .mindmap: .mindmap
-            case .page: .page
-            }
-            let pageRole: PageRole? = kind == .character ? .character : nil
-            var document = workspace.createDocument(
+            createAndOpenDocument(
                 title: composed.title,
-                kind: documentKind,
-                pageRole: pageRole,
+                content: composed.content,
+                pageRole: kind == .character ? .character : nil,
                 in: targetProject
             )
-            document = LoadedDocument(
-                envelope: document.envelope,
-                content: composed.content,
-                refs: document.refs,
-                url: document.url
-            )
-            let session = DocumentSession(document: document, isPersisted: false)
-            session.shouldSnapshotOnManualSave = { [weak self] in
-                self?.settings.applied.snapshotOnManualSave ?? false
-            }
-            session.onWritingDelta = { [weak self] delta in
-                self?.stats.recordWriting(delta: delta)
-            }
-            presentSession(session, id: document.envelope.id)
-            // 생성 문서는 바로 디스크에 저장 — 열자마자 닫아도 결과물이 남는다.
-            session.persistInitial()
             notify(symbol: "sparkles", message: "\(Localizer.shared.t(.aiComposeDocument)): \(composed.title)")
             return nil
         } catch {
