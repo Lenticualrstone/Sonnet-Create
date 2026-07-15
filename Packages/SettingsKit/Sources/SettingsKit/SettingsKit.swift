@@ -27,8 +27,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var interfaceTheme: InterfaceTheme = .sonnet
     public var themeMode: ThemeMode = .system
     public var accent: AccentChoice = .system
-    /// 베타: Liquid Glass를 끄고 평면 표면 사용 (Sonnet 룩 기본)
-    public var disableLiquidGlass: Bool = true
+    /// Liquid Glass를 끄고 평면 표면 사용 — v1.3부터 Liquid Glass가 기본
+    public var disableLiquidGlass: Bool = false
     /// Wavy Dot Field 배경 효과 (기본 꺼짐)
     public var backgroundEffectEnabled: Bool = false
     /// 전체 UI 크기 배율
@@ -84,9 +84,18 @@ public struct AppSettings: Codable, Sendable, Equatable {
     /// '이 버전 건너뛰기'로 무시한 버전 (자동 확인에서만 제외, 수동 확인은 다시 보여줌)
     public var skippedUpdateVersion: String = ""
 
-    // 베타 (AI)
+    // AI 에이전트
     public var aiProviderRaw: String = "offline"
     public var aiContextScope: AIContextScope = .document
+    /// 에이전트 이름 (비우면 기본 이름)
+    public var agentName: String = ""
+    /// 에이전트 행동지침 — 마크다운 페이지 전문
+    public var agentInstructions: String = ""
+    /// 제공자별 모델 ID (비우면 제공자 기본 모델)
+    public var anthropicModel: String = ""
+    public var openaiModel: String = ""
+    public var geminiModel: String = ""
+    public var grokModel: String = ""
 
     public init() {}
 
@@ -138,6 +147,12 @@ public struct AppSettings: Codable, Sendable, Equatable {
         skippedUpdateVersion = try c.decodeIfPresent(String.self, forKey: .skippedUpdateVersion) ?? d.skippedUpdateVersion
         aiProviderRaw = try c.decodeIfPresent(String.self, forKey: .aiProviderRaw) ?? d.aiProviderRaw
         aiContextScope = try c.decodeIfPresent(AIContextScope.self, forKey: .aiContextScope) ?? d.aiContextScope
+        agentName = try c.decodeIfPresent(String.self, forKey: .agentName) ?? d.agentName
+        agentInstructions = try c.decodeIfPresent(String.self, forKey: .agentInstructions) ?? d.agentInstructions
+        anthropicModel = try c.decodeIfPresent(String.self, forKey: .anthropicModel) ?? d.anthropicModel
+        openaiModel = try c.decodeIfPresent(String.self, forKey: .openaiModel) ?? d.openaiModel
+        geminiModel = try c.decodeIfPresent(String.self, forKey: .geminiModel) ?? d.geminiModel
+        grokModel = try c.decodeIfPresent(String.self, forKey: .grokModel) ?? d.grokModel
     }
 }
 
@@ -148,10 +163,14 @@ public final class SettingsStore {
     public private(set) var applied: AppSettings
     public var draft: AppSettings
 
-    /// API 키는 UserDefaults가 아닌 Keychain으로 — 앱이 주입
-    public var draftAPIKey: String = ""
-    public var persistAPIKey: ((String) -> Void)?
-    public var loadAPIKey: (() -> String)?
+    /// API 키는 UserDefaults가 아닌 Keychain으로 — 앱이 주입.
+    /// 키는 keychain 계정 이름(제공자별), 값은 편집 중인 키 문자열.
+    public var draftAPIKeys: [String: String] = [:]
+    public var persistAPIKey: ((_ value: String, _ account: String) -> Void)?
+    public var loadAPIKey: ((_ account: String) -> String)?
+
+    /// 이 앱이 관리하는 keychain 계정 목록 — 앱이 시작 시 주입.
+    public var apiKeyAccounts: [String] = []
 
     /// 저장 직후 앱이 반영 작업(테마/워크스페이스 전환 등)을 하도록 호출
     public var onApply: ((AppSettings) -> Void)?
@@ -167,23 +186,39 @@ public final class SettingsStore {
             UserDefaults.standard.set(true, forKey: migrationKey)
             Self.persist(loaded)
         }
+        // 1회성 마이그레이션 (v1.3): 테마/강조색 일원화 — 기존 선택을 통합 테마로 정리
+        let unifiedThemeKey = "migrated-unified-theme-v13"
+        if !UserDefaults.standard.bool(forKey: unifiedThemeKey) {
+            loaded.interfaceTheme = .sonnet
+            loaded.accent = .system
+            loaded.disableLiquidGlass = false // v1.3부터 Liquid Glass 기본 켬
+            UserDefaults.standard.set(true, forKey: unifiedThemeKey)
+            Self.persist(loaded)
+        }
         applied = loaded
         draft = loaded
     }
 
     public var hasChanges: Bool {
-        draft != applied || draftAPIKey != (loadAPIKey?() ?? "")
+        if draft != applied { return true }
+        return apiKeyAccounts.contains { account in
+            (draftAPIKeys[account] ?? "") != (loadAPIKey?(account) ?? "")
+        }
     }
 
     public func refreshAPIKeyDraft() {
-        draftAPIKey = loadAPIKey?() ?? ""
+        for account in apiKeyAccounts {
+            draftAPIKeys[account] = loadAPIKey?(account) ?? ""
+        }
     }
 
     /// '저장' 버튼 — draft를 적용/영속화.
     public func save() {
         applied = draft
         Self.persist(applied)
-        persistAPIKey?(draftAPIKey)
+        for account in apiKeyAccounts {
+            persistAPIKey?(draftAPIKeys[account] ?? "", account)
+        }
         onApply?(applied)
     }
 

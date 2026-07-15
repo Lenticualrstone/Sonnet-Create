@@ -408,6 +408,111 @@ public struct SaveStatusBadge: View {
     }
 }
 
+// MARK: - 로딩 인디케이터
+
+/// 세 개의 점이 순차로 부풀며 숨쉬는 로딩 인디케이터 — AI 생성/네트워크 대기 공용.
+/// (GitHub/Figma의 typing indicator 문법)
+public struct PulseDotsIndicator: View {
+    var dotSize: CGFloat
+    var color: Color
+
+    public init(dotSize: CGFloat = 5, color: Color = .secondary) {
+        self.dotSize = dotSize
+        self.color = color
+    }
+
+    public var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+            let t = context.date.timeIntervalSinceReferenceDate
+            HStack(spacing: dotSize * 0.9) {
+                ForEach(0..<3, id: \.self) { index in
+                    let phase = t * 2.4 - Double(index) * 0.28
+                    let wave = (sin(phase * .pi) + 1) / 2 // 0...1
+                    Circle()
+                        .fill(color)
+                        .frame(width: dotSize, height: dotSize)
+                        .scaleEffect(0.65 + 0.45 * wave)
+                        .opacity(0.35 + 0.6 * wave)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// 로딩 플레이스홀더 위를 스치는 시머(광택) 오버레이.
+private struct ShimmerModifier: ViewModifier {
+    let active: Bool
+
+    func body(content: Content) -> some View {
+        if active {
+            content.overlay {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                    GeometryReader { geo in
+                        let t = context.date.timeIntervalSinceReferenceDate
+                        let progress = (t.truncatingRemainder(dividingBy: 1.6)) / 1.6
+                        LinearGradient(
+                            colors: [.clear, .white.opacity(0.35), .clear],
+                            startPoint: .leading, endPoint: .trailing
+                        )
+                        .frame(width: geo.size.width * 0.6)
+                        .offset(x: geo.size.width * (progress * 2.2 - 1.1))
+                        .blendMode(.plusLighter)
+                    }
+                }
+                .allowsHitTesting(false)
+                .clipped()
+            }
+        } else {
+            content
+        }
+    }
+}
+
+public extension View {
+    /// 로딩 중 시머 광택.
+    func shimmer(active: Bool = true) -> some View {
+        modifier(ShimmerModifier(active: active))
+    }
+}
+
+// MARK: - 등장 애니메이션
+
+/// 아래에서 살짝 떠오르며 페이드인하는 등장 연출 — delay를 계단식으로 주면
+/// 리스트/카드가 순차 등장한다 (HIG의 hierarchy-revealing motion).
+private struct FadeUpOnAppear: ViewModifier {
+    let delay: Double
+    let distance: CGFloat
+    @State private var shown = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(shown ? 1 : 0)
+            .offset(y: shown ? 0 : distance)
+            .onAppear {
+                withAnimation(DesignTokens.Motion.arrival.delay(delay)) { shown = true }
+            }
+    }
+}
+
+public extension View {
+    /// 등장 시 아래→위 페이드 (delay로 스태거).
+    func fadeUpOnAppear(delay: Double = 0, distance: CGFloat = 14) -> some View {
+        modifier(FadeUpOnAppear(delay: delay, distance: distance))
+    }
+}
+
+/// 아이콘 버튼용 꾹 눌리는 스프링 — LiftButtonStyle보다 작은 요소에 맞는 미세 반동.
+public struct PressBounceButtonStyle: ButtonStyle {
+    public init() {}
+
+    public func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.86 : 1)
+            .animation(.spring(response: 0.22, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
 // MARK: - 모션 이펙트
 
 /// Error State Shake — 빈 입력 전송 시도 등 오류 피드백.
@@ -598,8 +703,9 @@ public struct ToolbarIconButton: View {
                         .fill(isActive ? accent.opacity(0.14) : (hovering ? accent.opacity(0.1) : .clear))
                 )
                 .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous))
+                .scaleEffect(hovering ? 1.07 : 1)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressBounceButtonStyle())
         .onHover { hovering = $0 }
         .animation(DesignTokens.Motion.snappy, value: hovering)
         .help(help)

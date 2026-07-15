@@ -1,3 +1,4 @@
+import AIAgentKit
 import AppCore
 import AppKit
 import DesignSystem
@@ -333,39 +334,12 @@ public struct SettingsRootView: View {
 
     private func appearanceTab(_ l10n: Localizer) -> some View {
         Form {
-            LabeledContent(l10n.t(.interfaceStyle)) {
-                HStack(spacing: 10) {
-                    themeSwatch(.sonnet, label: l10n.t(.themeSonnet))
-                    themeSwatch(.pilgrimage, label: l10n.t(.themePilgrimage))
-                    themeSwatch(.system, label: l10n.t(.themeSystem))
-                }
-            }
-
             LabeledContent(l10n.t(.themeMode)) {
                 DSSegmentedPicker(selection: $store.draft.themeMode, options: [
                     (ThemeMode.system, l10n.t(.themeSystem)),
                     (ThemeMode.light, l10n.t(.themeLight)),
                     (ThemeMode.dark, l10n.t(.themeDark)),
                 ])
-            }
-
-            LabeledContent(l10n.t(.accentColor)) {
-                HStack(spacing: 8) {
-                    accentSwatch(.system, symbol: "circle.lefthalf.filled")
-                    ForEach(Array(AccentChoice.brandCases.enumerated()), id: \.offset) { _, choice in
-                        accentSwatch(choice)
-                    }
-                    // 커스텀 색이 활성일 때도 스와치들과 같은 문법의 선택 링을 보여준다 —
-                    // 예전엔 어느 것이 선택됐는지 표시가 없어 애매했다.
-                    ColorPicker("", selection: customAccentBinding, supportsOpacity: false)
-                        .labelsHidden()
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                .strokeBorder(isCustomAccentSelected ? Color.primary : .clear, lineWidth: 2)
-                                .padding(-2)
-                        )
-                        .help(l10n.t(.accentCustom))
-                }
             }
 
             // AI 스피어 스타일 — 라이브 프리뷰를 보며 고른다 (draft 즉시 반영, 저장 시 앱 전역 적용)
@@ -416,115 +390,6 @@ public struct SettingsRootView: View {
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func accentSwatch(_ choice: AccentChoice, symbol: String? = nil) -> some View {
-        Button {
-            store.draft.accent = choice
-        } label: {
-            ZStack {
-                Circle().fill(choice.color)
-                if let symbol {
-                    Image(systemName: symbol)
-                        .font(.caption2)
-                        .foregroundStyle(.white)
-                }
-            }
-            .frame(width: 20, height: 20)
-            .overlay(
-                Circle().strokeBorder(
-                    store.draft.accent == choice ? Color.primary : .clear,
-                    lineWidth: 2
-                )
-            )
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var isCustomAccentSelected: Bool {
-        if case .custom = store.draft.accent { return true }
-        return false
-    }
-
-    private var customAccentBinding: Binding<Color> {
-        Binding(
-            get: {
-                if case .custom(let hex) = store.draft.accent { return Color(hex: hex) }
-                return store.draft.accent.color
-            },
-            set: { store.draft.accent = .custom(hex: $0.hexString) }
-        )
-    }
-
-    // MARK: 테마 스와치 (메인/강조색 대각선 프리뷰)
-
-    private func themeSwatch(_ theme: InterfaceTheme, label: String) -> some View {
-        let isSelected = store.draft.interfaceTheme == theme
-        return Button {
-            store.draft.interfaceTheme = theme
-            // 테마를 바꾸면 강조색도 그 테마 고유 액센트를 따르도록 리셋한다.
-            // (이후 강조색을 다시 고르면 그 선택이 우선)
-            store.draft.accent = .system
-        } label: {
-            VStack(spacing: 4) {
-                ThemeColorTile(style: swatchStyle(for: theme))
-                    .frame(width: 44, height: 44)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .strokeBorder(
-                                isSelected ? Color.primary : Color.primary.opacity(0.15),
-                                lineWidth: isSelected ? 2 : 1
-                            )
-                    )
-                Text(label)
-                    .font(.caption2)
-                    .foregroundStyle(isSelected ? .primary : .secondary)
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// 테마별 미리보기 색 조합. 브랜드 테마는 메인 캔버스+강조색, 시스템 테마는
-    /// 화면 모드(라이트/다크/시스템)에 따라 실제 시스템 색 또는 밝음/어두움 조합을 보여준다.
-    private func swatchStyle(for theme: InterfaceTheme) -> ThemeSwatchStyle {
-        switch theme {
-        case .sonnet:
-            return .split(main: SonnetPalette.canvas, accent: swatchAccent(for: theme))
-        case .pilgrimage:
-            return .split(main: PilgrimagePalette.canvas, accent: swatchAccent(for: theme))
-        case .system:
-            switch store.draft.themeMode {
-            case .light:
-                return .split(main: resolvedSystemColor(dark: false), accent: swatchAccent(for: theme))
-            case .dark:
-                return .split(main: resolvedSystemColor(dark: true), accent: swatchAccent(for: theme))
-            case .system:
-                // 실제 OS 모드를 알 수 없으니 "적응형"임을 밝음/어두움 조합으로 보여준다.
-                return .lightDark
-            }
-        }
-    }
-
-    /// AppState.resolvedAccent와 동일한 규칙 — 강조색을 '시스템'으로 둔 경우에만
-    /// 브랜드 테마 고유 액센트를 쓰고, 그 외엔 사용자가 고른 강조색을 그대로 보여준다.
-    private func swatchAccent(for theme: InterfaceTheme) -> Color {
-        if store.draft.accent == .system, theme.isBranded {
-            return theme.accentColor
-        }
-        return store.draft.accent.color
-    }
-
-    /// 화면 모드가 라이트/다크로 고정된 경우, 실제 그 모드에서 보일 시스템 창 배경색을
-    /// 강제 해석해 즉시 미리보기에 반영한다 (draft가 아직 저장 전이라 창 자체의 렌더링
-    /// appearance는 못 따라오므로).
-    private func resolvedSystemColor(dark: Bool) -> Color {
-        let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
-        var resolved = NSColor.windowBackgroundColor
-        appearance?.performAsCurrentDrawingAppearance {
-            resolved = NSColor.windowBackgroundColor.usingColorSpace(.deviceRGB) ?? resolved
-        }
-        return Color(nsColor: resolved)
     }
 
     // MARK: 텍스트 — 전 에디터 공통 글꼴/간격
@@ -664,16 +529,73 @@ public struct SettingsRootView: View {
 
     // MARK: Sonnet AI
 
+    /// 현재 선택된 제공자 종류.
+    private var selectedProviderKind: AIProviderKind {
+        AIProviderKind(rawValue: store.draft.aiProviderRaw) ?? .offline
+    }
+
+    /// 제공자별 keychain draft 바인딩.
+    private func apiKeyBinding(for kind: AIProviderKind) -> Binding<String> {
+        Binding(
+            get: { store.draftAPIKeys[kind.keychainKey] ?? "" },
+            set: { store.draftAPIKeys[kind.keychainKey] = $0 }
+        )
+    }
+
+    /// 제공자별 모델 draft 바인딩.
+    private func modelBinding(for kind: AIProviderKind) -> Binding<String> {
+        switch kind {
+        case .anthropic: $store.draft.anthropicModel
+        case .openai: $store.draft.openaiModel
+        case .gemini: $store.draft.geminiModel
+        case .grok: $store.draft.grokModel
+        case .appleOnDevice, .offline: .constant("")
+        }
+    }
+
     private func aiTab(_ l10n: Localizer) -> some View {
         Form {
-            Picker(l10n.t(.aiProvider), selection: $store.draft.aiProviderRaw) {
-                Text(l10n.t(.aiProviderMock)).tag("offline")
-                Text(l10n.t(.aiProviderApple)).tag("appleOnDevice")
-                Text(l10n.t(.aiProviderAnthropic)).tag("anthropic")
+            Section(l10n.t(.aiProvider)) {
+                Picker(l10n.t(.aiProvider), selection: $store.draft.aiProviderRaw) {
+                    Text(l10n.t(.aiProviderMock)).tag(AIProviderKind.offline.rawValue)
+                    Text(l10n.t(.aiProviderApple)).tag(AIProviderKind.appleOnDevice.rawValue)
+                    Divider()
+                    ForEach([AIProviderKind.anthropic, .openai, .gemini, .grok]) { kind in
+                        Text(kind.displayName).tag(kind.rawValue)
+                    }
+                }
+
+                let kind = selectedProviderKind
+                if kind.requiresAPIKey {
+                    SecureField(l10n.t(.apiKey), text: apiKeyBinding(for: kind))
+                    Picker(l10n.t(.aiModel), selection: modelBinding(for: kind)) {
+                        Text("\(l10n.t(.aiModelDefault)) (\(kind.defaultModel))").tag("")
+                        Divider()
+                        ForEach(kind.suggestedModels, id: \.self) { model in
+                            Text(model).tag(model)
+                        }
+                    }
+                }
             }
 
-            if store.draft.aiProviderRaw == "anthropic" {
-                SecureField(l10n.t(.apiKey), text: $store.draftAPIKey)
+            Section(l10n.t(.agentPersona)) {
+                TextField(l10n.t(.agentName), text: $store.draft.agentName, prompt: Text("Sonnet"))
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(l10n.t(.agentInstructions))
+                        .font(.callout)
+                    TextEditor(text: $store.draft.agentInstructions)
+                        .font(.system(size: 12, design: .monospaced))
+                        .frame(minHeight: 140)
+                        .scrollContentBackground(.hidden)
+                        .padding(6)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(Color.primary.opacity(0.05))
+                        )
+                    Text(l10n.t(.agentInstructionsHint))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             Picker(l10n.t(.contextScope), selection: $store.draft.aiContextScope) {
@@ -683,7 +605,7 @@ public struct SettingsRootView: View {
             }
 
             Section {
-                Text("AI 제안은 항상 검토·수정·취소 가능한 형태로 표시됩니다. 컨텍스트는 선택한 범위를 벗어나 전송되지 않습니다.")
+                Text(l10n.t(.aiPrivacyNote))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

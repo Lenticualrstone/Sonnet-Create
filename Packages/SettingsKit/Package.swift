@@ -11,6 +11,7 @@ let package = Package(
         .package(path: "../AppCore"),
         .package(path: "../DesignSystem"),
         .package(path: "../RenderingKit"),
+        .package(path: "../AIAgentKit"),
     ],
     targets: [
         .target(
@@ -19,6 +20,7 @@ let package = Package(
                 .product(name: "AppCore", package: "AppCore"),
                 .product(name: "DesignSystem", package: "DesignSystem"),
                 .product(name: "RenderingKit", package: "RenderingKit"),
+                .product(name: "AIAgentKit", package: "AIAgentKit"),
             ]
         ),
         .testTarget(name: "SettingsKitTests", dependencies: ["SettingsKit"]),

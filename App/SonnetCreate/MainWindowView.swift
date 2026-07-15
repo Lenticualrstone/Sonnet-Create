@@ -563,10 +563,6 @@ struct ChromeTabBar: View {
             if isChrome {
                 // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
                 theme.isBranded ? SonnetPalette.sunken : Color.primary.opacity(0.06)
-                if theme.isBranded {
-                    // 앤티크 페이퍼 무드를 강화하는 미세 그레인
-                    GrainOverlay(color: SonnetPalette.ink, opacity: 0.045, density: 500)
-                }
             }
         }
         .ignoresSafeArea(edges: .top)

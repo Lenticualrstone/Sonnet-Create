@@ -5,26 +5,21 @@ import SwiftUI
 
 // MARK: - 인터페이스 테마
 
-/// 앱 전반의 시각 스타일. Sonnet = 본(#C8C0B0) 캔버스 + 적갈색 액센트의 모던-레트로 테마.
-/// Pilgrimage = 같은 본톤 캔버스에 짙은 네이비 액센트를 얹은 변형.
+/// 앱 전반의 시각 스타일 — v1.3에서 백색 캔버스 + 딥네이비(#031C35) 단일 테마로 일원화.
+/// enum 케이스는 저장분 디코딩 호환을 위해 유지하되, 어떤 케이스든 같은 팔레트를 반환한다.
 public enum InterfaceTheme: String, Codable, CaseIterable, Sendable, Identifiable {
     case system, sonnet, pilgrimage
 
     public var id: String { rawValue }
 
-    /// 고유 브랜드 팔레트(캔버스/표면/액센트 등)를 쓰는 테마인지 — system은 플랫폼 기본 소재를 쓴다.
-    public var isBranded: Bool { self != .system }
+    /// v1.3 일원화 이후 모든 케이스가 브랜드 팔레트를 쓴다.
+    public var isBranded: Bool { true }
 
-    /// 테마별 메인 캔버스색. 브랜드 팔레트가 아닌 테마에서는 호출부가 쓰지 않지만
-    /// (isBranded로 먼저 분기) 안전하게 Sonnet 값을 기본으로 반환한다.
-    public var canvasColor: Color {
-        self == .pilgrimage ? PilgrimagePalette.canvas : SonnetPalette.canvas
-    }
+    /// 메인 캔버스색 — 케이스와 무관하게 통합 팔레트.
+    public var canvasColor: Color { SonnetPalette.canvas }
 
-    /// 테마별 액센트색.
-    public var accentColor: Color {
-        self == .pilgrimage ? PilgrimagePalette.accent : SonnetPalette.accent
-    }
+    /// 액센트색 — 케이스와 무관하게 통합 팔레트.
+    public var accentColor: Color { SonnetPalette.accent }
 }
 
 /// 라이트/다크에 자동 대응하는 다이나믹 컬러 헬퍼.
@@ -50,31 +45,29 @@ private extension NSColor {
     }
 }
 
-/// Sonnet 테마 팔레트 v2 — 앤티크 페이퍼 캔버스 위의 적갈색 액센트. 부드러운 레트로 미니멀리즘.
+/// 통합 테마 팔레트 v3 — 백색 캔버스 + 딥네이비(#031C35) 액센트.
+/// 다크모드는 네이비 기운의 어두운 캔버스 + 가시성을 위해 밝힌 네이비 액센트를 쓴다.
 public enum SonnetPalette {
-    /// 메인 캔버스 (라이트: 연베이지 백색 / 다크: 웜 브라운 블랙)
-    public static let canvas = dynamicColor(light: "#F6F1E7", dark: "#221E19")
+    /// 메인 캔버스 (라이트: 순백 / 다크: 네이비 블랙)
+    public static let canvas = dynamicColor(light: "#FFFFFF", dark: "#0C1420")
     /// 살짝 떠 있는 표면 (카드/패널)
-    public static let surface = dynamicColor(light: "#FCF9F2", dark: "#2C2620")
-    /// 가라앉은 표면 (사이드바/탭바/입력 필드) — 본톤 기운
-    public static let sunken = dynamicColor(light: "#EAE3D3", dark: "#1A1613")
-    /// 본문 잉크
-    public static let ink = dynamicColor(light: "#33291E", dark: "#E7E0D0")
+    public static let surface = dynamicColor(light: "#F6F8FB", dark: "#16202E")
+    /// 가라앉은 표면 (사이드바/탭바/입력 필드)
+    public static let sunken = dynamicColor(light: "#ECF0F5", dark: "#080E17")
+    /// 본문 잉크 — 라이트에서는 브랜드 네이비에 가깝게
+    public static let ink = dynamicColor(light: "#0E1B2C", dark: "#E6ECF4")
     /// 보조 잉크
-    public static let inkMuted = dynamicColor(light: "#867B67", dark: "#9E9585")
-    /// 적갈색 액센트 (Claude 오렌지보다 어둡고 붉은 쪽)
-    public static let accent = dynamicColor(light: "#9C4A2E", dark: "#C4714F")
+    public static let inkMuted = dynamicColor(light: "#5F6B7C", dark: "#8E9BAD")
+    /// 브랜드 액센트 — 라이트 #031C35 / 다크는 가시성을 위해 밝힌 네이비 블루
+    public static let accent = dynamicColor(light: "#031C35", dark: "#7FA6D4")
     /// 배경 도트 기본색 (테마 추종 모드)
-    public static let dot = dynamicColor(light: "#5C5344", dark: "#C8C0B0")
+    public static let dot = dynamicColor(light: "#33465E", dark: "#93A7BF")
 }
 
-/// Pilgrimage 테마 팔레트 — Sonnet과 같은 본톤 캔버스 가족이되 살짝 더 백색에 가깝게,
-/// 적갈색 대신 짙은 네이비 액센트. 표면/잉크/도트 등 나머지 톤은 Sonnet과 동일하게 공유한다.
+/// (구) Pilgrimage 팔레트 — v1.3 테마 일원화 이후 통합 팔레트의 별칭으로만 남는다.
 public enum PilgrimagePalette {
-    /// 메인 캔버스 — Sonnet보다 살짝 더 흰 쪽으로 (다크는 Sonnet과 동일)
-    public static let canvas = dynamicColor(light: "#F9F7F2", dark: "#221E19")
-    /// 짙은 네이비 액센트 — 라이트/다크 공통 고정 값
-    public static let accent = dynamicColor(light: "#031C35", dark: "#031C35")
+    public static let canvas = SonnetPalette.canvas
+    public static let accent = SonnetPalette.accent
 }
 
 // MARK: - 글꼴 팩

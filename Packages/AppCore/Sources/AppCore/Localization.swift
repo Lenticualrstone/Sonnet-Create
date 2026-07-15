@@ -35,6 +35,9 @@ public enum L10nKey: String, Sendable {
     case backups, backupNow, backupTimeline, restoreBackup, exportProject, importProject
     case aiProvider, aiProviderApple, aiProviderAnthropic, aiProviderMock
     case apiKey, contextScope, ctxDocument, ctxProject, ctxWorkspace
+    case aiModel, aiModelDefault, agentPersona, agentName, agentInstructions, agentInstructionsHint, aiPrivacyNote
+    case aiComposeDocument, aiComposeCharacter, aiComposeMindmap, aiComposeScenario, aiComposeChat
+    case aiComposePrompt, aiComposeCreating, aiComposeFailed
     case dialogue, instruction, send, composerPlaceholderLine, composerPlaceholderNote
     case characters, addCharacter, characterName, characterRole, characterSummary, andOthers
     case undo, redo, searchInDocument, inspector, aiCompose, aiSuggesting, acceptAll, dismissAll, accept
@@ -206,6 +209,33 @@ public final class Localizer {
         .aiProviderAnthropic: [.korean: "Anthropic API", .japanese: "Anthropic API", .english: "Anthropic API"],
         .aiProviderMock: [.korean: "오프라인 초안 (내장)", .japanese: "オフラインドラフト (内蔵)", .english: "Offline Draft (Built-in)"],
         .apiKey: [.korean: "API 키", .japanese: "APIキー", .english: "API Key"],
+        .aiModel: [.korean: "모델", .japanese: "モデル", .english: "Model"],
+        .aiModelDefault: [.korean: "기본", .japanese: "デフォルト", .english: "Default"],
+        .agentPersona: [.korean: "에이전트 페르소나", .japanese: "エージェントペルソナ", .english: "Agent Persona"],
+        .agentName: [.korean: "에이전트 이름", .japanese: "エージェント名", .english: "Agent Name"],
+        .agentInstructions: [.korean: "행동지침 (마크다운)", .japanese: "行動指針 (Markdown)", .english: "Instructions (Markdown)"],
+        .agentInstructionsHint: [
+            .korean: "에이전트의 말투·역할·금기 등을 마크다운으로 적으면 모든 대화와 문서 생성에 적용됩니다.",
+            .japanese: "エージェントの口調・役割・禁止事項などをMarkdownで書くと、すべての会話と文書生成に適用されます。",
+            .english: "Write the agent's tone, role, and constraints in Markdown — applied to every chat and document generation.",
+        ],
+        .aiPrivacyNote: [
+            .korean: "AI 제안은 항상 검토·수정·취소 가능한 형태로 표시됩니다. 컨텍스트는 선택한 범위를 벗어나 전송되지 않습니다.",
+            .japanese: "AI提案は常に確認・編集・取り消し可能な形で表示されます。コンテキストは選択した範囲を超えて送信されません。",
+            .english: "AI suggestions are always shown for review, editing, and cancellation. Context never leaves the selected scope.",
+        ],
+        .aiComposeDocument: [.korean: "문서 자동 작성", .japanese: "ドキュメント自動作成", .english: "Compose Document"],
+        .aiComposeCharacter: [.korean: "캐릭터 문서 생성", .japanese: "キャラクター文書生成", .english: "Compose Character"],
+        .aiComposeMindmap: [.korean: "마인드맵 생성", .japanese: "マインドマップ生成", .english: "Compose Mind Map"],
+        .aiComposeScenario: [.korean: "시나리오 작성", .japanese: "シナリオ作成", .english: "Compose Scenario"],
+        .aiComposeChat: [.korean: "채팅", .japanese: "チャット", .english: "Chat"],
+        .aiComposePrompt: [
+            .korean: "무엇을 만들까요? 주제·분량·톤을 자유롭게 적어주세요.",
+            .japanese: "何を作りますか？テーマ・分量・トーンを自由に書いてください。",
+            .english: "What should I create? Describe the topic, length, and tone.",
+        ],
+        .aiComposeCreating: [.korean: "에이전트가 생성하는 중…", .japanese: "エージェントが生成中…", .english: "Agent is composing…"],
+        .aiComposeFailed: [.korean: "생성 실패", .japanese: "生成失敗", .english: "Compose failed"],
         .contextScope: [.korean: "컨텍스트 범위", .japanese: "コンテキスト範囲", .english: "Context Scope"],
         .ctxDocument: [.korean: "현재 문서", .japanese: "現在のドキュメント", .english: "Current Document"],
         .ctxProject: [.korean: "프로젝트", .japanese: "プロジェクト", .english: "Project"],

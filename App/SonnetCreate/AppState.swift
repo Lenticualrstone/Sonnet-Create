@@ -29,44 +29,47 @@ final class AIChatStore {
     var messages: [AIChatMessage] = []
     var input = ""
     var isBusy = false
-    /// 현재 타이핑 연출로 노출 중인 어시스턴트 메시지 ID (스크롤 추종·상태 표시용)
+    /// 현재 스트리밍으로 자라는 중인 어시스턴트 메시지 ID (스크롤 추종·상태 표시용)
     private(set) var streamingMessageID: UUID?
 
-    func send(using provider: any AIProvider) async {
+    func send(using provider: any AIProvider, system: String) async {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isBusy else { return }
         input = ""
         messages.append(AIChatMessage(role: .user, text: text))
         isBusy = true
-        // isBusy는 타이핑 연출(reveal)이 끝날 때까지 유지한다 — 그래야 send 가드가
-        // 연출 도중 재전송을 막아, 두 reveal 루프가 동시에 messages를 건드리지 않는다.
+        // isBusy는 스트림이 끝날 때까지 유지 — send 가드가 도중 재전송을 막아
+        // 두 스트림이 동시에 messages를 건드리지 않게 한다.
         defer { isBusy = false }
-        do {
-            let reply = try await provider.chat(history: messages)
-            await reveal(reply)
-        } catch {
-            messages.append(AIChatMessage(role: .assistant, text: "⚠️ \(error.localizedDescription)"))
-        }
-    }
 
-    /// 완성된 응답을 글자 단위로 점진 노출 — 타이핑되는 듯한 연출. 취소(clear) 안전.
-    private func reveal(_ full: String) async {
-        guard !full.isEmpty else { return }
-        let message = AIChatMessage(role: .assistant, text: "")
-        messages.append(message)
-        streamingMessageID = message.id
+        let history = messages
+        let reply = AIChatMessage(role: .assistant, text: "")
+        var appended = false
+        streamingMessageID = reply.id
         defer { streamingMessageID = nil }
-
-        let characters = Array(full)
-        // 길이에 따라 스텝 크기를 키워 긴 답변도 과하게 오래 걸리지 않게 (최대 ~2.5초)
-        let step = max(1, characters.count / 120)
-        var shown = 0
-        while shown < characters.count {
-            shown = min(characters.count, shown + step)
-            guard let index = messages.firstIndex(where: { $0.id == message.id }) else { return } // clear됨
-            messages[index].text = String(characters[0..<shown])
-            try? await Task.sleep(for: .milliseconds(16))
-            if Task.isCancelled { return }
+        do {
+            // 실제 API 스트리밍 — 델타를 도착 즉시 반영한다.
+            for try await delta in provider.chatStream(history: history, system: system) {
+                guard streamingMessageID == reply.id else { return } // clear됨
+                if !appended {
+                    messages.append(reply)
+                    appended = true
+                }
+                guard let index = messages.firstIndex(where: { $0.id == reply.id }) else { return }
+                messages[index].text += delta
+            }
+            // 빈 응답이면 흔적을 남기지 않는다
+            if let index = messages.firstIndex(where: { $0.id == reply.id }),
+               messages[index].text.isEmpty {
+                messages.remove(at: index)
+            }
+        } catch {
+            let notice = "⚠️ \(error.localizedDescription)"
+            if let index = messages.firstIndex(where: { $0.id == reply.id }) {
+                messages[index].text += messages[index].text.isEmpty ? notice : "\n\n\(notice)"
+            } else {
+                messages.append(AIChatMessage(role: .assistant, text: notice))
+            }
         }
     }
 
@@ -243,11 +246,14 @@ final class AppState {
         Localizer.shared.language = settings.applied.language
         governor.userPreference = settings.applied.quality
 
-        settings.persistAPIKey = { [keychain] key in
-            keychain.save(key, for: "anthropic-api-key")
+        settings.apiKeyAccounts = AIProviderKind.allCases
+            .filter(\.requiresAPIKey)
+            .map(\.keychainKey)
+        settings.persistAPIKey = { [keychain] value, account in
+            keychain.save(value, for: account)
         }
-        settings.loadAPIKey = { [keychain] in
-            keychain.read("anthropic-api-key") ?? ""
+        settings.loadAPIKey = { [keychain] account in
+            keychain.read(account) ?? ""
         }
         settings.onApply = { [weak self] applied in
             self?.applySettings(applied)
@@ -641,19 +647,95 @@ final class AppState {
 
     // MARK: AI 조립
 
-    /// 현재 설정된 AI 제공자 (채팅·자동작성 공용).
+    /// 현재 설정된 AI 제공자 (채팅·자동작성·문서 생성 공용).
     func currentProvider() -> any AIProvider {
         makeProvider()
     }
 
+    /// 설정에서 조립한 에이전트 페르소나 (이름 + 행동지침).
+    var currentPersona: AIAgentPersona {
+        AIAgentPersona(
+            name: settings.applied.agentName,
+            instructionsMarkdown: settings.applied.agentInstructions
+        )
+    }
+
     private func makeProvider() -> any AIProvider {
-        switch settings.applied.aiProviderRaw {
-        case "appleOnDevice":
-            AppleOnDeviceProvider()
-        case "anthropic":
-            AnthropicProvider(apiKey: keychain.read("anthropic-api-key") ?? "")
-        default:
-            OfflineDraftProvider()
+        let applied = settings.applied
+        let kind = AIProviderKind(rawValue: applied.aiProviderRaw) ?? .offline
+        func key(_ kind: AIProviderKind) -> String {
+            keychain.read(kind.keychainKey) ?? ""
+        }
+        switch kind {
+        case .appleOnDevice:
+            return AppleOnDeviceProvider()
+        case .anthropic:
+            return AnthropicProvider(apiKey: key(.anthropic), model: applied.anthropicModel)
+        case .openai:
+            return OpenAICompatibleProvider.openAI(apiKey: key(.openai), model: applied.openaiModel)
+        case .gemini:
+            return GeminiProvider(apiKey: key(.gemini), model: applied.geminiModel)
+        case .grok:
+            return OpenAICompatibleProvider.grok(apiKey: key(.grok), model: applied.grokModel)
+        case .offline:
+            return OfflineDraftProvider()
+        }
+    }
+
+    // MARK: AI 문서 생성
+
+    /// 에이전트 문서 생성 진행 상태 (홈/채팅 UI가 진행 표시에 사용).
+    private(set) var isComposingDocument = false
+
+    /// 에이전트가 문서를 통째로 생성해 워크스페이스에 저장하고 연다.
+    /// 실패하면 수신함에 남기고 오류 메시지를 반환한다 (성공 시 nil).
+    @discardableResult
+    func composeDocument(kind: AIComposeKind, brief: String, in project: ProjectFolder? = nil) async -> String? {
+        guard !isComposingDocument else { return nil }
+        isComposingDocument = true
+        defer { isComposingDocument = false }
+
+        let composer = AIAgentComposer(provider: makeProvider(), persona: currentPersona)
+        let targetProject = project ?? creationTargetProject
+        do {
+            let composed = try await composer.compose(
+                kind: kind,
+                brief: brief,
+                projectContext: targetProject?.manifest.name
+            )
+            let documentKind: DocumentKind = switch composed.content {
+            case .scenario: .scenario
+            case .mindmap: .mindmap
+            case .page: .page
+            }
+            let pageRole: PageRole? = kind == .character ? .character : nil
+            var document = workspace.createDocument(
+                title: composed.title,
+                kind: documentKind,
+                pageRole: pageRole,
+                in: targetProject
+            )
+            document = LoadedDocument(
+                envelope: document.envelope,
+                content: composed.content,
+                refs: document.refs,
+                url: document.url
+            )
+            let session = DocumentSession(document: document, isPersisted: false)
+            session.shouldSnapshotOnManualSave = { [weak self] in
+                self?.settings.applied.snapshotOnManualSave ?? false
+            }
+            session.onWritingDelta = { [weak self] delta in
+                self?.stats.recordWriting(delta: delta)
+            }
+            presentSession(session, id: document.envelope.id)
+            // 생성 문서는 바로 디스크에 저장 — 열자마자 닫아도 결과물이 남는다.
+            session.persistInitial()
+            notify(symbol: "sparkles", message: "\(Localizer.shared.t(.aiComposeDocument)): \(composed.title)")
+            return nil
+        } catch {
+            notify(symbol: "exclamationmark.triangle", message: "\(Localizer.shared.t(.aiComposeFailed)): \(error.localizedDescription)")
+            return error.localizedDescription
         }
     }
 
@@ -800,12 +882,9 @@ final class AppState {
         }
     }
 
-    /// 실효 강조색 — 브랜드 테마(Sonnet/Pilgrimage)에서 '시스템' 선택 시 테마 고유 액센트가 기본.
+    /// 실효 강조색 — v1.3 테마 일원화 이후 항상 브랜드 네이비 (다크모드는 밝힌 값).
     var resolvedAccent: Color {
-        if settings.applied.accent == .system, settings.applied.interfaceTheme.isBranded {
-            return settings.applied.interfaceTheme.accentColor
-        }
-        return settings.applied.accent.color
+        settings.applied.interfaceTheme.accentColor
     }
 
     // MARK: 표시 헬퍼

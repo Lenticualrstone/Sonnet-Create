@@ -48,12 +48,13 @@ struct AIChatView: View {
                                     removal: .opacity
                                 ))
                         }
-                        if chat.isBusy {
+                        if chat.isBusy || app.isComposingDocument {
                             HStack(spacing: 8) {
                                 AISphere(size: 22, activity: .thinking)
-                                Text(l10n.t(.aiSuggesting))
+                                Text(l10n.t(app.isComposingDocument ? .aiComposeCreating : .aiSuggesting))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
+                                PulseDotsIndicator(dotSize: 4)
                                 Spacer()
                             }
                             .padding(.horizontal, DesignTokens.Spacing.l)
@@ -82,6 +83,26 @@ struct AIChatView: View {
 
             // 입력
             HStack(spacing: DesignTokens.Spacing.s) {
+                // 에이전트 액션 — 입력한 브리프로 문서를 통째로 생성한다.
+                Menu {
+                    Section(l10n.t(.aiComposePrompt)) {
+                        composeButton(.page, l10n.t(.aiComposeDocument), symbol: "doc.richtext")
+                        composeButton(.character, l10n.t(.aiComposeCharacter), symbol: "person.crop.circle.badge.plus")
+                        composeButton(.mindmap, l10n.t(.aiComposeMindmap), symbol: "point.3.connected.trianglepath.dotted")
+                        composeButton(.scenario, l10n.t(.aiComposeScenario), symbol: "text.bubble")
+                    }
+                } label: {
+                    Image(systemName: app.isComposingDocument ? "hourglass" : "plus.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(canCompose ? accent : Color.secondary.opacity(0.5))
+                        .symbolEffect(.pulse, isActive: app.isComposingDocument)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .disabled(!canCompose)
+                .help(l10n.t(.aiComposePrompt))
+
                 TextField(l10n.t(.askAnything), text: bindingInput, axis: .vertical)
                     .textFieldStyle(.plain)
                     .lineLimit(1...5)
@@ -122,9 +143,30 @@ struct AIChatView: View {
         !app.aiChat.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !app.aiChat.isBusy
     }
 
+    private var canCompose: Bool {
+        !app.aiChat.input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !app.isComposingDocument
+    }
+
+    /// 컴포즈 메뉴 항목 — 현재 입력을 브리프로 소비해 문서를 생성한다.
+    private func composeButton(_ kind: AIComposeKind, _ title: String, symbol: String) -> some View {
+        Button {
+            let brief = app.aiChat.input.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !brief.isEmpty else { return }
+            app.aiChat.input = ""
+            app.aiChat.messages.append(AIChatMessage(role: .user, text: "\(title): \(brief)"))
+            Task {
+                if let failure = await app.composeDocument(kind: kind, brief: brief) {
+                    app.aiChat.messages.append(AIChatMessage(role: .assistant, text: "⚠️ \(failure)"))
+                }
+            }
+        } label: {
+            Label(title, systemImage: symbol)
+        }
+    }
+
     /// 스피어 활동 — 생성 중 > 입력 중(포커스+내용) > 평온.
     private var sphereActivity: AISphere.Activity {
-        if app.aiChat.isBusy { return .thinking }
+        if app.aiChat.isBusy || app.isComposingDocument { return .thinking }
         if inputFocused, !app.aiChat.input.isEmpty { return .typing }
         return .idle
     }
@@ -132,7 +174,8 @@ struct AIChatView: View {
     private func send() {
         guard canSend else { return }
         let provider = app.currentProvider()
-        Task { await app.aiChat.send(using: provider) }
+        let system = app.currentPersona.systemPrompt()
+        Task { await app.aiChat.send(using: provider, system: system) }
     }
 
     private func emptyHint(_ l10n: Localizer) -> some View {
@@ -234,7 +277,8 @@ struct SidebarAIChatSection: View {
                 .font(.caption)
                 .onSubmit {
                     let provider = app.currentProvider()
-                    Task { await chat.send(using: provider) }
+                    let system = app.currentPersona.systemPrompt()
+                    Task { await chat.send(using: provider, system: system) }
                 }
                 if chat.isBusy {
                     ProgressView().controlSize(.mini)

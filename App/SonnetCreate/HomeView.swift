@@ -45,17 +45,23 @@ struct HomeView: View {
                     if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
                 }
                 .help(l10n.t(.askAnything))
+                .fadeUpOnAppear()
 
                 searchField(l10n)
+                    .fadeUpOnAppear(delay: 0.06)
 
                 if query.isEmpty {
                     if isWorkspaceEmpty {
                         emptyWorkspaceHero(l10n)
+                            .fadeUpOnAppear(delay: 0.12)
                     }
                     projectActions(l10n)
+                        .fadeUpOnAppear(delay: 0.12)
                     quickCreate(l10n)
+                        .fadeUpOnAppear(delay: 0.18)
                     if !isWorkspaceEmpty {
                         recents(l10n)
+                            .fadeUpOnAppear(delay: 0.24)
                     }
                 } else {
                     searchResultList(l10n)
