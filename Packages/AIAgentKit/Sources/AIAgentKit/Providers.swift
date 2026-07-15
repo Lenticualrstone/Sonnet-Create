@@ -73,12 +73,21 @@ enum JSONRequest {
 public struct AnthropicProvider: AIProvider {
     public let kind: AIProviderKind = .anthropic
 
+    /// 공식 엔드포인트. 프록시/게이트웨이를 쓸 때만 다른 값을 넣는다.
+    public static let defaultBaseURL = URL(string: "https://api.anthropic.com")!
+
     let apiKey: String
     let model: String
+    let baseURL: URL
 
-    public init(apiKey: String, model: String = AIProviderKind.anthropic.defaultModel) {
+    public init(
+        apiKey: String,
+        model: String = AIProviderKind.anthropic.defaultModel,
+        baseURL: URL = AnthropicProvider.defaultBaseURL
+    ) {
         self.apiKey = apiKey
         self.model = model.isEmpty ? AIProviderKind.anthropic.defaultModel : model
+        self.baseURL = baseURL
     }
 
     public func availability() async -> AIAvailability {
@@ -86,7 +95,7 @@ public struct AnthropicProvider: AIProvider {
     }
 
     private func makeRequest(system: String, messages: [[String: Any]], stream: Bool, maxTokens: Int) throws -> URLRequest {
-        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+        var request = URLRequest(url: baseURL.appending(path: "v1/messages"))
         request.httpMethod = "POST"
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
@@ -139,27 +148,39 @@ public struct AnthropicProvider: AIProvider {
 public struct OpenAICompatibleProvider: AIProvider {
     public let kind: AIProviderKind
 
+    /// 공식 엔드포인트. 프록시/게이트웨이를 쓸 때만 다른 값을 넣는다.
+    public static let openAIBaseURL = URL(string: "https://api.openai.com/v1")!
+    public static let grokBaseURL = URL(string: "https://api.x.ai/v1")!
+
     let apiKey: String
     let model: String
     let baseURL: URL
 
     /// ChatGPT (api.openai.com)
-    public static func openAI(apiKey: String, model: String = AIProviderKind.openai.defaultModel) -> OpenAICompatibleProvider {
+    public static func openAI(
+        apiKey: String,
+        model: String = AIProviderKind.openai.defaultModel,
+        baseURL: URL = OpenAICompatibleProvider.openAIBaseURL
+    ) -> OpenAICompatibleProvider {
         OpenAICompatibleProvider(
             kind: .openai,
             apiKey: apiKey,
             model: model.isEmpty ? AIProviderKind.openai.defaultModel : model,
-            baseURL: URL(string: "https://api.openai.com/v1")!
+            baseURL: baseURL
         )
     }
 
     /// Grok (api.x.ai)
-    public static func grok(apiKey: String, model: String = AIProviderKind.grok.defaultModel) -> OpenAICompatibleProvider {
+    public static func grok(
+        apiKey: String,
+        model: String = AIProviderKind.grok.defaultModel,
+        baseURL: URL = OpenAICompatibleProvider.grokBaseURL
+    ) -> OpenAICompatibleProvider {
         OpenAICompatibleProvider(
             kind: .grok,
             apiKey: apiKey,
             model: model.isEmpty ? AIProviderKind.grok.defaultModel : model,
-            baseURL: URL(string: "https://api.x.ai/v1")!
+            baseURL: baseURL
         )
     }
 
@@ -221,12 +242,21 @@ public struct OpenAICompatibleProvider: AIProvider {
 public struct GeminiProvider: AIProvider {
     public let kind: AIProviderKind = .gemini
 
+    /// 공식 엔드포인트. 프록시/게이트웨이를 쓸 때만 다른 값을 넣는다.
+    public static let defaultBaseURL = URL(string: "https://generativelanguage.googleapis.com")!
+
     let apiKey: String
     let model: String
+    let baseURL: URL
 
-    public init(apiKey: String, model: String = AIProviderKind.gemini.defaultModel) {
+    public init(
+        apiKey: String,
+        model: String = AIProviderKind.gemini.defaultModel,
+        baseURL: URL = GeminiProvider.defaultBaseURL
+    ) {
         self.apiKey = apiKey
         self.model = model.isEmpty ? AIProviderKind.gemini.defaultModel : model
+        self.baseURL = baseURL
     }
 
     public func availability() async -> AIAvailability {
@@ -234,8 +264,12 @@ public struct GeminiProvider: AIProvider {
     }
 
     private func makeRequest(system: String, history: [AIChatMessage], stream: Bool) throws -> URLRequest {
-        let endpoint = stream ? "streamGenerateContent?alt=sse" : "generateContent"
-        let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):\(endpoint)")!
+        // 쿼리는 path와 분리해서 붙인다 — appending(path:)는 '?'를 퍼센트 인코딩한다.
+        let method = stream ? "streamGenerateContent" : "generateContent"
+        var url = baseURL.appending(path: "v1beta/models/\(model):\(method)")
+        if stream {
+            url.append(queryItems: [URLQueryItem(name: "alt", value: "sse")])
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(apiKey, forHTTPHeaderField: "x-goog-api-key")

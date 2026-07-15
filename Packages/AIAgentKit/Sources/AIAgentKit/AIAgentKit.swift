@@ -174,6 +174,11 @@ public protocol AIProvider: Sendable {
     func generate(system: String, prompt: String) async throws -> String
     /// 스트리밍 채팅 — 텍스트 델타를 순서대로 방출
     func chatStream(history: [AIChatMessage], system: String) -> AsyncThrowingStream<String, Error>
+    /// 대사/지침 블록 연속 생성 (최대 maxBlocks개 제안).
+    /// 기본 구현은 generate 기반이며 제공자가 재정의할 수 있다 — 재정의분이 실제로
+    /// 불리려면 반드시 프로토콜 요구사항이어야 한다 (extension 전용이면 `any AIProvider`
+    /// 경유 호출이 정적 디스패치로 기본 구현에 묶인다).
+    func draftScenario(context: AIScenarioContext, maxBlocks: Int) async throws -> [AISuggestedBlock]
 }
 
 public extension AIProvider {
