@@ -52,10 +52,6 @@ struct SonnetCreateApp: App {
                 .onAppear {
                     appDelegate.appState = appState
                     appState.touchBar.setEnabled(appState.settings.applied.touchBarEnabled)
-                    Self.updateDockIcon(for: appState.settings.applied.interfaceTheme)
-                }
-                .onChange(of: appState.settings.applied.interfaceTheme) { _, newTheme in
-                    Self.updateDockIcon(for: newTheme)
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -122,16 +118,6 @@ struct SonnetCreateApp: App {
         }
     }
 
-    /// 실행 중인 앱의 Dock 아이콘을 현재 테마에 맞춰 갱신한다.
-    /// Sonnet은 번들 기본 아이콘이므로 nil을 대입해 시스템이 되돌리게 한다.
-    private static func updateDockIcon(for theme: InterfaceTheme) {
-        let imageName: String? = switch theme {
-        case .sonnet: nil
-        case .pilgrimage: "BrandMark-Pilgrimage"
-        case .system: "BrandMark-System"
-        }
-        NSApp.applicationIconImage = imageName.flatMap { NSImage(named: $0) }
-    }
 }
 
 /// 실효 강조색을 화면 모드에 맞춰 주입 — 다크 모드에서는 어두운 강조색(커스텀 네이비 등)이

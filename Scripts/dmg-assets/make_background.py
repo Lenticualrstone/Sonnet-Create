@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """Generates the Sonnet Create DMG installer background (PNG).
 
-Carries over the Sonnet theme (antique paper canvas + rust accent + grain)
-so the Finder DMG window feels like an extension of the app itself.
+v1.3 unified theme: white canvas + deep-navy (#031C35) accent — the Finder
+DMG window should feel like an extension of the app itself.
 Rendered at 2x (Retina) pixels for create-dmg's --window-size 700 460 (pt).
 Text is kept in English — see the "dmg-english-only" decision: the DMG
 background is a baked image, so per-language variants aren't worth the
 maintenance cost. The app itself is localized via AppCore's Localizer.
 """
-import random
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 
 REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "dist" / "dmg-assets" / "background.png"
@@ -21,26 +20,22 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 SCALE = 2
 W, H = 700 * SCALE, 460 * SCALE
 
-CANVAS = (246, 241, 231)      # SonnetPalette.canvas #F6F1E7
-INK = (51, 41, 30)            # SonnetPalette.ink #33291E
-INK_MUTED = (134, 123, 103)   # SonnetPalette.inkMuted #867B67
-ACCENT = (156, 74, 46)        # SonnetPalette.accent #9C4A2E
+# v1.3 통합 팔레트 (SonnetPalette와 동일)
+CANVAS = (255, 255, 255)      # canvas #FFFFFF
+SURFACE = (246, 248, 251)     # surface #F6F8FB
+INK = (14, 27, 44)            # ink #0E1B2C
+INK_MUTED = (95, 107, 124)    # inkMuted #5F6B7C
+ACCENT = (3, 28, 53)          # accent #031C35
 
 img = Image.new("RGB", (W, H), CANVAS)
-
-# --- 미세 그레인 (DesignSystem.GrainOverlay와 같은 결의 정적 노이즈) ---
-random.seed(42)
-grain = Image.new("L", (W, H), 0)
-grain_px = grain.load()
-for _ in range(int(W * H * 0.012)):
-    x = random.randrange(W)
-    y = random.randrange(H)
-    grain_px[x, y] = random.randint(40, 160)
-grain = grain.filter(ImageFilter.GaussianBlur(0.3))
-dark_layer = Image.new("RGB", (W, H), INK)
-img = Image.composite(dark_layer, img, grain.point(lambda p: int(p * 0.06)))
-
 draw = ImageDraw.Draw(img)
+
+# --- 상단 살짝 가라앉은 띠 — 앱 헤더(sunken 톤)의 결을 잇는다 ---
+band_h = 116 * SCALE
+for y in range(band_h):
+    t = y / band_h
+    color = tuple(round(SURFACE[i] + (CANVAS[i] - SURFACE[i]) * t) for i in range(3))
+    draw.line([(0, y), (W, y)], fill=color)
 
 
 def font(path: Path, size: int) -> ImageFont.FreeTypeFont:
@@ -58,9 +53,9 @@ CENTER_X = W // 2
 # --- 헤더: 브랜드마크 + 워드마크 ---
 brandmark_path = REPO / "App/SonnetCreate/Assets.xcassets/BrandMark.imageset/brandmark@2x.png"
 if brandmark_path.exists():
-    mark_size = 30 * SCALE
+    mark_size = 34 * SCALE
     mark = Image.open(brandmark_path).convert("RGBA").resize((mark_size, mark_size), Image.LANCZOS)
-    img.paste(mark, (CENTER_X - mark_size // 2, 22 * SCALE), mark)
+    img.paste(mark, (CENTER_X - mark_size // 2, 18 * SCALE), mark)
 
 draw.text((CENTER_X, 66 * SCALE), "Sonnet Create", font=georgia, fill=INK, anchor="mm")
 draw.text(
@@ -70,7 +65,7 @@ draw.text(
 )
 
 # 헤더 아래 얇은 액센트 선
-rule_y = 104 * SCALE
+rule_y = 106 * SCALE
 draw.line([(CENTER_X - 90 * SCALE, rule_y), (CENTER_X + 90 * SCALE, rule_y)], fill=ACCENT, width=max(1, SCALE // 2))
 
 # --- 1행: 앱 → Applications 화살표 안내 (아이콘 위치: 220/480) ---

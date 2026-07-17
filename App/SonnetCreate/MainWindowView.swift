@@ -354,14 +354,8 @@ struct ChromeTabBar: View {
     /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 사이드바 펼침/접힘과 무관하게
     /// 윈도우 모드에서는 항상 좌측에 신호등 자리를 남겨야 한다.
     private var needsTrafficLightInset: Bool { !app.isFullscreen }
-    /// 현재 테마에 맞는 브랜드 마크 이미지셋 이름.
-    private var brandMarkImageName: String {
-        switch app.settings.applied.interfaceTheme {
-        case .sonnet: "BrandMark"
-        case .pilgrimage: "BrandMark-Pilgrimage"
-        case .system: "BrandMark-System"
-        }
-    }
+    /// 브랜드 마크 이미지셋 — v1.3 테마 일원화로 단일 세트만 쓴다.
+    private var brandMarkImageName: String { "BrandMark" }
 
     var body: some View {
         let l10n = Localizer.shared
