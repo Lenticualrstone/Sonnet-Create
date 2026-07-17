@@ -47,6 +47,14 @@ struct MainWindowView: View {
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                // 문서를 벗어나지 않고 에이전트와 대화하는 플로팅 패널 (⇧⌘A / 헤더 ✨)
+                .overlay(alignment: .bottomTrailing) {
+                    if app.showFloatingChat {
+                        FloatingChatPanel()
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(DesignTokens.Motion.arrival, value: app.showFloatingChat)
                 .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
             }
         }
@@ -68,6 +76,13 @@ struct MainWindowView: View {
             .buttonStyle(.plain)
             .opacity(0)
             .accessibilityHidden(true)
+
+            // ⇧⌘A — 어디서든 에이전트 호출 (문서에서는 플로팅, 그 외에는 탭)
+            Button("") { app.toggleAgentSurface() }
+                .keyboardShortcut("a", modifiers: [.command, .shift])
+                .buttonStyle(.plain)
+                .opacity(0)
+                .accessibilityHidden(true)
         }
         .navigationTitle("")
         // 크롬(버튼/탭/툴바)의 안내 텍스트가 커서로 선택되는 것을 방지.
@@ -489,8 +504,13 @@ struct ChromeTabBar: View {
             ToolbarIconButton("archivebox", help: l10n.t(.archive)) {
                 app.openArchiveTab()
             }
-            ToolbarIconButton("sparkles", help: l10n.t(.aiAgent)) {
-                app.openAIChatTab()
+            // 문서 작업 중엔 화면을 뺏지 않고 플로팅 패널로, 그 외에는 채팅 탭으로.
+            ToolbarIconButton(
+                "sparkles",
+                help: l10n.t(.aiAgent) + " (⇧⌘A)",
+                isActive: app.showFloatingChat
+            ) {
+                app.toggleAgentSurface()
             }
             .padding(.trailing, 8)
         }
@@ -842,5 +862,45 @@ struct DocumentHostView: View {
                 onManualSave: { session.save(manual: true) }
             )
         }
+    }
+}
+
+// MARK: - 플로팅 에이전트 패널
+
+/// 문서를 벗어나지 않고 에이전트와 대화하는 플로팅 패널 — AIChatView(compact)를
+/// 카드로 감싼다. 헤더의 작업 문서 칩이 "이 문서"가 무엇인지 보여준다.
+struct FloatingChatPanel: View {
+    @Environment(AppState.self) private var app
+    @Environment(\.interfaceTheme) private var theme
+
+    var body: some View {
+        AIChatView(compact: true)
+            .frame(width: 400, height: 520)
+            .background(
+                // 뒤의 에디터가 비쳐 글이 겹쳐 보이지 않도록 불투명 캔버스
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous)
+                    .fill(theme.canvasColor)
+                    .shadow(color: .black.opacity(0.22), radius: 24, y: 10)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous)
+                    .strokeBorder(SonnetPalette.ink.opacity(0.12), lineWidth: 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous))
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    app.showFloatingChat = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundStyle(.secondary)
+                        .background(Circle().fill(theme.canvasColor))
+                }
+                .buttonStyle(PressBounceButtonStyle())
+                .help(Localizer.shared.t(.close) + " (⇧⌘A)")
+                .offset(x: 7, y: -7)
+            }
+            .padding(.trailing, DesignTokens.Spacing.m)
+            .padding(.bottom, DesignTokens.Spacing.m)
     }
 }

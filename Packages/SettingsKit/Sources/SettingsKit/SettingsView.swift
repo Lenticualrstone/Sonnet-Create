@@ -567,7 +567,10 @@ public struct SettingsRootView: View {
 
                 let kind = selectedProviderKind
                 if kind.requiresAPIKey {
-                    SecureField(l10n.t(.apiKey), text: apiKeyBinding(for: kind))
+                    RevealableSecureField(
+                        label: l10n.t(.apiKey),
+                        text: apiKeyBinding(for: kind)
+                    )
                     Picker(l10n.t(.aiModel), selection: modelBinding(for: kind)) {
                         Text("\(l10n.t(.aiModelDefault)) (\(kind.defaultModel))").tag("")
                         Divider()
@@ -709,5 +712,34 @@ public struct TouchBarPreviewView: View {
         .frame(height: 34)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.black))
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// 가림 해제 토글이 달린 비밀 입력란 — 긴 API 키를 붙여넣고 눈으로 확인할 수 있게.
+private struct RevealableSecureField: View {
+    let label: String
+    @Binding var text: String
+    @State private var revealed = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            if revealed {
+                TextField(label, text: $text)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12, design: .monospaced))
+            } else {
+                SecureField(label, text: $text)
+                    .textFieldStyle(.plain)
+            }
+            Button {
+                revealed.toggle()
+            } label: {
+                Image(systemName: revealed ? "eye.slash" : "eye")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .buttonStyle(.plain)
+            .help(revealed ? "가리기" : "표시")
+        }
     }
 }

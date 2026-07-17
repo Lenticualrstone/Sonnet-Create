@@ -13,6 +13,42 @@ import MarkdownEditor
 /// 4개 제공자 전부에 자동으로 노출되고(각 어댑터가 스키마를 번역한다), 프롬프트를
 /// 손댈 필요가 없다. 도구 이름/설명이 곧 모델이 보는 사용 설명서다.
 extension AppState {
+    /// 설정 > Sonnet AI의 컨텍스트 범위를 에이전트 도구에 강제한다.
+    /// 탐색/읽기 도구는 전부 이 집합만 본다 — 설정 화면의 "컨텍스트는 선택한 범위를
+    /// 벗어나 전송되지 않습니다"라는 약속을 지키는 지점.
+    fileprivate func agentScopedDocuments() throws -> [DocumentListItem] {
+        switch settings.applied.aiContextScope {
+        case .workspace:
+            return workspace.visibleDocuments
+        case .project:
+            guard let projectID = chatContextSession?.document.envelope.projectID else {
+                throw ToolFailure(
+                    "컨텍스트 범위가 '현재 프로젝트'로 설정돼 있는데 지금 프로젝트 소속 문서가 열려 있지 않습니다. "
+                        + "사용자에게 문서를 열거나 설정 > Sonnet AI에서 범위를 넓혀 달라고 안내하세요."
+                )
+            }
+            return workspace.visibleDocuments.filter { $0.envelope.projectID == projectID }
+        case .document:
+            guard let session = chatContextSession else {
+                throw ToolFailure(
+                    "컨텍스트 범위가 '현재 문서'로 설정돼 있는데 지금 열린 문서가 없습니다. "
+                        + "사용자에게 문서를 열거나 설정 > Sonnet AI에서 범위를 넓혀 달라고 안내하세요."
+                )
+            }
+            return workspace.visibleDocuments.filter { $0.id == session.id }
+        }
+    }
+
+    /// 범위 안의 문서인지 검사 — 읽기 도구가 범위 밖 id를 받았을 때 명확히 거절한다.
+    fileprivate func assertInAgentScope(_ id: UUID) throws {
+        // 현재 컨텍스트 문서는 (미저장이라 스캔에 아직 없더라도) 항상 허용.
+        if chatContextSession?.id == id { return }
+        let allowed = try agentScopedDocuments()
+        guard allowed.contains(where: { $0.id == id }) else {
+            throw ToolFailure("이 문서는 설정된 컨텍스트 범위 밖입니다. 설정 > Sonnet AI에서 범위를 조정할 수 있습니다.")
+        }
+    }
+
     func makeAgentToolbox() -> AIToolbox {
         AIToolbox(
             discoveryTools + authoringTools + editingTools + scenarioTools
@@ -30,14 +66,19 @@ extension AppState {
         [
             AIToolHandler(AITool(
                 name: "list_projects",
-                description: "워크스페이스의 모든 프로젝트 목록과 각 프로젝트의 문서 수를 반환한다. 문서를 만들 프로젝트를 고르기 전에 쓴다."
+                description: "프로젝트 목록과 각 프로젝트의 문서 수를 반환한다. 문서를 만들 프로젝트를 고르기 전에 쓴다."
             )) { [weak self] _ in
                 guard let self else { return ToolError.appGone }
-                return await MainActor.run {
-                    let projects = self.workspace.projects
+                return try await MainActor.run {
+                    let scoped = try self.agentScopedDocuments()
+                    // 범위 안에 문서가 있는 프로젝트만 노출 (워크스페이스 범위 = 전체)
+                    let visibleProjectIDs = Set(scoped.compactMap(\.envelope.projectID))
+                    let projects = self.settings.applied.aiContextScope == .workspace
+                        ? self.workspace.projects
+                        : self.workspace.projects.filter { visibleProjectIDs.contains($0.id) }
                     guard !projects.isEmpty else { return "프로젝트가 없습니다. create_project로 만들 수 있습니다." }
                     return projects.map { project in
-                        let count = self.workspace.visibleDocuments.count { $0.envelope.projectID == project.id }
+                        let count = scoped.count { $0.envelope.projectID == project.id }
                         return "- \(project.manifest.name) (id: \(project.id.uuidString), 문서 \(count)개)"
                     }.joined(separator: "\n")
                 }
@@ -45,7 +86,7 @@ extension AppState {
 
             AIToolHandler(AITool(
                 name: "list_documents",
-                description: "워크스페이스의 문서 목록을 반환한다. 프로젝트나 종류로 좁힐 수 있다.",
+                description: "문서 목록을 반환한다. 프로젝트나 종류로 좁힐 수 있다.",
                 properties: [
                     "project_id": .string("이 프로젝트의 문서만. 생략하면 전체."),
                     "kind": .string("문서 종류로 좁히기", enumValues: ["scenario", "mindmap", "page", "character"]),
@@ -54,8 +95,8 @@ extension AppState {
                 guard let self else { return ToolError.appGone }
                 let projectID = arguments.optionalString("project_id").flatMap(UUID.init(uuidString:))
                 let kind = arguments.optionalString("kind")
-                return await MainActor.run {
-                    var items = self.workspace.visibleDocuments
+                return try await MainActor.run {
+                    var items = try self.agentScopedDocuments()
                     if let projectID { items = items.filter { $0.envelope.projectID == projectID } }
                     if let kind { items = items.filter { Self.matches(kind: kind, $0.envelope) } }
                     guard !items.isEmpty else { return "조건에 맞는 문서가 없습니다." }
@@ -72,8 +113,11 @@ extension AppState {
                 guard let self else { return ToolError.appGone }
                 let query = try arguments.string("query")
                 let results = await self.workspace.deepSearch(query)
-                guard !results.isEmpty else { return "'\(query)'에 대한 검색 결과가 없습니다." }
-                return results.prefix(30).map(Self.describe).joined(separator: "\n")
+                // 딥서치는 전체 색인을 뒤지므로, 반환 전에 범위로 거른다.
+                let allowed = try await MainActor.run { Set(try self.agentScopedDocuments().map(\.id)) }
+                let scoped = results.filter { allowed.contains($0.id) }
+                guard !scoped.isEmpty else { return "'\(query)'에 대한 검색 결과가 없습니다." }
+                return scoped.prefix(30).map(Self.describe).joined(separator: "\n")
             },
 
             AIToolHandler(AITool(
@@ -85,6 +129,7 @@ extension AppState {
                 guard let self else { return ToolError.appGone }
                 let id = try Self.parseUUID(arguments.string("document_id"), key: "document_id")
                 return try await MainActor.run {
+                    try self.assertInAgentScope(id)
                     // 열려 있으면 미저장 편집분까지 반영된 세션 쪽을 읽는다.
                     if let session = self.sessions[id] {
                         return Self.serialize(session.document.content, title: session.title)
@@ -101,12 +146,12 @@ extension AppState {
 
             AIToolHandler(AITool(
                 name: "get_open_document",
-                description: "사용자가 지금 보고 있는 문서를 반환한다. '이거', '지금 이 문서' 같은 지시어가 나오면 먼저 쓴다."
+                description: "사용자가 지금 작업 중인 문서를 반환한다. '이거', '이 문서', '여기' 같은 지시어가 나오면 먼저 쓴다. 채팅 화면에 있어도 마지막으로 편집하던 문서를 기억한다."
             )) { [weak self] _ in
                 guard let self else { return ToolError.appGone }
                 return await MainActor.run {
-                    guard let tab = self.selectedTab, let session = self.session(for: tab) else {
-                        return "지금 열린 문서가 없습니다 (홈/채팅 화면일 수 있습니다)."
+                    guard let session = self.chatContextSession else {
+                        return "지금 작업 중인 문서가 없습니다. 문서 탭을 연 적이 없거나 모두 닫혔습니다."
                     }
                     let project = self.workspace.project(id: session.document.envelope.projectID)
                     return """
@@ -161,10 +206,11 @@ extension AppState {
                 return await MainActor.run {
                     let content = DocumentContent.page(PageContent(blocks: PageMarkdown.import(markdown)))
                     let id = self.createAndOpenDocument(
-                        title: title, content: content, in: self.workspace.project(id: projectID)
+                        title: title, content: content, in: self.workspace.project(id: projectID),
+                        activate: false
                     )
                     self.notify(symbol: "doc.richtext", message: "AI 생성: \(title)")
-                    return "문서 '\(title)' 생성 후 열었습니다 (id: \(id.uuidString))"
+                    return "문서 '\(title)'을 만들어 탭에 열어뒀습니다 (id: \(id.uuidString))"
                 }
             },
 
@@ -213,10 +259,11 @@ extension AppState {
                     ))
                     let id = self.createAndOpenDocument(
                         title: name, content: content, pageRole: .character,
-                        in: self.workspace.project(id: projectID)
+                        in: self.workspace.project(id: projectID),
+                        activate: false
                     )
                     self.notify(symbol: "person.crop.circle.badge.plus", message: "AI 생성: \(name)")
-                    return "캐릭터 '\(name)' 생성 후 열었습니다 (id: \(id.uuidString))"
+                    return "캐릭터 '\(name)'을 만들어 탭에 열어뒀습니다 (id: \(id.uuidString))"
                 }
             },
 
@@ -273,10 +320,11 @@ extension AppState {
                 return await MainActor.run {
                     let content = DocumentContent.mindmap(MindMapContent(nodes: nodes, edges: edges))
                     let id = self.createAndOpenDocument(
-                        title: title, content: content, in: self.workspace.project(id: projectID)
+                        title: title, content: content, in: self.workspace.project(id: projectID),
+                        activate: false
                     )
                     self.notify(symbol: "point.3.connected.trianglepath.dotted", message: "AI 생성: \(title)")
-                    var report = "마인드맵 '\(title)' 생성 후 열었습니다 — 노드 \(nodes.count)개, 연결 \(edges.count)개 (id: \(id.uuidString))"
+                    var report = "마인드맵 '\(title)'을 만들어 탭에 열어뒀습니다 — 노드 \(nodes.count)개, 연결 \(edges.count)개 (id: \(id.uuidString))"
                     if danglingEdges > 0 {
                         report += "\n주의: 존재하지 않는 노드를 가리키는 연결 \(danglingEdges)개는 무시했습니다."
                     }
@@ -330,10 +378,11 @@ extension AppState {
                 return await MainActor.run {
                     let content = DocumentContent.scenario(ScenarioContent(cast: cast, blocks: blocks))
                     let id = self.createAndOpenDocument(
-                        title: title, content: content, in: self.workspace.project(id: projectID)
+                        title: title, content: content, in: self.workspace.project(id: projectID),
+                        activate: false
                     )
                     self.notify(symbol: "text.bubble", message: "AI 생성: \(title)")
-                    return "시나리오 '\(title)' 생성 후 열었습니다 — 블록 \(blocks.count)개, 등장인물 \(cast.count)명 (id: \(id.uuidString))"
+                    return "시나리오 '\(title)'을 만들어 탭에 열어뒀습니다 — 블록 \(blocks.count)개, 등장인물 \(cast.count)명 (id: \(id.uuidString))"
                 }
             },
         ]

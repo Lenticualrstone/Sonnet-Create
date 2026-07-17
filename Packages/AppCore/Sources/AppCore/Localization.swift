@@ -38,6 +38,7 @@ public enum L10nKey: String, Sendable {
     case aiModel, aiModelDefault, agentPersona, agentName, agentInstructions, agentInstructionsHint, aiPrivacyNote
     case aiComposeDocument, aiComposeCharacter, aiComposeMindmap, aiComposeScenario, aiComposeChat
     case aiComposePrompt, aiComposeCreating, aiComposeFailed
+    case agentWorkingDoc, aiNotConnected, openSettings, stopGenerating, clearChatConfirm, quickChat
     case dialogue, instruction, send, composerPlaceholderLine, composerPlaceholderNote
     case characters, addCharacter, characterName, characterRole, characterSummary, andOthers
     case undo, redo, searchInDocument, inspector, aiCompose, aiSuggesting, acceptAll, dismissAll, accept
@@ -235,6 +236,20 @@ public final class Localizer {
             .english: "What should I create? Describe the topic, length, and tone.",
         ],
         .aiComposeCreating: [.korean: "에이전트가 생성하는 중…", .japanese: "エージェントが生成中…", .english: "Agent is composing…"],
+        .agentWorkingDoc: [.korean: "작업 중", .japanese: "作業中", .english: "Working on"],
+        .aiNotConnected: [
+            .korean: "AI 제공자가 연결되지 않았습니다",
+            .japanese: "AIプロバイダが接続されていません",
+            .english: "No AI provider connected",
+        ],
+        .openSettings: [.korean: "설정 열기", .japanese: "設定を開く", .english: "Open Settings"],
+        .stopGenerating: [.korean: "중단", .japanese: "停止", .english: "Stop"],
+        .clearChatConfirm: [
+            .korean: "대화 기록을 모두 지울까요? 되돌릴 수 없습니다.",
+            .japanese: "会話履歴をすべて削除しますか？元に戻せません。",
+            .english: "Clear the entire conversation? This cannot be undone.",
+        ],
+        .quickChat: [.korean: "빠른 대화", .japanese: "クイックチャット", .english: "Quick Chat"],
         .aiComposeFailed: [.korean: "생성 실패", .japanese: "生成失敗", .english: "Compose failed"],
         .contextScope: [.korean: "컨텍스트 범위", .japanese: "コンテキスト範囲", .english: "Context Scope"],
         .ctxDocument: [.korean: "현재 문서", .japanese: "現在のドキュメント", .english: "Current Document"],

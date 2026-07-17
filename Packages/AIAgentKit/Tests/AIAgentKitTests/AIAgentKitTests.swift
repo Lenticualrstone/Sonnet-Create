@@ -669,6 +669,56 @@ private actor ConfirmationSink {
     }
 }
 
+// MARK: - 러너 시스템 프롬프트 합성
+
+@Test func runnerInjectsContextNoteAndToolGuidance() {
+    let runner = AIAgentRunner(
+        provider: OfflineDraftProvider(),
+        persona: AIAgentPersona(name: "소넷"),
+        contextNote: "사용자가 지금 작업 중인 문서: '1장 초고'"
+    )
+    let withTools = runner.systemPrompt(withTools: true)
+    #expect(withTools.contains("1장 초고"), "작업 맥락이 시스템 프롬프트에 들어가야 '이 문서'를 해석한다")
+    #expect(withTools.contains("한 문장으로 먼저 말하세요"), "도구 사용 전 계획 선언 규약")
+
+    let withoutTools = runner.systemPrompt(withTools: false)
+    #expect(!withoutTools.contains("도구 사용 규칙"), "도구가 없으면 규약도 빼야 프롬프트가 헛돌지 않는다")
+    #expect(withoutTools.contains("1장 초고"), "맥락은 도구 유무와 무관하게 유지")
+}
+
+@Test func runnerOmitsEmptyContextNote() {
+    let runner = AIAgentRunner(provider: OfflineDraftProvider(), persona: AIAgentPersona())
+    #expect(!runner.systemPrompt(withTools: false).contains("현재 작업 맥락"))
+}
+
+// MARK: - 취소
+
+@MainActor
+@Test func runnerStopsBetweenToolCallsWhenCancelled() async throws {
+    // 도구를 계속 부르는 대본 — 취소하면 다음 반복으로 넘어가지 않아야 한다.
+    let call = AIToolCall(id: "c", name: "slow", argumentsJSON: "{}")
+    let provider = ScriptedToolProvider(script: [.init(calls: [call])], recorder: .init())
+    let toolbox = AIToolbox([
+        AIToolHandler(AITool(name: "slow", description: "느린 작업")) { _ in
+            try? await Task.sleep(for: .milliseconds(50))
+            return "완료"
+        },
+    ])
+    let runner = AIAgentRunner(
+        provider: provider, persona: AIAgentPersona(), toolbox: toolbox, maxIterations: 50
+    )
+
+    let task = Task {
+        try await runner.run(history: [AIChatMessage(role: .user, text: "가")]) { _ in }
+    }
+    try? await Task.sleep(for: .milliseconds(80))
+    task.cancel()
+
+    await #expect(throws: (any Error).self) {
+        _ = try await task.value // CancellationError가 전파돼야 한다
+    }
+}
+
 // MARK: - 메시지 표시 규칙
 
 @Test func toolMessagesAreNotDisplayedInChat() {

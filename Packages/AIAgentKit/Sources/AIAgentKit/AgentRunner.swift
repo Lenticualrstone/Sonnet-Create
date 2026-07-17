@@ -22,17 +22,40 @@ public struct AIAgentRunner: Sendable {
     public var toolbox: AIToolbox
     /// 무한 루프 방지 상한 — 도달하면 도구를 끄고 마무리 답변을 한 번 받는다.
     public var maxIterations: Int
+    /// 앱이 주입하는 현재 작업 맥락 (예: "사용자가 지금 편집 중인 문서: …").
+    /// 시스템 프롬프트 끝에 붙어 '이 문서', '여기' 같은 지시어를 해석할 근거가 된다.
+    public var contextNote: String
+
+    /// 도구가 있을 때 붙는 행동 규약 — 사용자가 에이전트가 뭘 하는지 따라올 수 있게 한다.
+    static let toolGuidance = """
+    도구 사용 규칙:
+    - 도구를 호출하기 전에, 무엇을 하려는지 한 문장으로 먼저 말하세요. (예: "프로젝트에서 주인공 문서를 찾아볼게요.")
+    - 여러 단계를 밟을 때는 단계마다 짧게 상황을 알리세요.
+    - 작업을 마치면 무엇을 만들었/바꿨는지 한두 문장으로 요약하고, 사용자가 요청하지 않은 작업은 하지 마세요.
+    - 사용자가 요청을 명확히 하지 않았으면 도구를 쓰기 전에 되물으세요.
+    """
 
     public init(
         provider: any AIProvider,
         persona: AIAgentPersona,
         toolbox: AIToolbox = AIToolbox(),
-        maxIterations: Int = 8
+        maxIterations: Int = 8,
+        contextNote: String = ""
     ) {
         self.provider = provider
         self.persona = persona
         self.toolbox = toolbox
         self.maxIterations = maxIterations
+        self.contextNote = contextNote
+    }
+
+    /// 페르소나 + 도구 규약 + 작업 맥락을 합친 실효 시스템 프롬프트.
+    func systemPrompt(withTools: Bool) -> String {
+        var parts = [persona.systemPrompt()]
+        if withTools { parts.append(Self.toolGuidance) }
+        let note = contextNote.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !note.isEmpty { parts.append("--- 현재 작업 맥락 ---\n\(note)") }
+        return parts.joined(separator: "\n\n")
     }
 
     /// 히스토리를 받아 루프를 돌고, 도구 호출·결과까지 포함한 최종 히스토리를 돌려준다.
@@ -47,7 +70,7 @@ public struct AIAgentRunner: Sendable {
 
         var messages = history
         let tools = provider.supportsTools ? toolbox.tools : []
-        let system = persona.systemPrompt()
+        let system = systemPrompt(withTools: !tools.isEmpty)
 
         // 도구가 없으면 루프 자체가 무의미하다 — 한 번만 돌고 끝낸다.
         guard !tools.isEmpty else {
@@ -56,6 +79,7 @@ public struct AIAgentRunner: Sendable {
         }
 
         for iteration in 0..<maxIterations {
+            try Task.checkCancellation()
             let reply = try await respond(messages: messages, system: system, tools: tools, onEvent: onEvent)
             messages.append(reply)
 
@@ -64,6 +88,7 @@ public struct AIAgentRunner: Sendable {
 
             var results: [AIToolResult] = []
             for call in reply.toolCalls {
+                try Task.checkCancellation()
                 await onEvent(.toolStarted(call))
                 let result = await toolbox.execute(call)
                 await onEvent(.toolFinished(result))
@@ -74,7 +99,9 @@ public struct AIAgentRunner: Sendable {
             // 마지막 반복인데도 도구를 부르는 중 — 도구를 끄고 말로 마무리시킨다.
             if iteration == maxIterations - 1 {
                 await onEvent(.iterationLimitReached)
-                messages.append(try await respond(messages: messages, system: system, tools: [], onEvent: onEvent))
+                messages.append(try await respond(
+                    messages: messages, system: systemPrompt(withTools: false), tools: [], onEvent: onEvent
+                ))
             }
         }
         return messages

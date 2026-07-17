@@ -86,7 +86,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
 
     // AI 에이전트
     public var aiProviderRaw: String = "offline"
-    public var aiContextScope: AIContextScope = .document
+    /// 에이전트 도구(탐색/읽기)의 가시 범위 — v1.3부터 실제로 강제된다
+    public var aiContextScope: AIContextScope = .workspace
     /// 에이전트 이름 (비우면 기본 이름)
     public var agentName: String = ""
     /// 에이전트 행동지침 — 마크다운 페이지 전문
@@ -193,6 +194,14 @@ public final class SettingsStore {
             loaded.accent = .system
             loaded.disableLiquidGlass = false // v1.3부터 Liquid Glass 기본 켬
             UserDefaults.standard.set(true, forKey: unifiedThemeKey)
+            Self.persist(loaded)
+        }
+        // 1회성 마이그레이션 (v1.3): 컨텍스트 범위가 이제 에이전트 도구를 실제로 제한한다 —
+        // 옛 기본값(.document)을 그대로 두면 채팅 에이전트가 아무것도 못 찾는 상태로 시작한다.
+        let agentScopeKey = "migrated-agent-scope-v13"
+        if !UserDefaults.standard.bool(forKey: agentScopeKey) {
+            loaded.aiContextScope = .workspace
+            UserDefaults.standard.set(true, forKey: agentScopeKey)
             Self.persist(loaded)
         }
         applied = loaded

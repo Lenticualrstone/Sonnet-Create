@@ -22,12 +22,15 @@ enum TabContent: Hashable {
     case document(UUID)
 }
 
-/// 에이전트가 이번 턴에 실행한(또는 실행 중인) 도구 하나 — 채팅 UI의 도구 칩.
+/// 에이전트가 실행한(또는 실행 중인) 도구 하나 — 채팅 UI의 도구 칩.
 struct ToolActivity: Identifiable, Equatable {
     let id: String
     let name: String
     var isRunning: Bool
     var isError: Bool
+    /// 실행 결과(또는 실패 사유)의 앞부분 — 칩 확장/툴팁으로 노출해
+    /// "무엇을 했는지"가 최종 답변 텍스트에만 의존하지 않게 한다.
+    var detail: String = ""
 }
 
 /// AI 에이전트 채팅 세션 (앱 전역 1개, 탭과 사이드패널이 공유).
@@ -42,10 +45,15 @@ final class AIChatStore {
     private(set) var isBusy = false
     /// 진행 중인 응답 텍스트 — 완료되면 messages로 흡수된다.
     private(set) var streamingText = ""
-    /// 이번 턴의 도구 실행 현황
+    /// 이번 턴에서 도구 호출 '이전'에 이미 끝난 말 조각들 — 도구 전 안내("찾아볼게요")와
+    /// 도구 후 답변이 한 덩어리로 뭉개지지 않도록 분절해 별도 말풍선으로 보여준다.
+    private(set) var streamingSegments: [String] = []
+    /// 이번 턴의 도구 실행 현황 (완료 후에는 히스토리 기반 activities(for:)가 이어받는다)
     private(set) var toolActivity: [ToolActivity] = []
     /// 이 세대가 아닌 스트림의 늦은 이벤트를 무시하기 위한 토큰 (clear 안전)
     private var generation = 0
+    /// 진행 중인 턴 — stop()이 취소한다.
+    private var currentTask: Task<Void, Never>?
 
     /// 사용자 승인을 기다리는 파괴적 작업 (있으면 UI가 확인 시트를 띄운다)
     private(set) var pendingConfirmation: PendingConfirmation?
@@ -85,9 +93,21 @@ final class AIChatStore {
         pending.resume(approved)
     }
 
-    func send(using runner: AIAgentRunner) async {
+    /// 전송 — 턴을 Task로 소유해 stop()으로 중단할 수 있다.
+    func submit(using runner: AIAgentRunner) {
         let text = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isBusy else { return }
+        currentTask = Task { await send(text: text, using: runner) }
+    }
+
+    /// 진행 중인 턴 중단 — 이미 실행된 도구는 되돌리지 않는다 (⌘Z는 문서 쪽에 있다).
+    func stop() {
+        // 확인 시트에 멈춰 있으면 거부로 풀어야 취소가 전파된다.
+        answerConfirmation(approved: false)
+        currentTask?.cancel()
+    }
+
+    private func send(text: String, using runner: AIAgentRunner) async {
         input = ""
         messages.append(AIChatMessage(role: .user, text: text))
         isBusy = true
@@ -97,7 +117,9 @@ final class AIChatStore {
             if token == generation {
                 isBusy = false
                 streamingText = ""
+                streamingSegments = []
                 toolActivity = []
+                currentTask = nil
             }
         }
 
@@ -108,6 +130,17 @@ final class AIChatStore {
             }
             guard token == generation else { return } // clear됨
             messages = updated
+        } catch is CancellationError {
+            guard token == generation else { return }
+            // 중단은 오류가 아니다 — 그때까지 화면에 보이던 조각을 히스토리에 남긴다.
+            let partial = (streamingSegments + [streamingText])
+                .joined(separator: "\n\n")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !partial.isEmpty {
+                messages.append(AIChatMessage(role: .assistant, text: partial + "\n\n(중단됨)"))
+            } else {
+                messages.append(AIChatMessage(role: .assistant, text: "(중단됨)"))
+            }
         } catch {
             guard token == generation else { return }
             messages.append(AIChatMessage(role: .assistant, text: "⚠️ \(error.localizedDescription)"))
@@ -120,13 +153,44 @@ final class AIChatStore {
         case .textDelta(let delta):
             streamingText += delta
         case .toolStarted(let call):
+            // 도구 호출 직전까지의 말("찾아볼게요")을 분절 — 이후 텍스트와 섞이지 않는다.
+            let segment = streamingText.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !segment.isEmpty { streamingSegments.append(segment) }
+            streamingText = ""
             toolActivity.append(ToolActivity(id: call.id, name: call.name, isRunning: true, isError: false))
         case .toolFinished(let result):
             guard let index = toolActivity.firstIndex(where: { $0.id == result.callID }) else { return }
             toolActivity[index].isRunning = false
             toolActivity[index].isError = result.isError
+            toolActivity[index].detail = String(result.content.prefix(200))
         case .iterationLimitReached:
             streamingText += "\n\n(도구 호출 상한에 도달해 마무리합니다.)"
+        }
+    }
+
+    /// 지난 턴들의 도구 실행 기록 — 히스토리에서 파생하므로 턴이 끝나도 남는다.
+    /// UI가 각 assistant 말풍선 아래에 그 턴의 도구 칩을 붙일 때 쓴다.
+    func activities(for messageID: UUID) -> [ToolActivity] {
+        guard let index = messages.firstIndex(where: { $0.id == messageID }) else { return [] }
+        let message = messages[index]
+        guard !message.toolCalls.isEmpty else { return [] }
+        // 결과는 바로 다음 tool 턴에 1:1로 담겨 있다.
+        let results: [String: AIToolResult] = {
+            guard index + 1 < messages.count, messages[index + 1].role == .tool else { return [:] }
+            return Dictionary(
+                messages[index + 1].toolResults.map { ($0.callID, $0) },
+                uniquingKeysWith: { first, _ in first }
+            )
+        }()
+        return message.toolCalls.map { call in
+            let result = results[call.id]
+            return ToolActivity(
+                id: call.id,
+                name: call.name,
+                isRunning: false,
+                isError: result?.isError ?? false,
+                detail: String((result?.content ?? "").prefix(200))
+            )
         }
     }
 
@@ -139,8 +203,11 @@ final class AIChatStore {
         generation += 1
         // 확인 대기 중에 지우면 러너가 continuation에 영원히 매달린다 — 거부로 풀어준다.
         answerConfirmation(approved: false)
+        currentTask?.cancel()
+        currentTask = nil
         messages = []
         streamingText = ""
+        streamingSegments = []
         toolActivity = []
         isBusy = false
     }
@@ -190,6 +257,11 @@ final class AppState {
     }
     /// 탭바에서 드래그 재정렬 중인 탭
     var draggingTabID: UUID?
+    /// 마지막으로 활성화됐던 문서 — 채팅 탭으로 넘어가도 에이전트가 "지금 작업 중인 문서"를
+    /// 잃지 않게 하는 명시적 컨텍스트. (선택 탭에만 의존하면 채팅 탭에서 항상 nil이 된다)
+    private(set) var lastActiveDocumentID: UUID?
+    /// 플로팅 에이전트 패널 (문서를 벗어나지 않고 대화) 표시 여부
+    var showFloatingChat = false
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
 
@@ -226,6 +298,8 @@ final class AppState {
     var canGoForward: Bool { !navForwardStack.isEmpty }
 
     private func pushNavigation(_ step: NavigationStep) {
+        // 문서로의 이동은 (히스토리 복원 중이라도) 에이전트 컨텍스트를 갱신한다.
+        if case .document(let id) = step { lastActiveDocumentID = id }
         guard !isRestoringHistory, step != currentNavStep else { return }
         navBackStack.append(currentNavStep)
         navForwardStack.removeAll()
@@ -343,6 +417,9 @@ final class AppState {
             sessions.removeAll()
             tabs = [OpenTab(content: .home)]
             selectedTabID = tabs.first?.id
+            lastActiveDocumentID = nil
+            // 옛 워크스페이스의 문서를 언급하는 대화가 새 워크스페이스로 새지 않게.
+            aiChat.clear()
             workspace.setRoot(newRoot)
             backupManager = BackupManager(workspaceRoot: newRoot)
             stats.load(rootURL: workspace.rootURL)
@@ -379,6 +456,18 @@ final class AppState {
     func openAIChatTab() {
         openSingletonTab(.aiChat)
         pushNavigation(.aiChat)
+    }
+
+    /// 에이전트 호출의 단일 진입점 — 문서 작업 중이면 화면을 유지한 채 플로팅 패널을,
+    /// 그 외(홈/아카이브 등)에는 채팅 탭을 연다. (✨ 버튼 · ⇧⌘A 공용)
+    func toggleAgentSurface() {
+        if case .document = selectedTab?.content {
+            showFloatingChat.toggle()
+        } else if showFloatingChat {
+            showFloatingChat = false
+        } else {
+            openAIChatTab()
+        }
     }
 
     func openProfileTab() {
@@ -531,6 +620,10 @@ final class AppState {
     }
 
     private func removeTabFromStrip(_ tab: OpenTab) {
+        // 닫힌 문서는 에이전트 컨텍스트에서도 내린다 — 유령 문서를 가리키지 않게.
+        if case .document(let docID) = tab.content, lastActiveDocumentID == docID {
+            lastActiveDocumentID = nil
+        }
         tabs.removeAll { $0.id == tab.id }
         if tabs.isEmpty {
             tabs = [OpenTab(content: .home)]
@@ -671,7 +764,9 @@ final class AppState {
     }
 
     /// 세션을 등록하고 탭으로 연다 (열기/생성 공통 경로).
-    private func presentSession(_ session: DocumentSession, id: UUID) {
+    /// `activate: false`면 탭만 만들고 화면 전환은 하지 않는다 — 에이전트가 대화 도중
+    /// 문서를 만들 때 사용자가 보던 화면(채팅/다른 문서)을 뺏지 않기 위한 경로.
+    private func presentSession(_ session: DocumentSession, id: UUID, activate: Bool = true) {
         session.autosaveEnabled = settings.applied.autosave
         session.onSaved = { [weak self] in
             // 자동저장마다 즉시 풀스캔하면 watcher 발화와 겹쳐 이중 스캔이 된다 — 디바운스 경유
@@ -679,14 +774,17 @@ final class AppState {
             self?.workspace.touchRecent(id)
             self?.stats.recordActivity()
         }
-        pushNavigation(.document(id))
         configureAI(for: session)
         configureEditorHooks(for: session)
         sessions[id] = session
 
         let tab = OpenTab(content: .document(id))
         tabs.append(tab)
-        selectedTabID = tab.id
+        if activate {
+            pushNavigation(.document(id))
+            selectedTabID = tab.id
+            lastActiveDocumentID = id
+        }
     }
 
     func session(for tab: OpenTab) -> DocumentSession? {
@@ -727,10 +825,38 @@ final class AppState {
         )
     }
 
-    /// 채팅용 에이전트 — 현재 제공자·페르소나·앱 도구를 묶는다.
+    /// 에이전트가 "지금 작업 중인 문서"로 삼는 세션 — 선택된 문서 탭이 최우선,
+    /// 채팅 탭/플로팅 패널에서 대화 중이라면 마지막으로 활성화됐던 문서.
+    var chatContextSession: DocumentSession? {
+        if let tab = selectedTab, let session = session(for: tab) {
+            return session
+        }
+        if let id = lastActiveDocumentID {
+            return sessions[id]
+        }
+        return nil
+    }
+
+    /// 채팅용 에이전트 — 현재 제공자·페르소나·앱 도구·작업 맥락을 묶는다.
     /// 워크스페이스 상태가 계속 바뀌므로 매 턴 새로 조립한다.
     func makeAgentRunner() -> AIAgentRunner {
-        AIAgentRunner(provider: makeProvider(), persona: currentPersona, toolbox: makeAgentToolbox())
+        var note = ""
+        if let session = chatContextSession {
+            let project = workspace.project(id: session.document.envelope.projectID)
+            note = """
+            사용자가 지금 작업 중인 문서: '\(session.title)' \
+            (종류: \(session.document.envelope.kind.rawValue), id: \(session.id.uuidString)\
+            \(project.map { ", 프로젝트: \($0.manifest.name)" } ?? ""))
+            사용자가 '이 문서', '여기', '지금 쓰는 거'라고 하면 이 문서를 뜻한다. \
+            내용이 필요하면 get_open_document로 읽어라.
+            """
+        }
+        return AIAgentRunner(
+            provider: makeProvider(),
+            persona: currentPersona,
+            toolbox: makeAgentToolbox(),
+            contextNote: note
+        )
     }
 
     private func makeProvider() -> any AIProvider {
@@ -762,12 +888,15 @@ final class AppState {
 
     /// 완성된 콘텐츠로 문서를 만들어 열고 즉시 디스크에 저장한다.
     /// 컴포저(+ 메뉴)와 에이전트 도구가 공유하는 생성 경로.
+    /// `activate: false`면 탭만 만들고 화면은 전환하지 않는다 — 에이전트가 대화 중에
+    /// 문서를 여러 개 만들어도 사용자가 채팅에서 튕겨나가지 않는다.
     @discardableResult
     func createAndOpenDocument(
         title: String,
         content: DocumentContent,
         pageRole: PageRole? = nil,
-        in project: ProjectFolder? = nil
+        in project: ProjectFolder? = nil,
+        activate: Bool = true
     ) -> UUID {
         var document = workspace.createDocument(
             title: title,
@@ -788,7 +917,7 @@ final class AppState {
         session.onWritingDelta = { [weak self] delta in
             self?.stats.recordWriting(delta: delta)
         }
-        presentSession(session, id: document.envelope.id)
+        presentSession(session, id: document.envelope.id, activate: activate)
         // 생성 문서는 바로 저장 — 열자마자 닫아도 결과물이 남는다.
         session.persistInitial()
         return document.envelope.id
