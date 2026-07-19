@@ -279,3 +279,67 @@ public struct TypewriterText: View {
         .accessibilityHidden(true)
     }
 }
+
+// MARK: - 디더 디졸브 (9b)
+
+/// Bayer 4×4 순서 디더 마스크 — 화면이 판화 찍히듯 점묘로 나타난다.
+/// 홈↔아카이브 같은 대공간 이동 전용 (문서 내부 전환은 rise 스태거가 담당).
+public struct DitherReveal: ViewModifier, Animatable {
+    /// 0 = 완전히 가려짐, 1 = 완전 표시
+    public var progress: Double
+
+    public init(progress: Double) {
+        self.progress = progress
+    }
+
+    public nonisolated var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    private static let bayer: [Double] = [
+        0, 8, 2, 10,
+        12, 4, 14, 6,
+        3, 11, 1, 9,
+        15, 7, 13, 5,
+    ]
+
+    public func body(content: Content) -> some View {
+        content.mask {
+            Canvas { context, size in
+                guard progress < 1 else {
+                    context.fill(Path(CGRect(origin: .zero, size: size)), with: .color(.black))
+                    return
+                }
+                guard progress > 0 else { return }
+                let columns = 16
+                let rows = 10
+                let cellW = size.width / CGFloat(columns)
+                let cellH = size.height / CGFloat(rows)
+                for row in 0..<rows {
+                    for col in 0..<columns {
+                        let threshold = Self.bayer[(row % 4) * 4 + (col % 4)] / 16.0
+                        guard progress > threshold else { continue }
+                        context.fill(
+                            Path(CGRect(
+                                x: CGFloat(col) * cellW, y: CGFloat(row) * cellH,
+                                width: cellW + 0.5, height: cellH + 0.5
+                            )),
+                            with: .color(.black)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+public extension AnyTransition {
+    /// 9b 디더 디졸브 진입 — 셀 90ms 계단, 총 ~680ms (linear와 함께 쓸 것).
+    static var ditherReveal: AnyTransition {
+        .modifier(
+            active: DitherReveal(progress: 0),
+            identity: DitherReveal(progress: 1)
+        )
+    }
+}

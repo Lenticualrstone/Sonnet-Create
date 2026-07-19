@@ -105,7 +105,21 @@ struct RailView: View {
         .padding(.bottom, 20)
         .frame(width: 72)
         .frame(maxHeight: .infinity)
-        .background(SonnetPalette.canvas)
+        .background(railBackground)
+    }
+
+    /// 풀 글래스 모드(4c)에서는 레일도 유리 위에 뜬다 — 포인트 모드는 평면 캔버스.
+    @ViewBuilder
+    private var railBackground: some View {
+        let s = app.settings.applied
+        if s.glassModeRaw == "full", !s.disableLiquidGlass {
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                SonnetPalette.canvas.opacity(0.15 + 0.55 * s.glassIntensity)
+            }
+        } else {
+            SonnetPalette.canvas
+        }
     }
 
     private func isSelected(_ content: TabContent) -> Bool {

@@ -115,7 +115,7 @@ struct HomeView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.65), lineWidth: 1)
+                    .strokeBorder(SonnetPalette.glassRim, lineWidth: 1)
             )
             .contentShape(Rectangle())
         }
@@ -439,7 +439,7 @@ struct HomeView: View {
                         .fill(.ultraThinMaterial)
                         .shadow(color: SonnetPalette.ink.opacity(0.16), radius: 10, y: 6)
                 )
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.7), lineWidth: 1))
+                .overlay(Circle().strokeBorder(SonnetPalette.glassRim, lineWidth: 1))
                 .contentShape(Circle())
         }
         .buttonStyle(PressBounceButtonStyle())

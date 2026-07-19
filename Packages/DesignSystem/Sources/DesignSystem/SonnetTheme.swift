@@ -78,6 +78,11 @@ public enum SonnetPalette {
     public static let sage = dynamicColor(light: "#5B8A4C", dark: "#8AB77C")
     /// 배경 도트 기본색 (도트 격자·장식)
     public static let dot = dynamicColor(light: "#443E33", dark: "#8C8579")
+    /// 글래스 표면 가장자리 림 — 라이트는 백색 하이라이트, 다크는 은은한 윤곽
+    public static let glassRim = Color(nsColor: NSColor(name: nil) { appearance in
+        let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        return NSColor(white: 1, alpha: isDark ? 0.12 : 0.65)
+    })
 
     // MARK: 파일 유형 컬러
 

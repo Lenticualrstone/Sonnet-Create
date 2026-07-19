@@ -228,6 +228,8 @@ private func makeGlass(tint: Color?, interactive: Bool) -> Glass {
 }
 
 /// 품질/테마 인지형 표면. Low 품질 또는 'Liquid Glass 끄기(베타)'에서는 평면 표면으로 대체.
+/// 유리 강도(설정 4c)는 글래스 아래 깔리는 시트 워시의 불투명도로 반영된다 —
+/// 강도가 낮을수록 뒤 캔버스가 더 비친다.
 private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
     let shape: S
     let tint: Color?
@@ -236,6 +238,7 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
 
     @Environment(\.liquidGlassDisabled) private var glassDisabled
     @Environment(\.interfaceTheme) private var theme
+    @Environment(\.glassIntensity) private var glassIntensity
 
     func body(content: Content) -> some View {
         if glassDisabled {
@@ -246,7 +249,9 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
         } else if quality == .low {
             content.background(shape.fill(.regularMaterial))
         } else {
-            content.glassEffect(makeGlass(tint: tint, interactive: interactive), in: shape)
+            content
+                .glassEffect(makeGlass(tint: tint, interactive: interactive), in: shape)
+                .background(shape.fill(SonnetPalette.surface.opacity(0.5 * glassIntensity)))
         }
     }
 

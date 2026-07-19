@@ -210,20 +210,30 @@ struct MainWindowView: View {
             )
     }
 
-    /// 탭 전환 — EXIT 즉시, ENTER rise 360ms (모션 스펙 8b).
+    /// 탭 전환 — EXIT 즉시. ENTER는 문서면 rise 360ms(8b), 홈/아카이브 같은
+    /// 대공간 이동이면 디더 디졸브(9b) — 판화가 찍히듯 점묘로 나타난다.
     @ViewBuilder
     private var content: some View {
+        let isSpatial: Bool = {
+            if case .document = app.selectedTab?.content { return false }
+            return true
+        }()
         ZStack {
             if let tab = app.selectedTab {
                 tabContent(tab)
                     .id(tab.id)
                     .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .offset(y: 14)),
+                        insertion: isSpatial
+                            ? .ditherReveal
+                            : .opacity.combined(with: .offset(y: 14)),
                         removal: .identity
                     ))
             }
         }
-        .animation(DesignTokens.Motion.rise, value: app.selectedTabID)
+        .animation(
+            isSpatial ? .linear(duration: 0.68) : DesignTokens.Motion.rise,
+            value: app.selectedTabID
+        )
     }
 
     @ViewBuilder
