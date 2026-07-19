@@ -53,8 +53,8 @@ public struct ArchiveView: View {
     /// 외부(사이드바 바로가기, 프로젝트 우클릭 메뉴, 뒤로/앞으로 탐색 등)에서 카테고리+프로젝트를
     /// 한 번에 지정해 열 때 (소비 후 nil로 되돌림)
     @Binding var externalTarget: ArchiveNavigationTarget?
-    /// 휴지통 이동 요청 — nil이면 즉시 이동, 지정 시 앱이 확인 팝업을 거친다
-    let requestTrash: ((DocumentListItem) -> Void)?
+    /// 휴지통 이동 요청(단건/다건 공용) — nil이면 즉시 이동, 지정 시 앱이 확인 팝업을 거친다
+    let requestTrash: (([DocumentListItem]) -> Void)?
     /// 영구 삭제 요청(단건/다건 공용) — nil이면 즉시 삭제, 지정 시 앱이 확인 팝업을 거친다
     let requestPermanentDelete: (([DocumentListItem]) -> Void)?
     /// PrivacyGate가 이미 이번 세션에 잠금 해제된 상태인지 — 참이면 카테고리 전환 시 잠금 화면이 깜빡이지 않는다
@@ -90,7 +90,7 @@ public struct ArchiveView: View {
         requestUnlock: @escaping (String) async -> Bool = { _ in true },
         openOnSingleClick: Bool = true,
         externalTarget: Binding<ArchiveNavigationTarget?> = .constant(nil),
-        requestTrash: ((DocumentListItem) -> Void)? = nil,
+        requestTrash: (([DocumentListItem]) -> Void)? = nil,
         requestPermanentDelete: (([DocumentListItem]) -> Void)? = nil,
         isSessionUnlocked: Bool = false,
         onRestoreFallback: (() -> Void)? = nil,
@@ -470,9 +470,15 @@ public struct ArchiveView: View {
         selection = []
     }
 
+    /// 다중 휴지통 이동 — 개별 이동과 같은 확인 경로(requestTrash)를 쓴다. 즉시 실행하지 않는다.
     private func bulkMoveToTrash() {
-        for item in selectedDocuments { workspace.moveToTrash(item) }
+        let docs = selectedDocuments
         selection = []
+        if let requestTrash {
+            requestTrash(docs)
+        } else {
+            for item in docs { workspace.moveToTrash(item) }
+        }
     }
 
     private func bulkRestore() {
@@ -789,7 +795,7 @@ public struct ArchiveView: View {
             }
             Button(l10n.t(.moveToTrash), role: .destructive) {
                 if let requestTrash {
-                    requestTrash(item)
+                    requestTrash([item])
                 } else {
                     workspace.moveToTrash(item)
                 }

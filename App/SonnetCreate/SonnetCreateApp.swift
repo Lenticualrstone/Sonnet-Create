@@ -80,8 +80,8 @@ struct SonnetCreateApp: App {
                 Divider()
                 Button(Localizer.shared.t(.home)) { appState.selectOrOpenHome() }
                     .keyboardShortcut("t", modifiers: .command)
+                // 아카이브는 단축키 없이 레일·⌘K·메뉴로 접근 — ⇧⌘A는 Sonnet AI 전용 (지시서 1단계 3)
                 Button(Localizer.shared.t(.archive)) { appState.openArchiveTab() }
-                    .keyboardShortcut("a", modifiers: [.command, .shift])
                 Divider()
                 Button(Localizer.shared.t(.close)) { appState.closeSelectedTab() }
                     .keyboardShortcut("w", modifiers: .command)

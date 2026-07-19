@@ -59,6 +59,7 @@ public enum L10nKey: String, Sendable {
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
     case importAny, sonnetAI, askAnything, openAsTab, clearChat
     case openTabs, quickStart, continueWriting, todayWriting, streakDaysFormat, dailyGoalChars, greetingFollowup
+    case closeOtherTabs, closeTabsToRight
     case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
     case categorySection
     case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
@@ -69,7 +70,7 @@ public enum L10nKey: String, Sendable {
     case addImage, phaseTag, captionLabel
     case voiceTone, voiceTaboo, voiceSamples, addVoiceCard, addSample
     case appearances, linesCountFormat, editProfileImage
-    case readOnlyMode, readOnlyOn, readOnlyOff
+    case readOnlyMode, readOnlyOn, readOnlyOff, readOnlyCanvasHint
     case rehearsal, rehearsalPause, rehearsalResume, rehearsalStop, rehearsalSpeed
     case quickOpen, quickOpenPlaceholder, noMatches, actionsSection, documentsSection
     case focusMode, focusModeHint, typewriterMode, typewriterModeHint, mindmapAutoInspector
@@ -79,7 +80,7 @@ public enum L10nKey: String, Sendable {
     case writingGoal, charsUnit, goalReached, streakDays
     case rehearsalVoice
     case settingsAppearance, settingsEditor
-    case deleteProject, trashConfirmMessage, projectDeleteMessage
+    case deleteProject, trashConfirmMessage, trashConfirmMessagePlural, projectDeleteMessage
     case profilePage, contributions, activityEmpty
     case spacingCompact, spacingMedium, spacingWide
     case inbox, eventImported, eventExported, eventBackedUp, eventRestored, eventProjectDeleted
@@ -284,6 +285,11 @@ public final class Localizer {
         .inspector: [.korean: "인스펙터", .japanese: "インスペクタ", .english: "Inspector"],
         .aiCompose: [.korean: "AI 자동 작성", .japanese: "AI自動作成", .english: "AI Compose"],
         .readOnlyMode: [.korean: "읽기 전용", .japanese: "読み取り専用", .english: "Read-only"],
+        .readOnlyCanvasHint: [
+            .korean: "읽기 전용 — 편집하려면 잠금을 해제하세요",
+            .japanese: "読み取り専用 — 編集するにはロックを解除してください",
+            .english: "Read-only — unlock to edit",
+        ],
         .readOnlyOn: [.korean: "읽기 전용 켜기", .japanese: "読み取り専用をオン", .english: "Lock Editing"],
         .readOnlyOff: [.korean: "읽기 전용 끄기", .japanese: "読み取り専用をオフ", .english: "Unlock Editing"],
         .rehearsal: [.korean: "리허설", .japanese: "リハーサル", .english: "Rehearsal"],
@@ -387,6 +393,8 @@ public final class Localizer {
         .positionRight: [.korean: "오른쪽", .japanese: "右", .english: "Right"],
         .importAny: [.korean: "프로젝트/파일 불러오기", .japanese: "プロジェクト/ファイルを読み込む", .english: "Import Project/File"],
         .openTabs: [.korean: "열린 탭", .japanese: "開いているタブ", .english: "Open Tabs"],
+        .closeOtherTabs: [.korean: "다른 탭 모두 닫기", .japanese: "他のタブをすべて閉じる", .english: "Close Other Tabs"],
+        .closeTabsToRight: [.korean: "오른쪽 탭 닫기", .japanese: "右側のタブを閉じる", .english: "Close Tabs to the Right"],
         .greetingFollowup: [.korean: "어제의 문장에서 이어갈까요?", .japanese: "昨日の文章から続けましょうか？", .english: "Shall we pick up yesterday's sentence?"],
         .sceneBlock: [.korean: "장면", .japanese: "シーン", .english: "Scene"],
         .composerPlaceholderScene: [.korean: "장면 제목 입력… ⏎ 장면 경계 삽입", .japanese: "シーンタイトルを入力… ⏎ でシーン境界を挿入", .english: "Scene title… ⏎ inserts a scene break"],
@@ -444,7 +452,16 @@ public final class Localizer {
         .settingsAppearance: [.korean: "모양", .japanese: "外観", .english: "Appearance"],
         .settingsEditor: [.korean: "에디터", .japanese: "エディタ", .english: "Editor"],
         .deleteProject: [.korean: "프로젝트 삭제", .japanese: "プロジェクトを削除", .english: "Delete Project"],
-        .trashConfirmMessage: [.korean: "이 문서를 휴지통으로 이동할까요?", .japanese: "このドキュメントをゴミ箱に移動しますか？", .english: "Move this document to Trash?"],
+        .trashConfirmMessage: [
+            .korean: "이 문서를 휴지통으로 이동할까요? 휴지통에서 언제든 복원할 수 있습니다.",
+            .japanese: "このドキュメントをゴミ箱に移動しますか？ゴミ箱からいつでも復元できます。",
+            .english: "Move this document to Trash? You can restore it from Trash anytime.",
+        ],
+        .trashConfirmMessagePlural: [
+            .korean: "‘%@’ 외 %d개 항목을 휴지통으로 이동할까요? 휴지통에서 언제든 복원할 수 있습니다.",
+            .japanese: "「%@」ほか%d件をゴミ箱に移動しますか？ゴミ箱からいつでも復元できます。",
+            .english: "Move “%@” and %d more to Trash? You can restore them from Trash anytime.",
+        ],
         .projectDeleteMessage: [.korean: "프로젝트 폴더 전체(포함된 문서 포함)가 Finder 휴지통으로 이동합니다.", .japanese: "プロジェクトフォルダ全体（含まれるドキュメントを含む）がFinderのゴミ箱に移動します。", .english: "The entire project folder (including its documents) will move to the Finder Trash."],
         .profilePage: [.korean: "프로필", .japanese: "プロフィール", .english: "Profile"],
         .contributions: [.korean: "기여도", .japanese: "アクティビティ", .english: "Contributions"],

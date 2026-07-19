@@ -767,8 +767,9 @@ public struct ReadOnlyBadge: View {
 
     public var body: some View {
         if readOnlyMode?.wrappedValue == true {
+            // 색상만이 아니라 잠금 아이콘 + 도움말로 상태를 전달한다 (지시서 1단계 2)
             HStack(spacing: 4) {
-                Image(systemName: "eye")
+                Image(systemName: "lock.fill")
                     .font(.caption2)
                 Text(Localizer.shared.t(.readOnlyMode))
                     .font(.caption.weight(.semibold))
@@ -778,6 +779,8 @@ public struct ReadOnlyBadge: View {
             .padding(.vertical, 4)
             .background(Capsule().fill(accent.opacity(0.12)))
             .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            .help(Localizer.shared.t(.readOnlyCanvasHint))
+            .accessibilityLabel(Localizer.shared.t(.readOnlyMode))
         }
     }
 }

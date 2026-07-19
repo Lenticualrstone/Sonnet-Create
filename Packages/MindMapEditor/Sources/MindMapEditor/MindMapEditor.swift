@@ -58,7 +58,15 @@ public struct MindMapEditorView: View {
         }
         .animation(DesignTokens.Motion.gentle, value: showInspector)
         .animation(DesignTokens.Motion.gentle, value: store.selectedNodeID)
-        .onAppear { showInspector = autoOpenInspector }
+        .onAppear {
+            showInspector = autoOpenInspector
+            store.isReadOnly = isReadOnly
+        }
+        // 스토어가 최종 방어선 — 뷰 가드가 놓친 경로도 스토어에서 무시된다
+        .onChange(of: isReadOnly) { _, locked in
+            store.isReadOnly = locked
+            if locked { store.cancelConnecting() }
+        }
     }
 
     // MARK: 좌표 변환
@@ -217,10 +225,14 @@ public struct MindMapEditorView: View {
                 }
 
                 if store.content.nodes.isEmpty {
-                    Text(l10n.t(.doubleClickToCreate))
-                        .font(.callout)
-                        .foregroundStyle(.tertiary)
-                        .allowsHitTesting(false)
+                    // 읽기 전용에서는 생성 안내 대신 잠금 상태를 알린다
+                    Label(
+                        l10n.t(isReadOnly ? .readOnlyCanvasHint : .doubleClickToCreate),
+                        systemImage: isReadOnly ? "lock" : "plus.circle.dashed"
+                    )
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+                    .allowsHitTesting(false)
                 }
             }
             .coordinateSpace(name: "mindmapCanvas")
@@ -233,7 +245,8 @@ public struct MindMapEditorView: View {
                 return .handled
             }
             .onKeyPress(.delete) {
-                guard let selected = store.selectedNodeID else { return .ignored }
+                // 읽기 전용에서는 삭제 명령이 무시된다 (지시서 1단계 2)
+                guard !isReadOnly, let selected = store.selectedNodeID else { return .ignored }
                 store.deleteNode(selected)
                 return .handled
             }
@@ -242,6 +255,10 @@ public struct MindMapEditorView: View {
 
     /// 포트 드롭 지점에서 가장 가까운 노드를 찾아 연결을 확정한다.
     private func resolveDrop(at point: CGPoint, in size: CGSize) {
+        guard !isReadOnly else {
+            store.cancelConnecting()
+            return
+        }
         let threshold: CGFloat = 90
         var best: (id: UUID, distance: CGFloat)?
         for node in store.content.nodes where node.id != store.connectingFromID {

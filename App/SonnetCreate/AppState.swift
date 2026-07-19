@@ -273,8 +273,8 @@ final class AppState {
     /// 앱 활성 상태 — 비활성이면 장식 애니메이션(성운·도트 웨이브)을 정지해 절전한다
     var isAppActive = true
 
-    /// 휴지통 이동 확인 대기 항목 (확인 팝업)
-    var pendingTrashItem: DocumentListItem?
+    /// 휴지통 이동 확인 대기 항목 (단건/다건 공용, 확인 팝업)
+    var pendingTrashItems: [DocumentListItem] = []
     /// 영구 삭제 확인 대기 항목 (단건/다건 공용, 확인 팝업)
     var pendingPermanentDeleteItems: [DocumentListItem] = []
     /// 프로젝트 삭제 확인 대기 (확인 팝업 → Finder 휴지통)
@@ -525,19 +525,27 @@ final class AppState {
         }
     }
 
-    /// 휴지통 이동 요청 — 확인 팝업을 거친다.
+    /// 휴지통 이동 요청 — 확인 팝업을 거친다 (단건/다건 공용, 개별·다중이 같은 경로를 쓴다).
+    func requestTrash(_ items: [DocumentListItem]) {
+        guard !items.isEmpty else { return }
+        pendingTrashItems = items
+    }
+
     func requestTrash(_ item: DocumentListItem) {
-        pendingTrashItem = item
+        requestTrash([item])
     }
 
     func confirmPendingTrash() {
-        guard let item = pendingTrashItem else { return }
-        pendingTrashItem = nil
-        // 열려 있으면 탭부터 닫는다
-        if let tab = tabs.first(where: { $0.content == .document(item.id) }) {
-            closeTab(tab)
+        guard !pendingTrashItems.isEmpty else { return }
+        let items = pendingTrashItems
+        pendingTrashItems = []
+        for item in items {
+            // 열려 있으면 탭부터 닫는다
+            if let tab = tabs.first(where: { $0.content == .document(item.id) }) {
+                closeTab(tab)
+            }
+            workspace.moveToTrash(item)
         }
-        workspace.moveToTrash(item)
     }
 
     /// 영구 삭제 요청 — 확인 팝업을 거친다 (단건/다건 공용).
@@ -617,6 +625,20 @@ final class AppState {
             sessions.removeValue(forKey: docID)
         }
         removeTabFromStrip(tab)
+    }
+
+    /// 이 탭만 남기고 모두 닫기 — 탭별로 기존 닫기 흐름(저장 실패 확인 포함)을 그대로 탄다.
+    func closeOtherTabs(than tab: OpenTab) {
+        let others = tabs.filter { $0.id != tab.id }
+        for other in others { closeTab(other) }
+        if tabs.contains(where: { $0.id == tab.id }) { selectedTabID = tab.id }
+    }
+
+    /// 이 탭의 오른쪽 탭들을 닫기 — 탭별로 기존 닫기 흐름을 그대로 탄다.
+    func closeTabsToTheRight(of tab: OpenTab) {
+        guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+        let others = Array(tabs[(index + 1)...])
+        for other in others { closeTab(other) }
     }
 
     /// 저장 실패 확인 후 '저장하지 않고 닫기' — 플러시 없이 세션을 버린다.

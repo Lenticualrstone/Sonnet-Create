@@ -112,21 +112,33 @@ struct MainWindowView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
             withAnimation(DesignTokens.Motion.rise) { app.isFullscreen = false }
         }
-        // 휴지통 이동 확인
+        // 휴지통 이동 확인 (단건/다건 공용) — 선택 수·대표 제목 표시, 복구 가능함을 명시
         .confirmationDialog(
             Localizer.shared.t(.moveToTrash),
             isPresented: Binding(
-                get: { app.pendingTrashItem != nil },
-                set: { if !$0 { app.pendingTrashItem = nil } }
+                get: { !app.pendingTrashItems.isEmpty },
+                set: { if !$0 { app.pendingTrashItems = [] } }
             ),
-            presenting: app.pendingTrashItem
-        ) { item in
-            Button("\(Localizer.shared.t(.moveToTrash)): \(item.envelope.title)", role: .destructive) {
+            presenting: app.pendingTrashItems.isEmpty ? nil : app.pendingTrashItems
+        ) { items in
+            Button(
+                items.count == 1
+                    ? "\(Localizer.shared.t(.moveToTrash)): \(items[0].envelope.title)"
+                    : "\(Localizer.shared.t(.moveToTrash)) (\(items.count))",
+                role: .destructive
+            ) {
                 app.confirmPendingTrash()
             }
             Button(Localizer.shared.t(.cancel), role: .cancel) {}
-        } message: { _ in
-            Text(Localizer.shared.t(.trashConfirmMessage))
+        } message: { items in
+            if items.count == 1 {
+                Text(Localizer.shared.t(.trashConfirmMessage))
+            } else {
+                Text(String(
+                    format: Localizer.shared.t(.trashConfirmMessagePlural),
+                    items[0].envelope.title, items.count - 1
+                ))
+            }
         }
         // 영구 삭제 확인 (단건/다건 공용, 되돌릴 수 없음)
         .confirmationDialog(
@@ -665,11 +677,29 @@ struct TabChip: View {
         .contextMenu {
             let l10n = Localizer.shared
             if let session = documentSession {
+                // 읽기 전용 문서는 이름 변경 금지 (지시서 1단계 4)
                 Button(l10n.t(.rename)) { beginRename() }
                     .disabled(session.isReadOnly)
                 Divider()
+                // 우측 패널 토글 — 프로젝트 파일 인스펙터는 프로젝트 소속 문서에서만
+                if app.workspace.project(id: session.document.envelope.projectID) != nil {
+                    Toggle(l10n.t(.projectFiles), isOn: Binding(
+                        get: { app.showProjectNavigator },
+                        set: { app.showProjectNavigator = $0 }
+                    ))
+                }
+                Toggle(l10n.t(.references), isOn: Binding(
+                    get: { app.showReferencePanel },
+                    set: { app.showReferencePanel = $0 }
+                ))
+                Divider()
             }
             Button(l10n.t(.close)) { app.closeTab(tab) }
+            // 닫기 계열은 탭별로 기존 닫기 확인 흐름(저장 실패 다이얼로그)을 재사용한다
+            Button(l10n.t(.closeOtherTabs)) { app.closeOtherTabs(than: tab) }
+                .disabled(app.tabs.count <= 1)
+            Button(l10n.t(.closeTabsToRight)) { app.closeTabsToTheRight(of: tab) }
+                .disabled(app.tabs.last?.id == tab.id)
         }
         .popover(isPresented: $renaming, arrowEdge: .bottom) {
             renamePopover
