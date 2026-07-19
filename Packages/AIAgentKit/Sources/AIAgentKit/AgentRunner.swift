@@ -74,7 +74,7 @@ public struct AIAgentRunner: Sendable {
 
         // 도구가 없으면 루프 자체가 무의미하다 — 한 번만 돌고 끝낸다.
         guard !tools.isEmpty else {
-            messages.append(try await respond(messages: messages, system: system, tools: [], onEvent: onEvent))
+            await messages.append(try respond(messages: messages, system: system, tools: [], onEvent: onEvent))
             return messages
         }
 
@@ -99,7 +99,7 @@ public struct AIAgentRunner: Sendable {
             // 마지막 반복인데도 도구를 부르는 중 — 도구를 끄고 말로 마무리시킨다.
             if iteration == maxIterations - 1 {
                 await onEvent(.iterationLimitReached)
-                messages.append(try await respond(
+                await messages.append(try respond(
                     messages: messages, system: systemPrompt(withTools: false), tools: [], onEvent: onEvent
                 ))
             }

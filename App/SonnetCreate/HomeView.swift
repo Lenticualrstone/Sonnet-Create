@@ -13,6 +13,8 @@ struct HomeView: View {
     @Environment(\.resolvedAccent) private var accent
 
     @State private var showBackupTimeline = false
+    /// 인사말 타자기 리빌 재생 여부 — nil이면 아직 미결정(placeholder 표시).
+    @State private var playGreetingReveal: Bool?
 
     var body: some View {
         let l10n = Localizer.shared
@@ -61,7 +63,8 @@ struct HomeView: View {
         }
     }
 
-    /// 세리프 타이포 히어로 — 날짜 캡션 + 2행 인사말 (사용자 확정: 장식 애니메이션 없음).
+    /// 세리프 타이포 히어로 — 날짜 캡션 + 2행 인사말.
+    /// 앱 세션 첫 진입 1회만 인사말 첫 줄이 타자기 리빌(9e)로 새겨진다 (매번은 피로).
     private func hero(_ l10n: Localizer) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(Date(), format: .dateTime.month().day().weekday(.wide))
@@ -69,7 +72,20 @@ struct HomeView: View {
                 .foregroundStyle(SonnetPalette.inkMuted)
                 .kerning(0.7)
             VStack(alignment: .leading, spacing: 4) {
-                Text(greetingText)
+                ZStack(alignment: .topLeading) {
+                    // 정적 원문으로 자리를 잡아 리빌 중 아래 행이 밀리지 않게 한다
+                    Text(greetingText).opacity(playGreetingReveal == nil ? 1 : 0)
+                    if playGreetingReveal == true {
+                        TypewriterText(
+                            greetingText,
+                            font: DSFonts.display(size: 34, weight: .semibold),
+                            color: SonnetPalette.ink,
+                            caretHeight: 30
+                        )
+                    } else if playGreetingReveal == false {
+                        Text(greetingText)
+                    }
+                }
                 Text(l10n.t(.greetingFollowup))
             }
             .font(DSFonts.display(size: 34, weight: .semibold))
@@ -79,6 +95,11 @@ struct HomeView: View {
             // ko 로케일의 줄바꿈 전략에서 세리프 커스텀 폰트가 말줄임되는 문제 —
             // 세로 확장을 명시해 항상 줄바꿈되게 한다
             .fixedSize(horizontal: false, vertical: true)
+        }
+        .onAppear {
+            guard playGreetingReveal == nil else { return }
+            playGreetingReveal = !app.homeGreetingRevealPlayed
+            app.homeGreetingRevealPlayed = true
         }
     }
 
@@ -443,7 +464,7 @@ struct HomeView: View {
                 .contentShape(Circle())
         }
         .buttonStyle(PressBounceButtonStyle())
-        .help(Localizer.shared.t(.aiAgent) + " (⇧⌘A)")
+        .help(Localizer.shared.t(.sonnetAI) + " (⇧⌘A)")
     }
 
     // MARK: 공통

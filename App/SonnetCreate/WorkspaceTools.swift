@@ -16,7 +16,7 @@ extension AppState {
     /// 설정 > Sonnet AI의 컨텍스트 범위를 에이전트 도구에 강제한다.
     /// 탐색/읽기 도구는 전부 이 집합만 본다 — 설정 화면의 "컨텍스트는 선택한 범위를
     /// 벗어나 전송되지 않습니다"라는 약속을 지키는 지점.
-    fileprivate func agentScopedDocuments() throws -> [DocumentListItem] {
+    private func agentScopedDocuments() throws -> [DocumentListItem] {
         switch settings.applied.aiContextScope {
         case .workspace:
             return workspace.visibleDocuments
@@ -40,7 +40,7 @@ extension AppState {
     }
 
     /// 범위 안의 문서인지 검사 — 읽기 도구가 범위 밖 id를 받았을 때 명확히 거절한다.
-    fileprivate func assertInAgentScope(_ id: UUID) throws {
+    private func assertInAgentScope(_ id: UUID) throws {
         // 현재 컨텍스트 문서는 (미저장이라 스캔에 아직 없더라도) 항상 허용.
         if chatContextSession?.id == id { return }
         let allowed = try agentScopedDocuments()
@@ -55,7 +55,7 @@ extension AppState {
                 + mindMapTools + characterTools + destructiveTools,
             confirmationHandler: { [weak self] request in
                 guard let self else { return false }
-                return await self.aiChat.requestConfirmation(request)
+                return await aiChat.requestConfirmation(request)
             }
         )
     }
@@ -112,7 +112,7 @@ extension AppState {
             )) { [weak self] arguments in
                 guard let self else { return ToolError.appGone }
                 let query = try arguments.string("query")
-                let results = await self.workspace.deepSearch(query)
+                let results = await workspace.deepSearch(query)
                 // 딥서치는 전체 색인을 뒤지므로, 반환 전에 범위로 거른다.
                 let allowed = try await MainActor.run { Set(try self.agentScopedDocuments().map(\.id)) }
                 let scoped = results.filter { allowed.contains($0.id) }
@@ -740,8 +740,12 @@ extension AppState {
                             throw ToolFailure("이 문서는 캐릭터 문서가 아닙니다.")
                         }
                         var changes: [String] = []
-                        if let role { profile.role = role; changes.append("역할") }
-                        if let summary { profile.summary = summary; changes.append("요약") }
+                        if let role { profile.role = role
+                            changes.append("역할")
+                        }
+                        if let summary { profile.summary = summary
+                            changes.append("요약")
+                        }
 
                         if !fieldSpecs.isEmpty {
                             var fields = profile.fields ?? []
@@ -1099,7 +1103,7 @@ extension AppState {
 
     /// 문서를 열려 있으면 세션 경유(되돌리기 스택 + 자동저장)로, 닫혀 있으면 디스크에서
     /// 직접 수정한다. 편집 도구 전부가 이 경로를 지난다.
-    fileprivate func mutateDocument(
+    private func mutateDocument(
         id: UUID,
         _ transform: (inout DocumentContent) throws -> String
     ) throws -> String {
@@ -1140,7 +1144,7 @@ extension AppState {
     }
 
     /// 편집 대상 문서의 현재 콘텐츠 (열려 있으면 미저장분 포함).
-    fileprivate func currentContent(id: UUID) throws -> DocumentContent {
+    private func currentContent(id: UUID) throws -> DocumentContent {
         if let session = sessions[id] { return session.document.content }
         guard let item = workspace.item(id: id) else {
             throw ToolFailure("문서를 찾을 수 없습니다: \(id.uuidString)")
@@ -1151,7 +1155,7 @@ extension AppState {
         return loaded.content
     }
 
-    fileprivate func documentTitle(id: UUID) -> String {
+    private func documentTitle(id: UUID) -> String {
         sessions[id]?.title ?? workspace.item(id: id)?.envelope.title ?? "문서"
     }
 }

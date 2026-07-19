@@ -33,6 +33,8 @@ public struct ScenarioEditorView: View {
     /// 낭독(TTS) — 대사를 캐릭터별 목소리로 읽어준다.
     @State private var rehearsalVoiceEnabled = false
     @State private var narrator = RehearsalNarrator()
+    /// 낭독 중 TTS가 말한 글자 수 — 마지막 블록의 타자기 리빌이 이 값을 따라간다.
+    @State private var rehearsalSpokenChars: Int?
 
     private var isRehearsing: Bool { rehearsalCount != nil }
 
@@ -446,17 +448,21 @@ public struct ScenarioEditorView: View {
                             // 리허설 중 방금 등장한 대사만 타자기 리빌 (9e)
                             typewriterReveal: isRehearsing
                                 && block.kind == .line
-                                && block.id == displayedBlocks.last?.id
+                                && block.id == displayedBlocks.last?.id,
+                            // 낭독 중이면 리빌이 TTS 진행을, 아니면 재생 배속을 따른다
+                            typewriterProgress: block.id == displayedBlocks.last?.id
+                                ? rehearsalSpokenChars : nil,
+                            typewriterSpeed: rehearsalSpeed
                         )
-                            .id(block.id)
-                            .allowsHitTesting(!isReadOnly)
-                            .moveDisabled(isReadOnly)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(
-                                top: blockSpacing / 2, leading: DesignTokens.Spacing.m,
-                                bottom: blockSpacing / 2, trailing: DesignTokens.Spacing.m
-                            ))
+                        .id(block.id)
+                        .allowsHitTesting(!isReadOnly)
+                        .moveDisabled(isReadOnly)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(
+                            top: blockSpacing / 2, leading: DesignTokens.Spacing.m,
+                            bottom: blockSpacing / 2, trailing: DesignTokens.Spacing.m
+                        ))
                     }
                     .onMove { store.moveBlocks(from: $0, to: $1) }
 
@@ -590,21 +596,25 @@ public struct ScenarioEditorView: View {
     private func startRehearsal() {
         rehearsalTask?.cancel()
         rehearsalPaused = false
+        narrator.onProgress = { spoken in rehearsalSpokenChars = spoken }
         withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = 0 }
         rehearsalTask = Task {
             var index = 0
             while index < store.visibleBlocks.count, !Task.isCancelled {
                 let block = store.visibleBlocks[index]
                 if rehearsalVoiceEnabled, block.kind == .line, !block.text.isEmpty {
-                    // 낭독 모드: 자막처럼 먼저 등장시키고, 말이 끝나야 다음으로
+                    // 낭독 모드: 자막처럼 먼저 등장시키고, 말이 끝나야 다음으로.
+                    // 리빌은 TTS 진행 콜백에 글자 단위로 동기화된다.
                     try? await Task.sleep(for: .milliseconds(300))
                     guard !Task.isCancelled else { return }
+                    rehearsalSpokenChars = 0
                     withAnimation(DesignTokens.Motion.arrival) { rehearsalCount = index + 1 }
                     await narrator.speak(
                         plainText(of: block),
                         voice: rehearsalVoice(for: block),
                         rate: speechRate
                     )
+                    rehearsalSpokenChars = nil
                 } else {
                     try? await Task.sleep(for: .seconds(rehearsalDelay(for: block)))
                     guard !Task.isCancelled else { return }
@@ -623,6 +633,7 @@ public struct ScenarioEditorView: View {
         rehearsalTask?.cancel()
         rehearsalTask = nil
         narrator.stop()
+        rehearsalSpokenChars = nil
         rehearsalPaused = false
         withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = nil }
     }

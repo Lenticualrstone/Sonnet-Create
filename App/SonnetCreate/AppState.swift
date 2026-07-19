@@ -265,6 +265,9 @@ final class AppState {
     var showFloatingChat = false
     /// ⌘K 커맨드 팔레트 표시 여부 — 레일 검색 버튼과 단축키가 공유한다
     var showCommandPalette = false
+
+    /// 홈 인사말 타자기 리빌을 이번 세션에 이미 재생했는지 — 첫 진입 1회만 (매번은 피로).
+    var homeGreetingRevealPlayed = false
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
     /// 앱 활성 상태 — 비활성이면 장식 애니메이션(성운·도트 웨이브)을 정지해 절전한다
@@ -1137,7 +1140,6 @@ final class AppState {
     }
 
     private func buildEmbedPreview(content: DocumentContent, title: String) -> EmbedPreview? {
-
         switch content {
         case .scenario(let scenario):
             let lines: [(String?, String)] = scenario.blocks
@@ -1265,7 +1267,7 @@ final class AppState {
         switch tab.content {
         case .home: return l10n.t(.home)
         case .archive: return l10n.t(.archive)
-        case .aiChat: return l10n.t(.aiAgent)
+        case .aiChat: return l10n.t(.sonnetAI)
         case .profile: return l10n.t(.profilePage)
         case .document(let docID):
             let title = sessions[docID]?.title ?? workspace.item(id: docID)?.envelope.title ?? ""

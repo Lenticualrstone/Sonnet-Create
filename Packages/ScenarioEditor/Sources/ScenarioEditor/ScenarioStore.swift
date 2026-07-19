@@ -214,9 +214,12 @@ public final class ScenarioStore {
             return true
         }
 
-        // 장면 모드 (2a) — 입력한 제목을 단 장면 경계(구분선)를 삽입하고 대사 모드로 복귀
+        // 장면 모드 (2a) — 입력한 제목을 단 장면 경계(구분선)를 삽입하고 대사 모드로 복귀.
+        // 방금 삽입한 장면 칩은 1회 타자기 리빌(9e)로 새겨진다 — 입력에 대한 잉크 피드백.
         if editingBlockID == nil, composerMode == .scene {
-            withActiveBlocks { $0.append(ScenarioBlock(kind: .divider, text: text)) }
+            let divider = ScenarioBlock(kind: .divider, text: text)
+            withActiveBlocks { $0.append(divider) }
+            markSceneChipReveal(divider.id)
             composerText = ""
             composerMode = .line
             return true
@@ -246,6 +249,17 @@ public final class ScenarioStore {
     /// 구분선 블록 삽입 (장면 전환 등).
     public func insertDivider() {
         withActiveBlocks { $0.append(ScenarioBlock(kind: .divider, text: "")) }
+    }
+
+    /// 방금 삽입돼 1회 리빌 대상인 장면 칩 — 잠시 뒤 자동 해제돼 스크롤 재등장 때는 재생되지 않는다.
+    public var revealingSceneChipID: UUID?
+
+    private func markSceneChipReveal(_ id: UUID) {
+        revealingSceneChipID = id
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            if self?.revealingSceneChipID == id { self?.revealingSceneChipID = nil }
+        }
     }
 
     // MARK: 플롯 타임라인 (2a)

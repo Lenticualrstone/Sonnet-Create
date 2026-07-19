@@ -8,6 +8,9 @@ final class RehearsalNarrator: NSObject, AVSpeechSynthesizerDelegate {
     private let synthesizer = AVSpeechSynthesizer()
     private var continuation: CheckedContinuation<Void, Never>?
 
+    /// 낭독 진행 콜백 — 지금까지 말한 글자 수. 타자기 리빌을 TTS 속도에 동기화한다.
+    var onProgress: ((Int) -> Void)?
+
     override init() {
         super.init()
         synthesizer.delegate = self
@@ -54,6 +57,15 @@ final class RehearsalNarrator: NSObject, AVSpeechSynthesizerDelegate {
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
         Task { @MainActor in self.finish() }
+    }
+
+    nonisolated func speechSynthesizer(
+        _ synthesizer: AVSpeechSynthesizer,
+        willSpeakRangeOfSpeechString characterRange: NSRange,
+        utterance: AVSpeechUtterance
+    ) {
+        let spoken = characterRange.location + characterRange.length
+        Task { @MainActor in self.onProgress?(spoken) }
     }
 }
 

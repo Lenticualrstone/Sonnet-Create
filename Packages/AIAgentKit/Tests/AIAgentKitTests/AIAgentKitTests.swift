@@ -51,12 +51,14 @@ private struct ScriptedToolProvider: AIProvider {
         private let lock = NSLock()
         private var _turns: [(history: [AIChatMessage], tools: [AITool])] = []
         var turns: [(history: [AIChatMessage], tools: [AITool])] {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             return _turns
         }
 
         func record(_ history: [AIChatMessage], _ tools: [AITool]) {
-            lock.lock(); defer { lock.unlock() }
+            lock.lock()
+            defer { lock.unlock() }
             _turns.append((history, tools))
         }
     }

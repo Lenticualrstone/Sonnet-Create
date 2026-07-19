@@ -673,6 +673,17 @@ struct CharacterVoiceTab: View {
                     .textFieldStyle(.roundedBorder)
             }
 
+            // 말투 카드 (3c) — 카드에 마우스를 올리면 예시 대사가 타자기로 재생된다.
+            // '보이스 카드 = AI 말투 주입 소스'라는 정체성을 눈으로 보여주는 프리뷰.
+            let playableSamples = samples.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            if !playableSamples.isEmpty {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+                    ForEach(Array(playableSamples.enumerated()), id: \.offset) { _, sample in
+                        VoiceSampleCard(text: sample)
+                    }
+                }
+            }
+
             Text(l10n.t(.voiceSamples))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
@@ -709,6 +720,57 @@ struct CharacterVoiceTab: View {
             Text("보이스 카드는 AI 자동작성 시 캐릭터 말투 유지에 사용됩니다.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+        }
+    }
+
+    /// 보이스 샘플 카드 (3c) — 흰 카드 + 버밀리온 좌측 보더 + 세리프 이탤릭 인용.
+    /// 마우스를 올리면 대사가 타자기 리빌로 재생돼 '말투가 재생되는' 카드가 된다.
+    private struct VoiceSampleCard: View {
+        let text: String
+
+        @State private var hovering = false
+        /// 리빌 재시작 트리거 — 호버 진입마다 갱신돼 TypewriterText가 처음부터 다시 새긴다.
+        @State private var playID = 0
+
+        var body: some View {
+            Group {
+                if hovering {
+                    TypewriterText(
+                        "“\(text)”",
+                        font: DSFonts.font(size: 13.5, family: .serif).italic(),
+                        color: SonnetPalette.inkSoft
+                    )
+                    .id(playID)
+                } else {
+                    Text("“\(text)”")
+                        .font(DSFonts.font(size: 13.5, family: .serif).italic())
+                        .foregroundStyle(SonnetPalette.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .fill(SonnetPalette.surface)
+            )
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: DesignTokens.Radius.medium,
+                    bottomLeadingRadius: DesignTokens.Radius.medium
+                )
+                .fill(SonnetPalette.accent)
+                .frame(width: 3)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .strokeBorder(SonnetPalette.ink.opacity(0.09), lineWidth: 1)
+            )
+            .onHover { inside in
+                if inside, !hovering { playID += 1 }
+                hovering = inside
+            }
         }
     }
 

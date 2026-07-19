@@ -66,7 +66,7 @@ final class TouchBarController: NSObject, NSTouchBarDelegate {
             case ItemID.newPage:
                 return button(identifier, l10n.t(.newPage), "doc.badge.plus", #selector(actNewPage))
             case ItemID.ai:
-                return button(identifier, l10n.t(.aiAgent), "sparkles", #selector(actAI))
+                return button(identifier, l10n.t(.sonnetAI), "sparkles", #selector(actAI))
             case ItemID.archive:
                 return button(identifier, l10n.t(.archive), "archivebox", #selector(actArchive))
             default:

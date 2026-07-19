@@ -128,8 +128,10 @@ public struct FileTypeIcon: View {
             bubble.addLine(to: pt(3, 13))
             bubble.closeSubpath()
             var lines = Path()
-            lines.move(to: pt(6, 7.5)); lines.addLine(to: pt(14, 7.5))
-            lines.move(to: pt(6, 10)); lines.addLine(to: pt(11, 10))
+            lines.move(to: pt(6, 7.5))
+            lines.addLine(to: pt(14, 7.5))
+            lines.move(to: pt(6, 10))
+            lines.addLine(to: pt(11, 10))
             return [bubble, lines]
         case .mindmap:
             // 사각 노드 3 + 연결선
@@ -138,9 +140,12 @@ public struct FileTypeIcon: View {
             nodes.addRect(CGRect(x: 2.5 * s, y: 13.5 * s, width: 4 * s, height: 4 * s))
             nodes.addRect(CGRect(x: 13.5 * s, y: 13.5 * s, width: 4 * s, height: 4 * s))
             var links = Path()
-            links.move(to: pt(10, 6.5)); links.addLine(to: pt(10, 9.5))
-            links.move(to: pt(10, 9.5)); links.addLine(to: pt(5.5, 13.5))
-            links.move(to: pt(10, 9.5)); links.addLine(to: pt(14.5, 13.5))
+            links.move(to: pt(10, 6.5))
+            links.addLine(to: pt(10, 9.5))
+            links.move(to: pt(10, 9.5))
+            links.addLine(to: pt(5.5, 13.5))
+            links.move(to: pt(10, 9.5))
+            links.addLine(to: pt(14.5, 13.5))
             return [nodes, links]
         case .page:
             // 접힌 모서리 문서 + 블록 행
@@ -156,8 +161,10 @@ public struct FileTypeIcon: View {
             fold.addLine(to: pt(12, 6))
             fold.addLine(to: pt(15.5, 6))
             var rows = Path()
-            rows.move(to: pt(7.5, 9.5)); rows.addLine(to: pt(13, 9.5))
-            rows.move(to: pt(7.5, 12.5)); rows.addLine(to: pt(11, 12.5))
+            rows.move(to: pt(7.5, 9.5))
+            rows.addLine(to: pt(13, 9.5))
+            rows.move(to: pt(7.5, 12.5))
+            rows.addLine(to: pt(11, 12.5))
             return [sheet, fold, rows]
         case .character:
             // 다이아몬드 두상 + 사다리꼴 어깨
@@ -221,10 +228,19 @@ public struct FileTypeBadge: View {
 
 /// AI 제안 도착/리허설 대사 재생용 타자기 리빌 — 90ms/자, 버밀리온 캐럿 1s 점멸.
 /// 긴 문장은 전체 4초를 넘지 않도록 간격을 자동 축소한다.
+/// `progress`를 주면 내부 타이머 대신 외부 진행(TTS 낭독 등)에 글자를 동기화한다.
 public struct TypewriterText: View {
     let text: String
     var font: Font
     var color: Color
+    /// 외부 진행 동기화 — 지금까지 드러낼 글자 수. nil이면 내부 타이머로 진행.
+    var progress: Int?
+    /// 내부 타이머 배속 (리허설 재생 속도 연동) — 2면 두 배 빠르게 새겨진다.
+    var speed: Double
+    /// 자간 — 스플래시 서브카피처럼 kerning이 걸린 원문과 자리를 맞출 때.
+    var kerning: CGFloat
+    /// 캐럿 높이 — 본문 13pt 기준 14. 홈 히어로 같은 대형 타이포에서는 키워 쓴다.
+    var caretHeight: CGFloat
 
     @State private var visibleCount = 0
     @State private var finishedAt: Date?
@@ -232,27 +248,40 @@ public struct TypewriterText: View {
     public init(
         _ text: String,
         font: Font = .callout,
-        color: Color = SonnetPalette.inkSoft
+        color: Color = SonnetPalette.inkSoft,
+        progress: Int? = nil,
+        speed: Double = 1,
+        kerning: CGFloat = 0,
+        caretHeight: CGFloat = 14
     ) {
         self.text = text
         self.font = font
         self.color = color
+        self.progress = progress
+        self.speed = speed
+        self.kerning = kerning
+        self.caretHeight = caretHeight
     }
 
     private var interval: Double {
         guard !text.isEmpty else { return 0.09 }
-        return min(0.09, 4.0 / Double(text.count))
+        return min(0.09, 4.0 / Double(text.count)) / max(speed, 0.1)
     }
 
     public var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: 2) {
             Text(String(text.prefix(visibleCount)))
+                .kerning(kerning)
                 .font(font)
                 .foregroundStyle(color)
                 .fixedSize(horizontal: false, vertical: true)
             caret
         }
         .task(id: text) {
+            guard progress == nil else {
+                visibleCount = min(progress ?? 0, text.count)
+                return
+            }
             visibleCount = 0
             finishedAt = nil
             let step = interval
@@ -262,6 +291,16 @@ public struct TypewriterText: View {
                 visibleCount = index
             }
             finishedAt = Date()
+        }
+        .onChange(of: progress) { _, newValue in
+            if let newValue {
+                visibleCount = max(visibleCount, min(newValue, text.count))
+                if visibleCount >= text.count, finishedAt == nil { finishedAt = Date() }
+            } else if visibleCount > 0 || finishedAt == nil {
+                // 외부 진행이 끝나면(취소 포함) 전문을 확정한다 — 부분 노출로 남지 않게.
+                visibleCount = text.count
+                if finishedAt == nil { finishedAt = Date() }
+            }
         }
     }
 
@@ -273,7 +312,7 @@ public struct TypewriterText: View {
             let holding = finishedAt.map { context.date.timeIntervalSince($0) < 2.2 } ?? true
             RoundedRectangle(cornerRadius: 0.5)
                 .fill(SonnetPalette.accent)
-                .frame(width: 2, height: 14)
+                .frame(width: 2, height: caretHeight)
                 .opacity(holding && now.truncatingRemainder(dividingBy: 1.0) < 0.5 ? 1 : 0)
         }
         .accessibilityHidden(true)

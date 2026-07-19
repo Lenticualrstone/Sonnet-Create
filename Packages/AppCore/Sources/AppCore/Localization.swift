@@ -28,6 +28,7 @@ public enum L10nKey: String, Sendable {
     case cancel, save, done, delete, rename, duplicate, close, open, choose, apply
     case hide, unhide, moveToTrash, restore, hiddenItems, trashItems
     case settings, settingsGeneral, settingsTheme, settingsText, settingsBeta
+    case settingsChangesFormat, revertChanges
     case language, themeMode, themeSystem, themeLight, themeDark
     case accentColor, accentCustom, qualityTier, qualityLow, qualityStandard, qualityHigh
     case backgroundEffect, effectSpeed, effectDensity, effectBlur
@@ -56,7 +57,7 @@ public enum L10nKey: String, Sendable {
     case interfaceStyle, themeSonnet, themePilgrimage, fontLabel, fontPretendard, fontSystem, fontSerif, fontMono, disableGlass
     case blockSpacing
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
-    case importAny, aiAgent, sonnetAI, askAnything, openAsTab, clearChat
+    case importAny, sonnetAI, askAnything, openAsTab, clearChat
     case openTabs, quickStart, continueWriting, todayWriting, streakDaysFormat, dailyGoalChars, greetingFollowup
     case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
     case categorySection
@@ -124,8 +125,8 @@ public enum L10nKey: String, Sendable {
     // v1.3 가이드 프로젝트 (언어별 튜토리얼, GitHub 릴리스 자산에서 다운로드)
     case guideProject, createGuideProject, guideProjectHint, guideProjectCreating
     case guideProjectCreated, guideProjectFailed, guideProjectUnavailable
-    // AI 스피어 스타일
-    case aiSphereStyle, sphereStyleGlass, sphereStyleHolographic, sphereStyleInk, sphereStylePlasma, sphereStyleParticle
+    // AI 성운 스피어
+    case aiSphereStyle
     // 시간대 인사말 (홈 히어로) — %@ 자리에 작가 이름(있으면)
     case greetingMorning, greetingAfternoon, greetingEvening, greetingNight
     case greetingMorningNamed, greetingAfternoonNamed, greetingEveningNamed, greetingNightNamed
@@ -185,6 +186,12 @@ public final class Localizer {
         .settingsTheme: [.korean: "테마", .japanese: "テーマ", .english: "Theme"],
         .settingsText: [.korean: "텍스트", .japanese: "テキスト", .english: "Text"],
         .settingsBeta: [.korean: "베타", .japanese: "ベータ", .english: "Beta"],
+        .settingsChangesFormat: [
+            .korean: "변경 %d건 — 저장해야 반영됩니다",
+            .japanese: "変更 %d件 — 保存で反映されます",
+            .english: "%d change(s) — save to apply",
+        ],
+        .revertChanges: [.korean: "되돌리기", .japanese: "元に戻す", .english: "Revert"],
         .language: [.korean: "언어", .japanese: "言語", .english: "Language"],
         .themeMode: [.korean: "화면 모드", .japanese: "外観モード", .english: "Appearance"],
         .themeSystem: [.korean: "시스템", .japanese: "システム", .english: "System"],
@@ -406,7 +413,6 @@ public final class Localizer {
         .glassIntensityLabel: [.korean: "유리 강도", .japanese: "ガラス強度", .english: "Glass Intensity"],
         .paperGrain: [.korean: "페이퍼 그레인", .japanese: "ペーパーグレイン", .english: "Paper Grain"],
         .paperGrainCaption: [.korean: "캔버스에 미세 그레인 텍스처 오버레이", .japanese: "キャンバスに微細なグレインを重ねる", .english: "Subtle grain texture over the canvas"],
-        .aiAgent: [.korean: "AI 에이전트", .japanese: "AIエージェント", .english: "AI Agent"],
         // 브랜드명이라 언어별로 옮기지 않고 그대로 사용
         .sonnetAI: [.korean: "Sonnet AI", .japanese: "Sonnet AI", .english: "Sonnet AI"],
         .askAnything: [.korean: "무엇이든 물어보세요…", .japanese: "何でも聞いてください…", .english: "Ask anything…"],
@@ -580,12 +586,7 @@ public final class Localizer {
         .guideProjectCreated: [.korean: "가이드 프로젝트가 추가되었습니다", .japanese: "ガイドプロジェクトを追加しました", .english: "Guide project added"],
         .guideProjectFailed: [.korean: "가이드 프로젝트를 받지 못했습니다", .japanese: "ガイドプロジェクトの取得に失敗しました", .english: "Couldn't download guide project"],
         .guideProjectUnavailable: [.korean: "이 버전에는 가이드 프로젝트가 아직 없습니다", .japanese: "このバージョンのガイドプロジェクトはまだありません", .english: "No guide project is available for this version yet"],
-        .aiSphereStyle: [.korean: "AI 스피어 스타일", .japanese: "AIスフィアのスタイル", .english: "AI Sphere Style"],
-        .sphereStyleGlass: [.korean: "글래스", .japanese: "ガラス", .english: "Glass"],
-        .sphereStyleHolographic: [.korean: "홀로그램", .japanese: "ホログラム", .english: "Holographic"],
-        .sphereStyleInk: [.korean: "잉크", .japanese: "インク", .english: "Ink"],
-        .sphereStylePlasma: [.korean: "플라즈마", .japanese: "プラズマ", .english: "Plasma"],
-        .sphereStyleParticle: [.korean: "파티클", .japanese: "パーティクル", .english: "Particle"],
+        .aiSphereStyle: [.korean: "AI 성운 스피어", .japanese: "AI星雲スフィア", .english: "AI Nebula Sphere"],
         .greetingMorning: [.korean: "좋은 아침이에요. 무엇을 써볼까요?", .japanese: "おはようございます。何を書きましょう？", .english: "Good morning. What shall we write?"],
         .greetingAfternoon: [.korean: "무엇을 창작해볼까요?", .japanese: "今日は何を創りますか？", .english: "What shall we create?"],
         .greetingEvening: [.korean: "저녁이네요. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね。今日の物語を続けましょうか？", .english: "Good evening. Shall we continue the story?"],

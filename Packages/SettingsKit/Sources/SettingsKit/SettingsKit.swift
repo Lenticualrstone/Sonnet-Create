@@ -45,9 +45,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var touchBarEnabled: Bool = false
     /// 시나리오 캐릭터 인스펙터를 오른쪽에 배치
     public var scenarioInspectorOnRight: Bool = false
-    /// AI 스피어 스타일 — "particle"(기본) | "glass" | "holographic" | "ink" | "plasma"
-    public var aiSphereStyleRaw: String = "particle"
-    /// 파티클 스피어 입자 밀도 — "sparse" | "normal"(기본) | "dense"
+    /// 성운 스피어 입자 밀도 — "sparse" | "normal"(기본) | "dense"
     public var aiSphereDensityRaw: String = "normal"
     public var quality: RenderQuality = .standard
     public var backgroundSpeed: Double = 0.6
@@ -133,7 +131,6 @@ public struct AppSettings: Codable, Sendable, Equatable {
         tabStyleRaw = try c.decodeIfPresent(String.self, forKey: .tabStyleRaw) ?? d.tabStyleRaw
         touchBarEnabled = try c.decodeIfPresent(Bool.self, forKey: .touchBarEnabled) ?? d.touchBarEnabled
         scenarioInspectorOnRight = try c.decodeIfPresent(Bool.self, forKey: .scenarioInspectorOnRight) ?? d.scenarioInspectorOnRight
-        aiSphereStyleRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereStyleRaw) ?? d.aiSphereStyleRaw
         aiSphereDensityRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereDensityRaw) ?? d.aiSphereDensityRaw
         quality = try c.decodeIfPresent(RenderQuality.self, forKey: .quality) ?? d.quality
         backgroundSpeed = try c.decodeIfPresent(Double.self, forKey: .backgroundSpeed) ?? d.backgroundSpeed
@@ -222,6 +219,24 @@ public final class SettingsStore {
         return apiKeyAccounts.contains { account in
             (draftAPIKeys[account] ?? "") != (loadAPIKey?(account) ?? "")
         }
+    }
+
+    /// draft와 applied가 다른 최상위 필드 수 + 변경된 API 키 수 — 푸터 "변경 N건" 표시용 (4c).
+    public var changeCount: Int {
+        var count = 0
+        if let draftData = try? JSONEncoder().encode(draft),
+           let appliedData = try? JSONEncoder().encode(applied),
+           let draftDict = (try? JSONSerialization.jsonObject(with: draftData)) as? [String: Any],
+           let appliedDict = (try? JSONSerialization.jsonObject(with: appliedData)) as? [String: Any] {
+            for key in Set(draftDict.keys).union(appliedDict.keys)
+                where (draftDict[key] as? NSObject) != (appliedDict[key] as? NSObject) {
+                count += 1
+            }
+        } else if draft != applied {
+            count = 1
+        }
+        count += apiKeyAccounts.filter { (draftAPIKeys[$0] ?? "") != (loadAPIKey?($0) ?? "") }.count
+        return count
     }
 
     public func refreshAPIKeyDraft() {

@@ -31,10 +31,23 @@ struct SplashView: View {
                     Text("Sonnet Create")
                         .font(DSFonts.display(size: 26, weight: .bold))
                         .foregroundStyle(SonnetPalette.ink)
-                    Text("marks · scenes · worlds")
-                        .font(DSFonts.font(size: 12, family: .pretendard))
-                        .foregroundStyle(SonnetPalette.inkMuted)
-                        .kerning(0.6)
+                    // 서브카피는 타자기 리빌 (9e) — 시동 연출과 문법 통일.
+                    // 정적 원문으로 자리를 잡아 리빌 중 레이아웃이 흔들리지 않게 한다.
+                    ZStack {
+                        Text("marks · scenes · worlds")
+                            .font(DSFonts.font(size: 12, family: .pretendard))
+                            .kerning(0.6)
+                            .opacity(0)
+                        if wordmarkShown {
+                            TypewriterText(
+                                "marks · scenes · worlds",
+                                font: DSFonts.font(size: 12, family: .pretendard),
+                                color: SonnetPalette.inkMuted,
+                                speed: 2.4,
+                                kerning: 0.6
+                            )
+                        }
+                    }
                 }
                 .opacity(wordmarkShown ? 1 : 0)
                 .offset(y: wordmarkShown ? 0 : 14)

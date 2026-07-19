@@ -103,7 +103,7 @@ struct AIChatView: View {
 
     private var agentDisplayName: String {
         let name = app.settings.applied.agentName.trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? Localizer.shared.t(.aiAgent) : name
+        return name.isEmpty ? Localizer.shared.t(.sonnetAI) : name
     }
 
     /// 대화 중 프로바이더/모델 즉시 전환 — 설정 창을 오갈 필요가 없다.
@@ -665,7 +665,7 @@ struct SidebarAIChatSection: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
                 AISphere(size: 14, activity: chat.isBusy ? .thinking : (chat.input.isEmpty ? .idle : .typing))
-                Text(l10n.t(.aiAgent))
+                Text(l10n.t(.sonnetAI))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()

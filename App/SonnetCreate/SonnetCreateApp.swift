@@ -41,7 +41,6 @@ struct SonnetCreateApp: App {
                 .environment(\.pageFocusMode, appState.settings.applied.pageFocusModeEnabled)
                 .environment(\.pageTypewriterMode, appState.settings.applied.pageTypewriterEnabled)
                 .environment(\.mindmapAutoOpenInspector, appState.settings.applied.mindmapAutoOpenInspector)
-                .environment(\.aiSphereStyle, AISphereStyle(rawValue: appState.settings.applied.aiSphereStyleRaw) ?? .particle)
                 .environment(\.aiSphereDensity, AISphereDensity(rawValue: appState.settings.applied.aiSphereDensityRaw) ?? .normal)
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
@@ -129,7 +128,6 @@ struct SonnetCreateApp: App {
             .preferredColorScheme(appState.settings.applied.themeMode.colorScheme)
         }
     }
-
 }
 
 /// 실효 강조색을 화면 모드에 맞춰 주입 — 다크 모드에서는 어두운 강조색(커스텀 네이비 등)이

@@ -50,19 +50,23 @@ private struct SettingsSidebarRow: View {
     let action: () -> Void
 
     @State private var hovering = false
-    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
+        // 4c — 선택은 인장 틴트 워시 + 딥 버밀리온 텍스트 (색과 배경 형태를 함께 사용)
         Button(action: action) {
             Label(title, systemImage: symbol)
-                .font(.callout)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .padding(.vertical, 7)
-                .padding(.horizontal, 9)
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? SonnetPalette.accentDeep : SonnetPalette.inkSoft)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 11)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(isSelected ? accent : (hovering ? Color.primary.opacity(0.06) : .clear))
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(
+                            isSelected
+                                ? SonnetPalette.accentTint
+                                : (hovering ? SonnetPalette.ink.opacity(0.05) : .clear)
+                        )
                 )
                 .contentShape(Rectangle())
         }
@@ -114,45 +118,85 @@ public struct SettingsRootView: View {
                             }
                         }
                     }
-                    .padding(8)
+                    .padding(10)
                 }
-                .frame(width: 176)
+                .frame(width: 196)
+                .background(SonnetPalette.surface.opacity(0.4))
 
                 Divider().opacity(0.4)
 
-                Group {
-                    switch category {
-                    case .general: generalTab(l10n)
-                    case .appearance: appearanceTab(l10n)
-                    case .text: textTab(l10n)
-                    case .scenario: scenarioTab(l10n)
-                    case .page: pageTab(l10n)
-                    case .mindmap: mindmapTab(l10n)
-                    case .archive: archiveTab(l10n)
-                    case .ai: aiTab(l10n)
-                    case .beta: betaTab(l10n)
+                // 우측 — 세리프 카테고리 제목 (4c) + 폼
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(l10n.t(category.key))
+                        .font(DSFonts.display(size: 21, weight: .bold))
+                        .foregroundStyle(SonnetPalette.ink)
+                        .padding(.horizontal, DesignTokens.Spacing.l)
+                        .padding(.top, DesignTokens.Spacing.l)
+                        .padding(.bottom, DesignTokens.Spacing.xs)
+
+                    Group {
+                        switch category {
+                        case .general: generalTab(l10n)
+                        case .appearance: appearanceTab(l10n)
+                        case .text: textTab(l10n)
+                        case .scenario: scenarioTab(l10n)
+                        case .page: pageTab(l10n)
+                        case .mindmap: mindmapTab(l10n)
+                        case .archive: archiveTab(l10n)
+                        case .ai: aiTab(l10n)
+                        case .beta: betaTab(l10n)
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Divider()
-            HStack {
+            // sticky footer (4c) — 변경 건수 + 되돌리기(회색 칩) + 저장(인장)
+            HStack(spacing: 10) {
                 if store.hasChanges {
-                    Text("•")
-                        .foregroundStyle(SonnetPalette.accent)
+                    Text(String(format: l10n.t(.settingsChangesFormat), store.changeCount))
+                        .font(.caption)
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .transition(.opacity)
                 }
                 Spacer()
-                Button(l10n.t(.cancel)) { store.revert() }
-                    .disabled(!store.hasChanges)
-                Button(l10n.t(.save)) { store.save() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!store.hasChanges)
-                    .keyboardShortcut("s", modifiers: .command)
+                Button { store.revert() } label: {
+                    Text(l10n.t(.revertChanges))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(SonnetPalette.inkSoft)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(SonnetPalette.ink.opacity(0.06))
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!store.hasChanges)
+                .opacity(store.hasChanges ? 1 : 0.45)
+
+                Button { store.save() } label: {
+                    Text(l10n.t(.save))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(SonnetPalette.accent)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!store.hasChanges)
+                .opacity(store.hasChanges ? 1 : 0.45)
+                .keyboardShortcut("s", modifiers: .command)
             }
-            .padding(DesignTokens.Spacing.m)
+            .padding(.horizontal, DesignTokens.Spacing.l)
+            .padding(.vertical, DesignTokens.Spacing.m)
+            .animation(DesignTokens.Motion.snappy, value: store.hasChanges)
         }
-        .frame(width: 700, height: 520)
+        .frame(width: 860, height: 620)
         .onAppear { store.refreshAPIKeyDraft() }
     }
 
@@ -342,26 +386,17 @@ public struct SettingsRootView: View {
                 ])
             }
 
-            // AI 스피어 스타일 — 라이브 프리뷰를 보며 고른다 (draft 즉시 반영, 저장 시 앱 전역 적용)
+            // AI 성운 스피어 — 라이브 프리뷰를 보며 밀도를 고른다 (draft 즉시 반영, 저장 시 앱 전역 적용).
+            // 색 램프는 컨텍스트(라이트/다크·생성 중)가 자동 결정하므로 스타일 선택은 없다.
             Section(l10n.t(.aiSphereStyle)) {
                 VStack(spacing: DesignTokens.Spacing.m) {
-                    AISphere(
-                        size: 76,
-                        style: AISphereStyle(rawValue: store.draft.aiSphereStyleRaw) ?? .particle
-                    )
-                    .environment(\.aiSphereDensity, AISphereDensity(rawValue: store.draft.aiSphereDensityRaw) ?? .normal)
-                    DSSegmentedPicker(
-                        selection: $store.draft.aiSphereStyleRaw,
-                        options: AISphereStyle.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
-                    )
-                    // 밀도는 파티클 스타일에서만 의미 있다
-                    if store.draft.aiSphereStyleRaw == AISphereStyle.particle.rawValue {
-                        LabeledContent(l10n.t(.sphereDensity)) {
-                            DSSegmentedPicker(
-                                selection: $store.draft.aiSphereDensityRaw,
-                                options: AISphereDensity.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
-                            )
-                        }
+                    AISphere(size: 76)
+                        .environment(\.aiSphereDensity, AISphereDensity(rawValue: store.draft.aiSphereDensityRaw) ?? .normal)
+                    LabeledContent(l10n.t(.sphereDensity)) {
+                        DSSegmentedPicker(
+                            selection: $store.draft.aiSphereDensityRaw,
+                            options: AISphereDensity.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -695,7 +730,7 @@ public struct TouchBarPreviewView: View {
         Item(key: .home, symbol: "house"),
         Item(key: .save, symbol: "square.and.arrow.down"),
         Item(key: .newPage, symbol: "doc.badge.plus"),
-        Item(key: .aiAgent, symbol: "sparkles"),
+        Item(key: .sonnetAI, symbol: "sparkles"),
         Item(key: .archive, symbol: "archivebox"),
     ]
 

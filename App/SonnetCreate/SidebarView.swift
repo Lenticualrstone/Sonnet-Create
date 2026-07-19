@@ -67,7 +67,7 @@ struct RailView: View {
 
             RailButton(
                 symbol: "sparkle",
-                help: l10n.t(.aiAgent) + " (⇧⌘A)",
+                help: l10n.t(.sonnetAI) + " (⇧⌘A)",
                 isActive: isSelected(.aiChat) || app.showFloatingChat
             ) {
                 app.toggleAgentSurface()

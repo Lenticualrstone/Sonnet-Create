@@ -35,6 +35,10 @@ struct ScenarioBlockRow: View {
     let block: ScenarioBlock
     /// 리허설 재생 중 방금 등장한 대사 — 타자기 리빌(9e)로 새겨진다.
     var typewriterReveal: Bool = false
+    /// 낭독 중 TTS 진행(말한 글자 수) — 리빌 속도를 목소리에 동기화한다.
+    var typewriterProgress: Int?
+    /// 리허설 배속 — 내부 타이머 리빌이 재생 속도를 따라간다.
+    var typewriterSpeed: Double = 1
 
     @State private var hovering = false
     @Environment(\.renderQuality) private var quality
@@ -108,11 +112,14 @@ struct ScenarioBlockRow: View {
                         .foregroundStyle(speakers.first.map { Color(hex: $0.accentHex) } ?? .secondary)
                 }
                 if typewriterReveal {
-                    // 리허설 — 대사가 잉크로 새겨지듯 도착 (버밀리온 캐럿)
+                    // 리허설 — 대사가 잉크로 새겨지듯 도착 (버밀리온 캐럿).
+                    // 낭독 중이면 TTS가 말하는 속도에 글자가 동기화된다.
                     TypewriterText(
                         block.text,
                         font: DSFonts.font(size: 13 * fontScale, family: fontFamily),
-                        color: SonnetPalette.ink
+                        color: SonnetPalette.ink,
+                        progress: typewriterProgress,
+                        speed: typewriterSpeed
                     )
                 } else {
                     Text(markdownText)
@@ -138,13 +145,24 @@ struct ScenarioBlockRow: View {
         } else {
             HStack {
                 Spacer()
-                Text(block.text)
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .kerning(1.2)
-                    .foregroundStyle(SonnetPalette.inkMuted)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(SonnetPalette.ink.opacity(0.05)))
+                Group {
+                    if store.revealingSceneChipID == block.id {
+                        // 방금 입력한 장면 제목 — 잉크가 자리에 앉는 1회 리빌 (9e)
+                        TypewriterText(
+                            block.text,
+                            font: .system(size: 10, weight: .semibold, design: .monospaced),
+                            color: SonnetPalette.inkMuted
+                        )
+                    } else {
+                        Text(block.text)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .kerning(1.2)
+                            .foregroundStyle(SonnetPalette.inkMuted)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(SonnetPalette.ink.opacity(0.05)))
                 Spacer()
             }
             .padding(.vertical, 8)
