@@ -112,31 +112,37 @@ public struct ArchiveView: View {
 
     public var body: some View {
         let l10n = Localizer.shared
-        VStack(spacing: 0) {
-            toolbar(l10n)
+        // 4a — 좌측 카테고리 열 + 우측 콘텐츠 (상단 칩 필터에서 재배치)
+        HStack(spacing: 0) {
+            categorySidebar(l10n)
+                .frame(width: 188)
             Divider().opacity(0.4)
-            if category == .hidden, unlockGranted {
-                Text(l10n.t(.hideFinderHint))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .padding(.horizontal, DesignTokens.Spacing.m)
-                    .padding(.top, 4)
-            }
-            selectionBar(l10n)
-            if isProtected, !unlockGranted {
-                lockedPlaceholder(l10n)
-            } else if category == .all {
-                if overviewSections.isEmpty, otherItems.isEmpty {
-                    emptyPlaceholder(l10n)
-                } else {
-                    overviewView
+            VStack(spacing: 0) {
+                toolbar(l10n)
+                Divider().opacity(0.4)
+                if category == .hidden, unlockGranted {
+                    Text(l10n.t(.hideFinderHint))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, DesignTokens.Spacing.m)
+                        .padding(.top, 4)
                 }
-            } else if entries.isEmpty {
-                emptyPlaceholder(l10n)
-            } else if isGrid {
-                gridView
-            } else {
-                listView
+                selectionBar(l10n)
+                if isProtected, !unlockGranted {
+                    lockedPlaceholder(l10n)
+                } else if category == .all {
+                    if overviewSections.isEmpty, otherItems.isEmpty {
+                        emptyPlaceholder(l10n)
+                    } else {
+                        overviewView
+                    }
+                } else if entries.isEmpty {
+                    emptyPlaceholder(l10n)
+                } else if isGrid {
+                    gridView
+                } else {
+                    listView
+                }
             }
         }
         .onChange(of: category) { _, newValue in
@@ -260,26 +266,126 @@ public struct ArchiveView: View {
         }
     }
 
+    // MARK: 카테고리 사이드바 (4a)
+
+    /// 카테고리별 항목 수 — 사이드바 카운트 배지.
+    private func categoryCount(_ cat: Category) -> Int {
+        switch cat {
+        case .other: otherItems.count
+        default: documentsUnfiltered(for: cat).count
+        }
+    }
+
+    /// 프로젝트 필터/검색과 무관한 원 카운트 (사이드바 배지용).
+    private func documentsUnfiltered(for cat: Category) -> [DocumentListItem] {
+        switch cat {
+        case .all: workspace.visibleDocuments
+        case .scenario: workspace.visibleDocuments.filter { $0.envelope.kind == .scenario }
+        case .mindmap: workspace.visibleDocuments.filter { $0.envelope.kind == .mindmap }
+        case .page: workspace.visibleDocuments.filter { $0.envelope.kind == .page && !$0.envelope.isCharacterPage }
+        case .character: workspace.visibleDocuments.filter { $0.envelope.isCharacterPage }
+        case .other: []
+        case .hidden: workspace.hiddenDocuments
+        case .trash: workspace.trashedDocuments
+        }
+    }
+
+    private func categorySidebar(_ l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(l10n.t(.categorySection))
+                .font(DSFonts.font(size: 11, weight: .semibold, family: .pretendard))
+                .kerning(0.8)
+                .foregroundStyle(SonnetPalette.inkMuted)
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 6)
+
+            ForEach([Category.all, .scenario, .mindmap, .page, .character, .other]) { candidate in
+                categoryRow(candidate, l10n)
+            }
+
+            Spacer(minLength: 0)
+
+            Divider().opacity(0.35)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+
+            // 보호 구역 — 가려진 파일은 Touch ID 게이트
+            categoryRow(.hidden, l10n, trailingSymbol: "touchid")
+            categoryRow(.trash, l10n)
+                .padding(.bottom, 10)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(SonnetPalette.sunken.opacity(0.45))
+    }
+
+    @ViewBuilder
+    private func categoryRow(_ candidate: Category, _ l10n: Localizer, trailingSymbol: String? = nil) -> some View {
+        let isSelected = category == candidate
+        let count = categoryCount(candidate)
+        Button {
+            withAnimation(DesignTokens.Motion.glassPop) { category = candidate }
+        } label: {
+            HStack(spacing: 8) {
+                categoryIcon(candidate)
+                    .frame(width: 16)
+                Text(categoryLabel(candidate, l10n))
+                    .font(DSFonts.font(size: 13, weight: isSelected ? .semibold : .regular, family: .pretendard))
+                    .foregroundStyle(isSelected ? SonnetPalette.ink : SonnetPalette.inkSoft)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if let trailingSymbol {
+                    Image(systemName: trailingSymbol)
+                        .font(.system(size: 11))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                } else if count > 0 {
+                    Text("\(count)")
+                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(SonnetPalette.accentTint)
+                        .matchedGeometryEffect(id: "archiveCategoryHighlight", in: categoryHighlight)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+    }
+
+    @ViewBuilder
+    private func categoryIcon(_ candidate: Category) -> some View {
+        switch candidate {
+        case .all:
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: 12))
+                .foregroundStyle(SonnetPalette.inkMuted)
+        case .scenario: FileTypeIcon(.scenario, size: 14)
+        case .mindmap: FileTypeIcon(.mindmap, size: 14)
+        case .page: FileTypeIcon(.page, size: 14)
+        case .character: FileTypeIcon(.character, size: 14)
+        case .other: FileTypeIcon(.attachment, size: 14)
+        case .hidden:
+            Image(systemName: "eye.slash")
+                .font(.system(size: 12))
+                .foregroundStyle(SonnetPalette.inkMuted)
+        case .trash:
+            Image(systemName: "trash")
+                .font(.system(size: 12))
+                .foregroundStyle(SonnetPalette.inkMuted)
+        }
+    }
+
     // MARK: 도구막대
 
     private func toolbar(_ l10n: Localizer) -> some View {
         HStack(spacing: DesignTokens.Spacing.s) {
-            // 카테고리 칩 — 시스템 드롭다운 대신 강조색 하이라이트가 미끄러지는 칩 행
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 2) {
-                    ForEach(Category.allCases) { candidate in
-                        categoryChip(candidate, l10n)
-                    }
-                }
-                .padding(2)
-            }
-            .scrollClipDisabled()
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.primary.opacity(0.055))
-            )
-            .fixedSize(horizontal: true, vertical: true)
-
             if !workspace.projects.isEmpty {
                 projectFilterMenu(l10n)
             }
@@ -945,42 +1051,6 @@ struct OtherFileCard: View {
 // MARK: - 도구막대 필터 컨트롤 (칩/프로젝트 메뉴)
 
 private extension ArchiveView {
-    /// 카테고리 칩 하나 — 가림/휴지통/기타는 아이콘 동반.
-    private func categoryChip(_ candidate: Category, _ l10n: Localizer) -> some View {
-        let symbol: String? = switch candidate {
-        case .hidden: "eye.slash"
-        case .trash: "trash"
-        case .other: "paperclip"
-        default: nil
-        }
-        let isSelected = category == candidate
-        return Button {
-            withAnimation(DesignTokens.Motion.snappy) { category = candidate }
-        } label: {
-            HStack(spacing: 4) {
-                if let symbol {
-                    Image(systemName: symbol)
-                        .font(.caption)
-                }
-                Text(categoryLabel(candidate, l10n))
-                    .font(.callout)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(isSelected ? accent : Color.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(accent.opacity(0.14))
-                        .matchedGeometryEffect(id: "archiveCategoryHighlight", in: categoryHighlight)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
     /// 프로젝트 필터 — 필터가 걸리면 강조색 캡슐로 표시되는 커스텀 메뉴.
     private func projectFilterMenu(_ l10n: Localizer) -> some View {
         let filteredName = projectFilter.flatMap { id in

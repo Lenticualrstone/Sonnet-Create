@@ -262,10 +262,8 @@ struct SuggestionStrip: View {
                     if block.kind == .line {
                         SpeakerCluster(speakers: store.speakers(of: block))
                     }
-                    Text(block.text)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // 제안 도착은 타자기 리빌 (9e) — 잉크가 자리에 앉는 감각
+                    TypewriterText(block.text, font: .callout)
                     Spacer()
                     Button(l10n.t(.accept)) { store.acceptSuggestion(block) }
                         .font(.caption)

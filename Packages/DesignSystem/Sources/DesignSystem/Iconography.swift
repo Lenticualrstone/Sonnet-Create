@@ -216,3 +216,66 @@ public struct FileTypeBadge: View {
         )
     }
 }
+
+// MARK: - 타자기 리빌 (9e)
+
+/// AI 제안 도착/리허설 대사 재생용 타자기 리빌 — 90ms/자, 버밀리온 캐럿 1s 점멸.
+/// 긴 문장은 전체 4초를 넘지 않도록 간격을 자동 축소한다.
+public struct TypewriterText: View {
+    let text: String
+    var font: Font
+    var color: Color
+
+    @State private var visibleCount = 0
+    @State private var finishedAt: Date?
+
+    public init(
+        _ text: String,
+        font: Font = .callout,
+        color: Color = SonnetPalette.inkSoft
+    ) {
+        self.text = text
+        self.font = font
+        self.color = color
+    }
+
+    private var interval: Double {
+        guard !text.isEmpty else { return 0.09 }
+        return min(0.09, 4.0 / Double(text.count))
+    }
+
+    public var body: some View {
+        HStack(alignment: .lastTextBaseline, spacing: 2) {
+            Text(String(text.prefix(visibleCount)))
+                .font(font)
+                .foregroundStyle(color)
+                .fixedSize(horizontal: false, vertical: true)
+            caret
+        }
+        .task(id: text) {
+            visibleCount = 0
+            finishedAt = nil
+            let step = interval
+            for index in 1...max(1, text.count) {
+                try? await Task.sleep(for: .seconds(step))
+                guard !Task.isCancelled else { return }
+                visibleCount = index
+            }
+            finishedAt = Date()
+        }
+    }
+
+    /// 버밀리온 캐럿 — 진행 중 + 종료 후 2.2s 홀드 동안 1s 점멸, 이후 사라진다.
+    @ViewBuilder
+    private var caret: some View {
+        TimelineView(.animation(minimumInterval: 0.25)) { context in
+            let now = context.date.timeIntervalSinceReferenceDate
+            let holding = finishedAt.map { context.date.timeIntervalSince($0) < 2.2 } ?? true
+            RoundedRectangle(cornerRadius: 0.5)
+                .fill(SonnetPalette.accent)
+                .frame(width: 2, height: 14)
+                .opacity(holding && now.truncatingRemainder(dividingBy: 1.0) < 0.5 ? 1 : 0)
+        }
+        .accessibilityHidden(true)
+    }
+}

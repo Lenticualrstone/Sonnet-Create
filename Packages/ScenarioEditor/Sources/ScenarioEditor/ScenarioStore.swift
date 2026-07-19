@@ -248,6 +248,109 @@ public final class ScenarioStore {
         withActiveBlocks { $0.append(ScenarioBlock(kind: .divider, text: "")) }
     }
 
+    // MARK: 플롯 타임라인 (2a)
+
+    /// 타임라인의 장면 한 칸 — 본편을 구분선으로 자른 세그먼트.
+    public struct PlotScene: Identifiable, Equatable {
+        public let id: UUID
+        /// 구분선 제목 우선, 없으면 첫 텍스트 미리보기
+        public let title: String
+        /// 카드 클릭 시 스크롤 타깃 (세그먼트 첫 블록)
+        public let jumpTargetID: UUID
+        public let lineCount: Int
+        /// 이 장면 안에서 갈라진 분기들
+        public let branchIDs: [UUID]
+        /// content.blocks 내 세그먼트 범위 (여는 구분선 포함)
+        public let range: Range<Int>
+    }
+
+    /// 타임라인에서 마지막으로 선택한 장면 (강조 표시용).
+    public var currentSceneID: UUID?
+
+    /// 본편을 구분선 기준으로 자른 장면 목록 — 타임라인은 항상 본편 순서를 다룬다.
+    public var plotScenes: [PlotScene] {
+        let blocks = content.blocks
+        guard !blocks.isEmpty else { return [] }
+        var boundaries: [Int] = []
+        for (index, block) in blocks.enumerated() where block.kind == .divider {
+            boundaries.append(index)
+        }
+        var ranges: [Range<Int>] = []
+        var start = 0
+        for boundary in boundaries {
+            if boundary > start { ranges.append(start..<boundary) }
+            start = boundary
+        }
+        ranges.append(start..<blocks.count)
+        // 첫 블록이 구분선이면 위 로직상 0..<0이 생기지 않도록 이미 처리됨
+        return ranges.compactMap { range in
+            guard !range.isEmpty else { return nil }
+            let segment = Array(blocks[range])
+            let opener = segment.first!
+            let title: String
+            if opener.kind == .divider, !opener.text.isEmpty {
+                title = opener.text
+            } else {
+                title = segment.first(where: { $0.kind != .divider && !$0.text.isEmpty })
+                    .map { String($0.text.prefix(14)) } ?? ""
+            }
+            let segmentIDs = Set(segment.map(\.id))
+            return PlotScene(
+                id: opener.id,
+                title: title,
+                jumpTargetID: opener.id,
+                lineCount: segment.count { $0.kind == .line },
+                branchIDs: content.branches
+                    .filter { $0.parentBlockID.map(segmentIDs.contains) ?? false }
+                    .map(\.id),
+                range: range
+            )
+        }
+    }
+
+    /// 드래그 재배열 — 시작 시 스냅샷을 잡아 두고, 라이브 이동은 undo 스택을 오염시키지
+    /// 않으며, 끝날 때 실제로 순서가 바뀐 경우에만 단일 undo 항목으로 확정한다.
+    private var sceneDragBaseline: ScenarioContent?
+
+    public func beginSceneDrag() {
+        guard sceneDragBaseline == nil else { return }
+        sceneDragBaseline = content
+    }
+
+    /// 드래그한 장면이 대상 장면 위로 들어온 순간의 라이브 리오더 (undo 기록 없음).
+    public func moveSceneLive(draggedID: UUID, over targetID: UUID) {
+        let scenes = plotScenes
+        guard let from = scenes.firstIndex(where: { $0.id == draggedID }),
+              let to = scenes.firstIndex(where: { $0.id == targetID }),
+              from != to
+        else { return }
+        var segments = scenes.map { Array(content.blocks[$0.range]) }
+        let moved = segments.remove(at: from)
+        segments.insert(moved, at: to)
+        lastChangeWasHistory = true // 순서 이동은 집필량이 아니다
+        content.blocks = segments.flatMap { $0 }
+        onContentChanged?(content)
+    }
+
+    public func endSceneDrag() {
+        defer { sceneDragBaseline = nil }
+        guard let baseline = sceneDragBaseline,
+              baseline.blocks.map(\.id) != content.blocks.map(\.id)
+        else { return }
+        undoStack.append(baseline)
+        if undoStack.count > 100 { undoStack.removeFirst() }
+        redoStack.removeAll()
+    }
+
+    /// ＋ 장면 — 본편 끝에 제목 달린 장면 경계를 추가한다.
+    @discardableResult
+    public func addScene(title: String) -> UUID {
+        let divider = ScenarioBlock(kind: .divider, text: title)
+        mutate { $0.blocks.append(divider) }
+        currentSceneID = divider.id
+        return divider.id
+    }
+
     /// 빠른 메뉴 '내용 수정' — 블록 내용을 입력란으로 이동.
     public func beginEditing(_ block: ScenarioBlock) {
         editingBlockID = block.id

@@ -95,21 +95,30 @@ public struct AISphere: View {
     public enum Activity: Sendable {
         case idle, typing, thinking
 
-        /// 회전/흐름 속도 배율.
+        /// 회전/흐름 속도 배율 — 모션 스펙 10: 대기 0.45× · 사고 1.7×.
         var speed: Double {
             switch self {
-            case .idle: 1.0
-            case .typing: 1.5
-            case .thinking: 2.4
+            case .idle: 0.45
+            case .typing: 1.0
+            case .thinking: 1.7
             }
         }
 
-        /// 입자 반경 요동의 세기 (평온=0).
+        /// 입자 반경 요동의 세기 (평온=0, 사고 중 난류 완전 발달).
         var agitation: Double {
             switch self {
             case .idle: 0.0
             case .typing: 0.5
-            case .thinking: 1.0
+            case .thinking: 1.6
+            }
+        }
+
+        /// 코어 글로우/반경 맥동 진폭 — 생성 중 6% (모션 스펙 10c).
+        var pulse: Double {
+            switch self {
+            case .idle: 0.0
+            case .typing: 0.02
+            case .thinking: 0.06
             }
         }
     }
@@ -161,7 +170,7 @@ public struct AISphere: View {
     @ViewBuilder
     private func sphere(time: TimeInterval) -> some View {
         let t = time * speed
-        let breathe = 1 + 0.04 * activity.agitation * sin(t * 3.1)
+        let breathe = 1 + activity.pulse * sin(t * 2.6)
         Group {
             switch style {
             case .particle: particleSphere(t)

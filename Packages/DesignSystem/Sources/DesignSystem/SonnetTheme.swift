@@ -303,6 +303,10 @@ private struct LiquidGlassDisabledKey: EnvironmentKey {
     static let defaultValue = false
 }
 
+private struct GlassIntensityKey: EnvironmentKey {
+    static let defaultValue = 0.62
+}
+
 private struct ResolvedAccentKey: EnvironmentKey {
     static let defaultValue: Color = .accentColor
 }
@@ -326,6 +330,12 @@ public extension EnvironmentValues {
     var liquidGlassDisabled: Bool {
         get { self[LiquidGlassDisabledKey.self] }
         set { self[LiquidGlassDisabledKey.self] = newValue }
+    }
+
+    /// 설정 > 모양의 유리 강도 (0.2~1.0) — 글래스 표면의 워시 불투명도에 반영 (4c).
+    var glassIntensity: Double {
+        get { self[GlassIntensityKey.self] }
+        set { self[GlassIntensityKey.self] = newValue }
     }
 
     /// AppState.resolvedAccent — 테마+강조색상 설정을 조합한 실효 강조색.

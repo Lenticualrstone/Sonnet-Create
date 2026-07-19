@@ -38,6 +38,9 @@ public enum PageMarkdown {
                 lines.append("> 💡 " + block.text)
             case .image:
                 lines.append("![\(block.text)](\(block.resourcePath ?? ""))")
+            case .embed:
+                // 임베드는 마크다운으로 표현할 수 없다 — 문서 참조 주석으로 남긴다
+                lines.append("<!-- embed: \(block.embeddedDocumentID?.uuidString ?? "") -->")
             case .table:
                 if let rows = block.tableData, let first = rows.first {
                     var tableLines: [String] = []

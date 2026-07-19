@@ -6,6 +6,7 @@ import DesignSystem
 import DocumentKit
 import FileManagerKit
 import Foundation
+import MarkdownEditor
 import Observation
 import RenderingKit
 import ScenarioEditor
@@ -1017,10 +1018,26 @@ final class AppState {
                     }
             }
         case .page(let store):
-            guard session.document.envelope.isCharacterPage else { break }
             let selfID = session.id
             let projectID = session.document.envelope.projectID
             store.onOpenDocument = { [weak self] id in self?.openDocument(id: id) }
+            // 임베드 블록 (3b) — 자기 자신을 제외한 워크스페이스 문서 카탈로그 + 미리보기 로더
+            store.documentCatalog = { [weak self] in
+                guard let self else { return [] }
+                return workspace.visibleDocuments
+                    .filter { $0.id != selfID }
+                    .sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
+                    .map { (
+                        id: $0.id,
+                        title: $0.envelope.title,
+                        kind: $0.envelope.kind,
+                        isCharacter: $0.envelope.isCharacterPage
+                    ) }
+            }
+            store.embedPreviewLoader = { [weak self] id in
+                self?.loadEmbedPreview(id)
+            }
+            guard session.document.envelope.isCharacterPage else { break }
             store.characterCatalog = { [weak self] in
                 guard let self else { return [] }
                 return workspace.visibleDocuments
@@ -1030,6 +1047,112 @@ final class AppState {
             store.appearanceStats = { [weak self] in
                 self?.appearanceStats(forCharacterPage: selfID) ?? []
             }
+            // 관계 → 마인드맵 승격 (3c)
+            store.onPromoteRelations = { [weak self] pairs in
+                self?.promoteRelationsToMindmap(fromCharacterPage: selfID, pairs: pairs)
+            }
+        }
+    }
+
+    /// 3c — 캐릭터 관계망을 새 마인드맵(.scno) 문서로 승격해 연다.
+    /// 중심 = 캐릭터(잉크색), 관계 = 방사형 링크 노드(대상 캐릭터 페이지로 양방향 연결).
+    private func promoteRelationsToMindmap(
+        fromCharacterPage pageID: UUID,
+        pairs: [(relation: CharacterRelation, name: String)]
+    ) {
+        guard let session = sessions[pageID], !pairs.isEmpty else { return }
+        let characterName = session.title.isEmpty ? Localizer.shared.t(.untitled) : session.title
+        let accentHex: String? = {
+            if case .page(let store) = session.editor { return store.content.profile?.accentHex }
+            return nil
+        }()
+
+        var nodes: [MindMapNode] = [
+            MindMapNode(
+                kind: .page,
+                title: characterName,
+                x: 0, y: 0,
+                colorHex: accentHex,
+                linkedDocumentID: pageID
+            ),
+        ]
+        var edges: [MindMapEdge] = []
+        let total = pairs.count + 1
+        for (index, pair) in pairs.enumerated() {
+            let position = MindMapLayout.radial(index: index + 1, total: total)
+            let node = MindMapNode(
+                kind: .page,
+                title: pair.name,
+                detail: pair.relation.label,
+                x: position.x, y: position.y,
+                linkedDocumentID: pair.relation.targetPageID
+            )
+            nodes.append(node)
+            edges.append(MindMapEdge(fromID: nodes[0].id, toID: node.id, caption: pair.relation.label))
+        }
+
+        let project = workspace.project(id: session.document.envelope.projectID)
+        createAndOpenDocument(
+            title: "\(characterName) — \(Localizer.shared.t(.relationsTab))",
+            content: .mindmap(MindMapContent(nodes: nodes, edges: edges)),
+            in: project
+        )
+        notify(symbol: "point.3.connected.trianglepath.dotted",
+               message: "\(Localizer.shared.t(.promoteToMindmap)) \(characterName)")
+    }
+
+    /// 3b — 임베드 블록 미리보기: 대상 문서를 읽어 유형 배지·메타·앞부분 발췌를 만든다.
+    private func loadEmbedPreview(_ id: UUID) -> EmbedPreview? {
+        // 열려 있는 세션이 있으면 (디스크보다 최신인) 세션 내용을 우선한다 — '라이브' 미리보기
+        let content: DocumentContent?
+        let title: String
+        if let session = sessions[id] {
+            // 세션의 document.content는 스토어 변경이 즉시 반영된다 — '라이브' 미리보기
+            content = session.document.content
+            title = session.title
+        } else if let item = workspace.item(id: id),
+                  let loaded = try? DocumentPackageIO.read(from: item.url) {
+            content = loaded.content
+            title = loaded.envelope.title
+        } else {
+            return nil
+        }
+        guard let content else { return nil }
+
+        switch content {
+        case .scenario(let scenario):
+            let lines: [(String?, String)] = scenario.blocks
+                .filter { $0.kind == .line && !$0.text.isEmpty }
+                .prefix(3)
+                .map { block in
+                    let speaker = block.speakerIDs.first.flatMap { id in
+                        scenario.cast.first { $0.id == id }?.name
+                    }
+                    return (speaker, block.text)
+                }
+            var metaParts = ["대사 \(scenario.blocks.count { $0.kind == .line })"]
+            if !scenario.branches.isEmpty { metaParts.append("분기 \(scenario.branches.count)") }
+            return EmbedPreview(
+                typeBadge: ".scen", title: title,
+                meta: metaParts.joined(separator: " · "), lines: lines
+            )
+        case .page(let page):
+            let lines: [(String?, String)] = page.blocks
+                .filter { !$0.text.isEmpty }
+                .prefix(3)
+                .map { (nil, $0.text) }
+            return EmbedPreview(
+                typeBadge: page.profile != nil ? ".scpa ·인물" : ".scpa", title: title,
+                meta: "블록 \(page.blocks.count)", lines: lines
+            )
+        case .mindmap(let mindmap):
+            let lines: [(String?, String)] = mindmap.nodes
+                .prefix(3)
+                .map { (nil, $0.title) }
+            return EmbedPreview(
+                typeBadge: ".scno", title: title,
+                meta: "노드 \(mindmap.nodes.count) · 연결 \(mindmap.edges.count)", lines: lines
+            )
         }
     }
 

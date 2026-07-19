@@ -58,7 +58,8 @@ public enum L10nKey: String, Sendable {
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
     case importAny, aiAgent, sonnetAI, askAnything, openAsTab, clearChat
     case openTabs, quickStart, continueWriting, todayWriting, streakDaysFormat, dailyGoalChars, greetingFollowup
-    case sceneBlock, composerPlaceholderScene
+    case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
+    case categorySection
     case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
     case glassMode, glassModePoint, glassModeFull, glassIntensityLabel, paperGrain, paperGrainCaption
     case touchBarSupport, touchBarFunctions
@@ -382,6 +383,13 @@ public final class Localizer {
         .greetingFollowup: [.korean: "어제의 문장에서 이어갈까요?", .japanese: "昨日の文章から続けましょうか？", .english: "Shall we pick up yesterday's sentence?"],
         .sceneBlock: [.korean: "장면", .japanese: "シーン", .english: "Scene"],
         .composerPlaceholderScene: [.korean: "장면 제목 입력… ⏎ 장면 경계 삽입", .japanese: "シーンタイトルを入力… ⏎ でシーン境界を挿入", .english: "Scene title… ⏎ inserts a scene break"],
+        .plotLabel: [.korean: "플롯", .japanese: "プロット", .english: "PLOT"],
+        .plotDragHint: [.korean: "드래그 재배열 → 본문 순서 반영", .japanese: "ドラッグで並べ替え → 本文順に反映", .english: "Drag to reorder → applies to body"],
+        .promoteToMindmap: [.korean: "마인드맵으로 승격 →", .japanese: "マインドマップに昇格 →", .english: "Promote to mind map →"],
+        .embedBlock: [.korean: "문서 임베드", .japanese: "文書埋め込み", .english: "Embed Document"],
+        .embedOpenOriginal: [.korean: "원본 열기 →", .japanese: "元を開く →", .english: "Open original →"],
+        .embedMissing: [.korean: "연결된 문서를 찾을 수 없습니다", .japanese: "リンク先の文書が見つかりません", .english: "Linked document not found"],
+        .categorySection: [.korean: "카테고리", .japanese: "カテゴリー", .english: "Categories"],
         .quickStart: [.korean: "빠른 시작", .japanese: "クイックスタート", .english: "Quick Start"],
         .continueWriting: [.korean: "이어서 쓰기", .japanese: "続きを書く", .english: "Continue Writing"],
         .todayWriting: [.korean: "오늘의 집필", .japanese: "今日の執筆", .english: "Today's Writing"],

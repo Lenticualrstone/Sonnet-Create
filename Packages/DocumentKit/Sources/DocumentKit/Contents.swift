@@ -189,6 +189,8 @@ public enum PageBlockKind: String, Codable, CaseIterable, Sendable {
     case bulleted, numbered, task, toggle
     case quote, code, divider, callout
     case image, table
+    /// 다른 문서(.scen/.scpa/.scno)의 라이브 미리보기 삽입 (3b)
+    case embed
 }
 
 public struct PageBlock: Identifiable, Codable, Sendable, Equatable {
@@ -210,6 +212,8 @@ public struct PageBlock: Identifiable, Codable, Sendable, Equatable {
     public var sideBySide: Bool?
     /// table 블록: 행 × 열 문자열
     public var tableData: [[String]]?
+    /// embed 블록: 미리보기로 삽입한 문서 id
+    public var embeddedDocumentID: UUID?
 
     public init(
         id: UUID = UUID(),

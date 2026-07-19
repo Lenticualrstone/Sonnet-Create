@@ -292,8 +292,28 @@ struct CharacterRelationsTab: View {
         let catalog = store.characterCatalog?() ?? []
         ScrollView {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.l) {
-                // 방사형 관계도 (자동 생성)
+                // 방사형 관계도 (자동 생성) + 마인드맵 승격 (3c)
                 if !relations.isEmpty {
+                    if store.onPromoteRelations != nil {
+                        HStack {
+                            Spacer()
+                            Button {
+                                let pairs = relations.map { relation in
+                                    (
+                                        relation: relation,
+                                        name: catalog.first { $0.id == relation.targetPageID }?.name ?? "…"
+                                    )
+                                }
+                                store.onPromoteRelations?(pairs)
+                            } label: {
+                                Text(l10n.t(.promoteToMindmap))
+                                    .font(DSFonts.font(size: 12, family: .pretendard))
+                                    .foregroundStyle(accent)
+                            }
+                            .buttonStyle(.plain)
+                            .help(l10n.t(.promoteToMindmap))
+                        }
+                    }
                     RelationsRadialView(store: store, relations: relations, catalog: catalog)
                         .frame(height: 300)
                         .frame(maxWidth: .infinity)

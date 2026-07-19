@@ -321,6 +321,7 @@ struct UnifiedTitlebar: View {
 
     @State private var newDocMenuHover = false
     @State private var showUpdateMenu = false
+    @Environment(\.glassIntensity) private var glassIntensity
 
     /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 윈도우 모드에서는
     /// 항상 좌측에 신호등 자리를 남겨야 한다.
@@ -548,6 +549,7 @@ struct UnifiedTitlebar: View {
     }
 
     /// 헤더 배경 — Liquid Glass (끔/저사양이면 평면 시트 톤).
+    /// 워시 불투명도는 설정의 유리 강도를 따른다 — 강도가 낮을수록 뒤 캔버스가 더 비친다.
     @ViewBuilder
     private var titlebarBackground: some View {
         ZStack {
@@ -555,7 +557,7 @@ struct UnifiedTitlebar: View {
                 SonnetPalette.surface
             } else {
                 Rectangle().fill(.ultraThinMaterial)
-                SonnetPalette.surface.opacity(0.55)
+                SonnetPalette.surface.opacity(0.15 + 0.65 * glassIntensity)
             }
         }
         .ignoresSafeArea(edges: .top)

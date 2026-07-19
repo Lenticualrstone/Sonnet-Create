@@ -27,6 +27,20 @@ public final class PageStore {
     public var appearanceStats: (() -> [(title: String, lineCount: Int)])?
     /// 다른 문서 열기 (관계 노드 클릭 등, 앱이 주입)
     public var onOpenDocument: ((UUID) -> Void)?
+    /// 관계망을 마인드맵 문서로 승격 (3c — 앱이 주입: 새 .scno 생성 후 열기)
+    public var onPromoteRelations: (([(relation: CharacterRelation, name: String)]) -> Void)?
+    /// 워크스페이스 문서 카탈로그 (임베드 블록 피커용, 앱이 주입)
+    public var documentCatalog: (() -> [(id: UUID, title: String, kind: DocumentKind, isCharacter: Bool)])?
+    /// 임베드 블록 미리보기 로더 (앱이 주입 — 대상 문서의 요약/앞부분)
+    public var embedPreviewLoader: ((UUID) -> EmbedPreview?)?
+
+    /// 임베드 블록의 대상 문서 지정 (3b).
+    public func setEmbedTarget(_ blockID: UUID, documentID: UUID) {
+        mutate { c in
+            guard let idx = c.blocks.firstIndex(where: { $0.id == blockID }) else { return }
+            c.blocks[idx].embeddedDocumentID = documentID
+        }
+    }
 
     private var undoStack: [PageContent] = []
     private var redoStack: [PageContent] = []

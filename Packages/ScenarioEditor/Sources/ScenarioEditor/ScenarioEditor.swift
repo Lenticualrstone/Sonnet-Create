@@ -94,6 +94,13 @@ public struct ScenarioEditorView: View {
         VStack(spacing: 0) {
             toolbar(l10n)
             Divider().opacity(0.4)
+            // 플롯 타임라인 (2a) — 장면 카드 + 분기 레인. 리허설 중에는 숨긴다.
+            if !isRehearsing, !store.content.blocks.isEmpty {
+                PlotTimelineView(store: store, isReadOnly: isReadOnly) { targetID in
+                    jumpToScene(targetID)
+                }
+                Divider().opacity(0.25)
+            }
             HStack(spacing: 0) {
                 if showInspector, !inspectorOnRight {
                     inspector

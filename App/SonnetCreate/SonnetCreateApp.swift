@@ -46,6 +46,7 @@ struct SonnetCreateApp: App {
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
+                .environment(\.glassIntensity, appState.settings.applied.glassIntensity)
                 .font(DSFonts.font(size: 13, family: appState.settings.applied.fontFamily))
                 // 날짜/시간 포맷이 앱 언어를 따르도록 (시스템 로케일이 영어면 홈 히어로
                 // 날짜가 영어로 나오던 문제)
