@@ -56,9 +56,10 @@ struct MainWindowView: View {
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                // 문서를 벗어나지 않고 에이전트와 대화하는 플로팅 패널 (⇧⌘A / 레일 ✨)
+                // 문서를 벗어나지 않고 에이전트와 대화하는 플로팅 패널 (⇧⌘A / 레일 ✨).
+                // ⌘K가 열려 있는 동안은 잠시 내려가고, 닫히면 이전 상태로 복원된다 (3단계 3).
                 .overlay(alignment: .bottomTrailing) {
-                    if app.showFloatingChat {
+                    if app.showFloatingChat, !app.showCommandPalette {
                         FloatingChatPanel()
                             .transition(.scale(scale: 0.94, anchor: .bottomTrailing).combined(with: .opacity))
                     }
@@ -67,6 +68,7 @@ struct MainWindowView: View {
                     app.showFloatingChat ? DesignTokens.Motion.glassPop : DesignTokens.Motion.glassPopOut,
                     value: app.showFloatingChat
                 )
+                .animation(DesignTokens.Motion.glassPopOut, value: app.showCommandPalette)
             }
         }
         .background(SonnetPalette.canvas)
@@ -344,6 +346,8 @@ struct UnifiedTitlebar: View {
     @State private var newDocMenuHover = false
     @State private var showUpdateMenu = false
     @Environment(\.glassIntensity) private var glassIntensity
+    /// 헤더 실측 폭 — 좁은 창에서 우선순위 낮은 패널 토글을 overflow 메뉴로 접는다 (3단계 1)
+    @State private var headerWidth: CGFloat = 0
 
     /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 윈도우 모드에서는
     /// 항상 좌측에 신호등 자리를 남겨야 한다.
@@ -445,22 +449,27 @@ struct UnifiedTitlebar: View {
             Spacer(minLength: 0)
                 .overlay(windowDragArea)
 
-            // 문서 컨텍스트 패널 토글 (프로젝트 파일/참조/스냅샷)
+            // 문서 컨텍스트 패널 토글 (프로젝트 파일/참조/스냅샷).
+            // 좁은 창(<1120pt)에서는 하나의 overflow 메뉴로 접는다 — 활성 탭·저장 상태가 우선 (3단계 1).
             if case .document = app.selectedTab?.content {
-                if selectedDocumentHasProject {
-                    ToolbarIconButton("folder", help: l10n.t(.projectFiles), isActive: app.showProjectNavigator) {
-                        app.showProjectNavigator.toggle()
+                if headerWidth >= 1120 {
+                    if selectedDocumentHasProject {
+                        ToolbarIconButton("folder", help: l10n.t(.projectFiles), isActive: app.showProjectNavigator) {
+                            app.showProjectNavigator.toggle()
+                        }
                     }
-                }
-                ToolbarIconButton("link", help: l10n.t(.references), isActive: app.showReferencePanel) {
-                    app.showReferencePanel.toggle()
-                }
-                ToolbarIconButton(
-                    "clock.arrow.circlepath",
-                    help: l10n.t(.snapshots),
-                    isActive: app.showSnapshotPanel
-                ) {
-                    app.showSnapshotPanel.toggle()
+                    ToolbarIconButton("link", help: l10n.t(.references), isActive: app.showReferencePanel) {
+                        app.showReferencePanel.toggle()
+                    }
+                    ToolbarIconButton(
+                        "clock.arrow.circlepath",
+                        help: l10n.t(.snapshots),
+                        isActive: app.showSnapshotPanel
+                    ) {
+                        app.showSnapshotPanel.toggle()
+                    }
+                } else {
+                    panelOverflowMenu(l10n)
                 }
             }
             // 새 릴리스가 발견되면 나타나는 업데이트 인디케이터 — 클릭 시 퀵메뉴
@@ -490,6 +499,44 @@ struct UnifiedTitlebar: View {
                 .fill(SonnetPalette.ink.opacity(0.08))
                 .frame(height: 1)
         }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            headerWidth = width
+        }
+    }
+
+    /// 좁은 창용 패널 overflow 메뉴 — 프로젝트 파일/참조/스냅샷 토글을 한 버튼에 수납.
+    private func panelOverflowMenu(_ l10n: Localizer) -> some View {
+        Menu {
+            if selectedDocumentHasProject {
+                Toggle(l10n.t(.projectFiles), isOn: Binding(
+                    get: { app.showProjectNavigator },
+                    set: { app.showProjectNavigator = $0 }
+                ))
+            }
+            Toggle(l10n.t(.references), isOn: Binding(
+                get: { app.showReferencePanel },
+                set: { app.showReferencePanel = $0 }
+            ))
+            Toggle(l10n.t(.snapshots), isOn: Binding(
+                get: { app.showSnapshotPanel },
+                set: { app.showSnapshotPanel = $0 }
+            ))
+        } label: {
+            Image(systemName: "sidebar.trailing")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(
+                    app.showProjectNavigator || app.showReferencePanel || app.showSnapshotPanel
+                        ? accent : SonnetPalette.inkMuted
+                )
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(l10n.t(.projectFiles) + " · " + l10n.t(.references) + " · " + l10n.t(.snapshots))
     }
 
     /// '열린 탭 N ▾' 칩 — 클릭 시 전체 탭 목록 메뉴 (⌘1~9 병기).

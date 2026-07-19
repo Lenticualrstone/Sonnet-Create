@@ -59,7 +59,7 @@ public enum L10nKey: String, Sendable {
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
     case importAny, sonnetAI, askAnything, openAsTab, clearChat
     case openTabs, quickStart, continueWriting, todayWriting, streakDaysFormat, dailyGoalChars, greetingFollowup
-    case closeOtherTabs, closeTabsToRight
+    case closeOtherTabs, closeTabsToRight, paletteHints
     case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
     case categorySection
     case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
@@ -394,6 +394,11 @@ public final class Localizer {
         .importAny: [.korean: "프로젝트/파일 불러오기", .japanese: "プロジェクト/ファイルを読み込む", .english: "Import Project/File"],
         .openTabs: [.korean: "열린 탭", .japanese: "開いているタブ", .english: "Open Tabs"],
         .closeOtherTabs: [.korean: "다른 탭 모두 닫기", .japanese: "他のタブをすべて閉じる", .english: "Close Other Tabs"],
+        .paletteHints: [
+            .korean: "↑↓ 이동 · ⏎ 열기 · ⎋ 닫기",
+            .japanese: "↑↓ 移動 · ⏎ 開く · ⎋ 閉じる",
+            .english: "↑↓ Navigate · ⏎ Open · ⎋ Close",
+        ],
         .closeTabsToRight: [.korean: "오른쪽 탭 닫기", .japanese: "右側のタブを閉じる", .english: "Close Tabs to the Right"],
         .greetingFollowup: [.korean: "어제의 문장에서 이어갈까요?", .japanese: "昨日の文章から続けましょうか？", .english: "Shall we pick up yesterday's sentence?"],
         .sceneBlock: [.korean: "장면", .japanese: "シーン", .english: "Scene"],

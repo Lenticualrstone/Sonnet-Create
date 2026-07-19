@@ -76,6 +76,10 @@ struct CommandPaletteView: View {
                         ScrollView {
                             LazyVStack(spacing: 1) {
                                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                                    // 섹션 경계마다 제목 행 — 열린 탭 / 문서 / 명령 (3단계 3)
+                                    if index == 0 || sectionKey(items[index - 1]) != sectionKey(item) {
+                                        sectionHeader(item, l10n: l10n)
+                                    }
                                     row(item, isSelected: index == selection, l10n: l10n)
                                         .id(index)
                                         .onTapGesture {
@@ -95,6 +99,15 @@ struct CommandPaletteView: View {
                         }
                     }
                 }
+
+                Divider().opacity(0.4)
+
+                // 하단 키 도움말 (3단계 3)
+                Text(l10n.t(.paletteHints))
+                    .font(DSType.mono(size: 10.5))
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 7)
             }
             .frame(width: 560)
             .glassSurface(cornerRadius: DesignTokens.Radius.large, quality: quality)
@@ -193,6 +206,31 @@ struct CommandPaletteView: View {
 
     // MARK: 행 렌더링
 
+    /// 섹션 구분 키 — 같은 값끼리 한 섹션.
+    private func sectionKey(_ item: PaletteItem) -> Int {
+        switch item {
+        case .openTab: 0
+        case .document: 1
+        case .action: 2
+        }
+    }
+
+    /// 섹션 제목 행 — 열린 탭 / 문서 / 명령.
+    private func sectionHeader(_ item: PaletteItem, l10n: Localizer) -> some View {
+        let key: L10nKey = switch item {
+        case .openTab: .openTabs
+        case .document: .documents
+        case .action: .actionsSection
+        }
+        return Text(l10n.t(key))
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+    }
+
     @ViewBuilder
     private func row(_ item: PaletteItem, isSelected: Bool, l10n: Localizer) -> some View {
         HStack(spacing: DesignTokens.Spacing.s) {
@@ -215,12 +253,6 @@ struct CommandPaletteView: View {
                         .font(DSType.mono(size: 10.5))
                         .foregroundStyle(.tertiary)
                 }
-                Text(l10n.t(.openTabs))
-                    .font(.caption2)
-                    .foregroundStyle(accent)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 1)
-                    .background(Capsule().fill(SonnetPalette.accentTint))
             case .document(let doc):
                 FileTypeIcon(fileType(of: doc), size: 15)
                     .frame(width: 22)
@@ -245,9 +277,6 @@ struct CommandPaletteView: View {
                 Text(action.title)
                     .font(.callout)
                 Spacer()
-                Text(l10n.t(.actionsSection))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
         }
         .padding(.horizontal, 10)

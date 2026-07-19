@@ -65,13 +65,18 @@ struct RailView: View {
                 withAnimation(DesignTokens.Motion.glassPop) { app.showCommandPalette.toggle() }
             }
 
+            // AI가 열려 있으면 닫기 형태로 — 같은 버튼이 여닫이임을 명확히 (3단계 2)
+            let aiOpen = isSelected(.aiChat) || app.showFloatingChat
             RailButton(
-                symbol: "sparkle",
-                help: l10n.t(.sonnetAI) + " (⇧⌘A)",
-                isActive: isSelected(.aiChat) || app.showFloatingChat
+                symbol: aiOpen ? "xmark" : "sparkle",
+                help: aiOpen
+                    ? l10n.t(.sonnetAI) + " — " + l10n.t(.close) + " (⇧⌘A)"
+                    : l10n.t(.sonnetAI) + " (⇧⌘A)",
+                isActive: aiOpen
             ) {
                 app.toggleAgentSurface()
             }
+            .animation(DesignTokens.Motion.snappy, value: aiOpen)
 
             RailButton(
                 symbol: "tray",
