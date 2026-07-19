@@ -738,7 +738,7 @@ struct ProfileImagePanel: View {
         "person.fill", "theatermasks.fill", "crown.fill", "flame.fill", "leaf.fill",
         "moon.stars.fill", "bolt.fill", "heart.fill", "eye.fill", "pawprint.fill",
     ]
-    private let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6", "#9C4A2E"]
+    private let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C", "#191713"]
 
     var body: some View {
         let l10n = Localizer.shared

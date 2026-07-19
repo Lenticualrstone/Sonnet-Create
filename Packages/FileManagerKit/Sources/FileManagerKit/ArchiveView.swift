@@ -701,6 +701,18 @@ public struct ArchiveView: View {
 
 // MARK: - 행/카드
 
+extension DocumentListItem {
+    /// 디자인 시스템 파일 유형 (5a 아이콘/컬러 문법).
+    var dsFileType: DSFileType {
+        if envelope.isCharacterPage { return .character }
+        switch envelope.kind {
+        case .scenario: return .scenario
+        case .mindmap: return .mindmap
+        case .page: return .page
+        }
+    }
+}
+
 struct ArchiveRow: View {
     let item: DocumentListItem
     let clickCount: Int
@@ -719,9 +731,7 @@ struct ArchiveRow: View {
 
     var body: some View {
         HStack(spacing: DesignTokens.Spacing.s) {
-            Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                .font(.title3)
-                .foregroundStyle(accent)
+            FileTypeIcon(item.dsFileType, size: 18)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.envelope.title)
@@ -753,8 +763,8 @@ struct ArchiveRow: View {
                     .foregroundStyle(accent)
             }
             Text("." + item.envelope.kind.fileExtension)
-                .font(.caption2.monospaced())
-                .foregroundStyle(.tertiary)
+                .font(DSType.mono(size: 10.5, weight: .semibold))
+                .foregroundStyle(item.dsFileType.color)
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
@@ -805,9 +815,7 @@ struct ArchiveCard: View {
 
     var body: some View {
         VStack(spacing: DesignTokens.Spacing.s) {
-            Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                .font(.system(size: 34))
-                .foregroundStyle(accent)
+            FileTypeIcon(item.dsFileType, size: 34)
                 .frame(height: 54)
             Text(item.envelope.title)
                 .font(.callout.weight(.medium))

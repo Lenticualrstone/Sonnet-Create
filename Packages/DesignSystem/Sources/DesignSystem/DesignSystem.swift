@@ -22,11 +22,27 @@ public enum DesignTokens {
         public static let capsule: CGFloat = 999
     }
 
-    /// 짧은 스프링 모션
+    /// 모션 스펙 — 곡선과 역할 (디자인 브리프 1a).
     public enum Motion {
-        public static let snappy = Animation.spring(response: 0.28, dampingFraction: 0.82)
-        public static let gentle = Animation.spring(response: 0.45, dampingFraction: 0.86)
-        public static let arrival = Animation.spring(response: 0.38, dampingFraction: 0.72)
+        /// Rise — 진입. 홈 계단식 등장, 카드·리스트. y+14→0 + fade, 스태거 45ms.
+        public static let rise = Animation.timingCurve(0.22, 0.9, 0.24, 1, duration: 0.36)
+        /// Rise 스태거 간격 (초)
+        public static let riseStagger: Double = 0.045
+        /// Glass pop — 패널 진입. ⌘K·AI 패널·팝오버. scale .94→1, 오버슈트 6%.
+        public static let glassPop = Animation.timingCurve(0.34, 1.26, 0.4, 1, duration: 0.28)
+        /// Glass pop 닫힘 — 180ms ease-in.
+        public static let glassPopOut = Animation.easeIn(duration: 0.18)
+        /// Press — 버튼 피드백. scale .96, 복귀는 스프링.
+        public static let press = Animation.easeOut(duration: 0.12)
+        /// Press 복귀 스프링 (response .3 · damping .7)
+        public static let pressRelease = Animation.spring(response: 0.3, dampingFraction: 0.7)
+        /// Ink flow — 진행 바. 초반 가속·말미 감속.
+        public static let inkFlow = Animation.timingCurve(0.4, 0.1, 0.3, 1, duration: 0.6)
+
+        // 레거시 별칭 — 기존 호출부를 새 곡선으로 흘려보낸다.
+        public static let snappy = glassPop
+        public static let gentle = rise
+        public static let arrival = rise
     }
 }
 
@@ -320,10 +336,10 @@ public enum SaveState: Sendable, Equatable {
 
     public var color: Color {
         switch self {
-        case .unsaved: Color(hex: "#FF5B5B")
-        case .saving, .savedAuto: Color(hex: "#5AC8FA")
-        case .savedManual: Color(hex: "#4CD97B")
-        case .error: Color(hex: "#FFC53D")
+        case .unsaved: SonnetPalette.accent
+        case .saving, .savedAuto: SonnetPalette.inkMuted
+        case .savedManual: SonnetPalette.sage
+        case .error: Color(hex: "#D28E2E")
         }
     }
 

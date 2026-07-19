@@ -29,6 +29,12 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var accent: AccentChoice = .system
     /// Liquid Glass를 끄고 평면 표면 사용 — v1.3부터 Liquid Glass가 기본
     public var disableLiquidGlass: Bool = false
+    /// Liquid Glass 적용 모드 — "point"(팔레트·패널·툴바만) | "full"(사이드바·인스펙터까지)
+    public var glassModeRaw: String = "point"
+    /// 유리 강도 (0~1) — 표면 불투명도/블러에 반영
+    public var glassIntensity: Double = 0.62
+    /// 페이퍼 그레인 — 캔버스에 미세 그레인 텍스처 오버레이
+    public var paperGrainEnabled: Bool = false
     /// Wavy Dot Field 배경 효과 (기본 꺼짐)
     public var backgroundEffectEnabled: Bool = false
     /// 전체 UI 크기 배율
@@ -119,6 +125,9 @@ public struct AppSettings: Codable, Sendable, Equatable {
         themeMode = try c.decodeIfPresent(ThemeMode.self, forKey: .themeMode) ?? d.themeMode
         accent = try c.decodeIfPresent(AccentChoice.self, forKey: .accent) ?? d.accent
         disableLiquidGlass = try c.decodeIfPresent(Bool.self, forKey: .disableLiquidGlass) ?? d.disableLiquidGlass
+        glassModeRaw = try c.decodeIfPresent(String.self, forKey: .glassModeRaw) ?? d.glassModeRaw
+        glassIntensity = try c.decodeIfPresent(Double.self, forKey: .glassIntensity) ?? d.glassIntensity
+        paperGrainEnabled = try c.decodeIfPresent(Bool.self, forKey: .paperGrainEnabled) ?? d.paperGrainEnabled
         backgroundEffectEnabled = try c.decodeIfPresent(Bool.self, forKey: .backgroundEffectEnabled) ?? d.backgroundEffectEnabled
         uiScale = try c.decodeIfPresent(Double.self, forKey: .uiScale) ?? d.uiScale
         tabStyleRaw = try c.decodeIfPresent(String.self, forKey: .tabStyleRaw) ?? d.tabStyleRaw

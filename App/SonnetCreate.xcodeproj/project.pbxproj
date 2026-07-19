@@ -30,6 +30,7 @@
 		940CCB411068FF0559A82462 /* ScenarioEditor in Frameworks */ = {isa = PBXBuildFile; productRef = C2FB5974A13E9BFA33F4DADE /* ScenarioEditor */; };
 		A96F92D2F89ED82A866DDCAE /* PreviewHTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */; };
 		AF49D942F7AC3E75387EBE40 /* DocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7858C36D928A18AE009A7109 /* DocumentSession.swift */; };
+		B0E08BE2CC13E2A7FB413884 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0490EBB381A14573E023B9F0 /* SplashView.swift */; };
 		BA6BF5A23001C363B2C21DFA /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 3722969A975C520EC306C467 /* DesignSystem */; };
 		BBF47A2C561F1C3AE8B91E0A /* SettingsKit in Frameworks */ = {isa = PBXBuildFile; productRef = E03BBB394470E4A945388DA5 /* SettingsKit */; };
 		C494EDD5B6181E2B58C3A896 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B272B5B24C1D05E090A56FDE /* MainWindowView.swift */; };
@@ -71,6 +72,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0490EBB381A14573E023B9F0 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		0573DE5D33E846CBAC56F881 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		0B44C3D75121B9967F503526 /* FileManagerKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FileManagerKit; path = ../Packages/FileManagerKit; sourceTree = SOURCE_ROOT; };
 		1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotPanelView.swift; sourceTree = "<group>"; };
@@ -165,6 +167,7 @@
 				E3ED3D33526C84530606161E /* SidebarView.swift */,
 				1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */,
 				4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */,
+				0490EBB381A14573E023B9F0 /* SplashView.swift */,
 				1D69E2937C576231B4DE757D /* StatsLedger.swift */,
 				732C34C9124878FB3421665B /* TouchBarController.swift */,
 				EDBC0833EB295B65F94EE7D6 /* UpdateSystem.swift */,
@@ -362,6 +365,7 @@
 				67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */,
 				2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */,
 				DEDBCA2FAA6C5AACAAD3ADE0 /* SonnetCreateApp.swift in Sources */,
+				B0E08BE2CC13E2A7FB413884 /* SplashView.swift in Sources */,
 				38DE31DACDA9CBF0F29371FD /* StatsLedger.swift in Sources */,
 				0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */,
 				D07FC1590E903DE8C0F8D3DE /* UpdateSystem.swift in Sources */,

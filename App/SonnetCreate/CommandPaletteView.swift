@@ -28,11 +28,13 @@ struct CommandPaletteView: View {
 
     /// 문서와 명령을 한 리스트로 합친 표시 단위.
     private enum PaletteItem: Identifiable {
+        case openTab(OpenTab, index: Int)
         case document(DocumentListItem)
         case action(PaletteAction)
 
         var id: String {
             switch self {
+            case .openTab(let tab, _): "tab-\(tab.id.uuidString)"
             case .document(let item): item.id.uuidString
             case .action(let action): action.id
             }
@@ -125,22 +127,35 @@ struct CommandPaletteView: View {
 
     // MARK: 항목 구성
 
-    /// 빈 쿼리: 최근 문서 + 전체 명령. 쿼리 있음: 딥서치 결과 + 제목 일치 명령.
+    /// 빈 쿼리: 열린 탭 + 최근 문서 + 전체 명령. 쿼리 있음: 열린 탭(제목 일치) +
+    /// 딥서치 결과 + 제목 일치 명령. '열린 탭' 섹션이 최상단 — ⌘1~9 병기 (4b 신규).
     private var items: [PaletteItem] {
+        let openTabIDs = Set(app.tabs.compactMap { tab -> UUID? in
+            if case .document(let docID) = tab.content { return docID }
+            return nil
+        })
+        let openTabs: [PaletteItem] = app.tabs.enumerated().compactMap { index, tab in
+            guard case .document = tab.content else { return nil }
+            let title = app.tabTitle(for: tab)
+            guard query.isEmpty || title.localizedCaseInsensitiveContains(query) else { return nil }
+            return .openTab(tab, index: index)
+        }
+
         let documents: [DocumentListItem]
         if query.isEmpty {
             documents = Array(
                 app.workspace.visibleDocuments
+                    .filter { !openTabIDs.contains($0.id) }
                     .sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
                     .prefix(6)
             )
         } else {
-            documents = Array(documentResults.prefix(12))
+            documents = Array(documentResults.filter { !openTabIDs.contains($0.id) }.prefix(12))
         }
         let matchingActions = query.isEmpty
             ? actions
             : actions.filter { $0.title.localizedCaseInsensitiveContains(query) }
-        return documents.map(PaletteItem.document) + matchingActions.map(PaletteItem.action)
+        return openTabs + documents.map(PaletteItem.document) + matchingActions.map(PaletteItem.action)
     }
 
     private var actions: [PaletteAction] {
@@ -182,9 +197,32 @@ struct CommandPaletteView: View {
     private func row(_ item: PaletteItem, isSelected: Bool, l10n: Localizer) -> some View {
         HStack(spacing: DesignTokens.Spacing.s) {
             switch item {
-            case .document(let doc):
-                Image(systemName: doc.envelope.isCharacterPage ? "person.crop.circle" : doc.envelope.kind.symbolName)
+            case .openTab(let tab, let index):
+                if let type = app.fileType(for: tab) {
+                    FileTypeIcon(type, size: 15)
+                        .frame(width: 22)
+                } else {
+                    Image(systemName: app.tabSymbol(for: tab))
+                        .foregroundStyle(accent)
+                        .frame(width: 22)
+                }
+                Text(app.tabTitle(for: tab))
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                Spacer()
+                if index < 9 {
+                    Text("⌘\(index + 1)")
+                        .font(DSType.mono(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                }
+                Text(l10n.t(.openTabs))
+                    .font(.caption2)
                     .foregroundStyle(accent)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1)
+                    .background(Capsule().fill(SonnetPalette.accentTint))
+            case .document(let doc):
+                FileTypeIcon(fileType(of: doc), size: 15)
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(doc.envelope.title.isEmpty ? l10n.t(.untitled) : doc.envelope.title)
@@ -221,6 +259,16 @@ struct CommandPaletteView: View {
         .contentShape(Rectangle())
     }
 
+    /// 문서 유형 → 아이콘 타입.
+    private func fileType(of doc: DocumentListItem) -> DSFileType {
+        if doc.envelope.isCharacterPage { return .character }
+        switch doc.envelope.kind {
+        case .scenario: return .scenario
+        case .mindmap: return .mindmap
+        case .page: return .page
+        }
+    }
+
     // MARK: 실행
 
     private func runSelected() {
@@ -228,6 +276,8 @@ struct CommandPaletteView: View {
         let item = items[selection]
         close()
         switch item {
+        case .openTab(let tab, _):
+            app.selectExistingTab(tab)
         case .document(let doc):
             app.openDocument(doc)
         case .action(let action):

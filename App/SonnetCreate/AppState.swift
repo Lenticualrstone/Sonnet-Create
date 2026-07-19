@@ -262,6 +262,8 @@ final class AppState {
     private(set) var lastActiveDocumentID: UUID?
     /// 플로팅 에이전트 패널 (문서를 벗어나지 않고 대화) 표시 여부
     var showFloatingChat = false
+    /// ⌘K 커맨드 팔레트 표시 여부 — 레일 검색 버튼과 단축키가 공유한다
+    var showCommandPalette = false
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
 

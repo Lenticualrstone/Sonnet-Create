@@ -235,9 +235,9 @@ private struct SnapshotDiffSheet: View {
 
     private func badgeColor(_ kind: SnapshotDiff.Row.Kind) -> Color {
         switch kind {
-        case .added: Color(hex: "#3E8E58")
-        case .removed: Color(hex: "#C24A44")
-        case .changed: Color(hex: "#B07A2E")
+        case .added: Color(hex: "#5B8A4C")
+        case .removed: Color(hex: "#B23A21")
+        case .changed: Color(hex: "#8A6D2F")
         }
     }
 }

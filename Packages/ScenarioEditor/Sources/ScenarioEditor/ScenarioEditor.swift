@@ -226,24 +226,33 @@ public struct ScenarioEditorView: View {
 
     // MARK: 씬 목차 (구분선 블록 = 장면 경계)
 
-    /// 활성 시퀀스를 구분선으로 잘라 장면 목록을 만든다. (id: 장면 첫 블록, title: 첫 텍스트 미리보기)
+    /// 활성 시퀀스를 구분선으로 잘라 장면 목록을 만든다.
+    /// 제목은 장면을 여는 구분선의 텍스트(장면 모드 입력)가 우선, 없으면 첫 텍스트 미리보기.
     private var scenes: [(id: UUID, title: String)] {
         var result: [(UUID, String)] = []
         var segment: [ScenarioBlock] = []
-        func flush() {
-            defer { segment = [] }
+        var pendingTitle = ""
+        func flush(nextTitle: String) {
+            defer {
+                segment = []
+                pendingTitle = nextTitle
+            }
             guard let first = segment.first else { return }
+            if !pendingTitle.isEmpty {
+                result.append((first.id, String(pendingTitle.prefix(24))))
+                return
+            }
             let preview = segment.first(where: { !$0.text.isEmpty })?.text.prefix(20)
             result.append((first.id, preview.map(String.init) ?? ""))
         }
         for block in store.activeBlocks {
             if block.kind == .divider {
-                flush()
+                flush(nextTitle: block.text)
             } else {
                 segment.append(block)
             }
         }
-        flush()
+        flush(nextTitle: "")
         return result
     }
 

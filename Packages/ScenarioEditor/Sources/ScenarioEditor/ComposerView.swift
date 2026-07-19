@@ -20,16 +20,14 @@ struct ComposerView: View {
                 editingBanner(l10n)
             }
             HStack(spacing: DesignTokens.Spacing.s) {
-                modeToggle(l10n)
+                modeTabs(l10n)
 
                 if store.composerMode == .line {
                     speakerSelector
                 }
 
                 TextField(
-                    store.composerMode == .line
-                        ? l10n.t(.composerPlaceholderLine)
-                        : l10n.t(.composerPlaceholderNote),
+                    placeholder(l10n),
                     text: $store.composerText,
                     axis: .vertical
                 )
@@ -40,6 +38,11 @@ struct ComposerView: View {
                     // Enter = 전송, ⇧Enter = 줄바꿈
                     if press.modifiers.contains(.shift) { return .ignored }
                     submit()
+                    return .handled
+                }
+                // Tab — 모드 순환 (2a: 하이라이트가 glass pop 곡선으로 따라온다)
+                .onKeyPress(.tab, phases: .down) { _ in
+                    cycleMode()
                     return .handled
                 }
 
@@ -60,28 +63,60 @@ struct ComposerView: View {
         }
     }
 
-    // MARK: 모드 토글
+    // MARK: 모드 탭 (2a — 대사/지침/장면, Tab 순환, 슬라이딩 하이라이트)
 
-    private func modeToggle(_ l10n: Localizer) -> some View {
-        Button {
-            withAnimation(DesignTokens.Motion.snappy) {
-                store.composerMode = store.composerMode == .line ? .instruction : .line
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: store.composerMode == .line ? "text.bubble.fill" : "text.alignleft")
-                    .font(.caption)
-                Text(store.composerMode == .line ? l10n.t(.dialogue) : l10n.t(.instruction))
-                    .font(.caption.weight(.semibold))
-                    .textStateSwap()
-            }
-            .foregroundStyle(store.composerMode == .line ? accent : Color.secondary)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .background(Capsule().fill(Color.primary.opacity(0.07)))
+    @Namespace private var modeHighlight
+
+    private func placeholder(_ l10n: Localizer) -> String {
+        switch store.composerMode {
+        case .line: l10n.t(.composerPlaceholderLine)
+        case .instruction: l10n.t(.composerPlaceholderNote)
+        case .scene: l10n.t(.composerPlaceholderScene)
         }
-        .buttonStyle(.plain)
-        .help(l10n.t(.dialogue) + " ↔ " + l10n.t(.instruction))
+    }
+
+    private func cycleMode() {
+        let all = ScenarioStore.ComposerMode.allCases
+        guard let index = all.firstIndex(of: store.composerMode) else { return }
+        withAnimation(DesignTokens.Motion.glassPop) {
+            store.composerMode = all[(index + 1) % all.count]
+        }
+    }
+
+    private func modeLabel(_ mode: ScenarioStore.ComposerMode, _ l10n: Localizer) -> String {
+        switch mode {
+        case .line: l10n.t(.dialogue)
+        case .instruction: l10n.t(.instruction)
+        case .scene: l10n.t(.sceneBlock)
+        }
+    }
+
+    private func modeTabs(_ l10n: Localizer) -> some View {
+        HStack(spacing: 2) {
+            ForEach(ScenarioStore.ComposerMode.allCases, id: \.self) { mode in
+                Button {
+                    withAnimation(DesignTokens.Motion.glassPop) { store.composerMode = mode }
+                } label: {
+                    Text(modeLabel(mode, l10n))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(store.composerMode == mode ? accent : Color.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background {
+                            if store.composerMode == mode {
+                                Capsule()
+                                    .fill(SonnetPalette.accentTint)
+                                    .matchedGeometryEffect(id: "composerMode", in: modeHighlight)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(2)
+        .background(Capsule().fill(Color.primary.opacity(0.06)))
+        .help(l10n.t(.dialogue) + " / " + l10n.t(.instruction) + " / " + l10n.t(.sceneBlock) + " — Tab")
     }
 
     // MARK: 캐릭터 선택

@@ -129,7 +129,7 @@ struct AIChatView: View {
         } label: {
             HStack(spacing: 4) {
                 Circle()
-                    .fill(availabilityIssue == nil ? Color(hex: "#4CD97B") : Color.orange)
+                    .fill(availabilityIssue == nil ? SonnetPalette.sage : Color.orange)
                     .frame(width: 6, height: 6)
                 Text(currentModelLabel(current))
                     .font(.caption)
@@ -540,11 +540,11 @@ struct ToolActivityChip: View {
                 HStack(spacing: 6) {
                     Image(systemName: symbol)
                         .font(.caption2)
-                        .foregroundStyle(activity.isError ? Color.orange : accent)
+                        .foregroundStyle(activity.isError ? Color.orange : SonnetPalette.pine)
                         .symbolEffect(.rotate, isActive: activity.isRunning)
                     Text(label)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(activity.isError ? Color.orange : SonnetPalette.pine)
                     if activity.isRunning {
                         PulseDotsIndicator(dotSize: 3)
                     } else if !activity.detail.isEmpty {
@@ -557,7 +557,8 @@ struct ToolActivityChip: View {
                 .padding(.horizontal, 9)
                 .padding(.vertical, 5)
                 .background(
-                    Capsule().fill(activity.isError ? Color.orange.opacity(0.1) : accent.opacity(0.08))
+                    // 도구 칩은 먹록(Pine) — 인장은 행동 버튼에만 아낀다 (4d)
+                    Capsule().fill(activity.isError ? Color.orange.opacity(0.1) : SonnetPalette.pine.opacity(0.12))
                 )
                 .contentShape(Capsule())
             }
@@ -596,22 +597,39 @@ struct ChatBubble: View {
         message.role == .assistant && message.text.hasPrefix("⚠️")
     }
 
+    /// 말풍선 모양 — 사용자는 우하단, 보조는 좌하단 꼬리각 (4d).
+    private var bubbleShape: UnevenRoundedRectangle {
+        message.role == .user
+            ? UnevenRoundedRectangle(
+                topLeadingRadius: 14, bottomLeadingRadius: 14,
+                bottomTrailingRadius: 4, topTrailingRadius: 14, style: .continuous
+            )
+            : UnevenRoundedRectangle(
+                topLeadingRadius: 14, bottomLeadingRadius: 4,
+                bottomTrailingRadius: 14, topTrailingRadius: 14, style: .continuous
+            )
+    }
+
     var body: some View {
         HStack {
             if message.role == .user { Spacer(minLength: 60) }
             Text(markdownText)
                 .font(DSFonts.font(size: 13, family: fontFamily))
-                .textSelection(.enabled)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
-                        .fill(bubbleFill)
+                .lineSpacing(4)
+                .foregroundStyle(
+                    message.role == .user && !isErrorNote
+                        ? SonnetPalette.canvas
+                        : SonnetPalette.ink
                 )
+                .textSelection(.enabled)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(bubbleShape.fill(bubbleFill))
                 .overlay {
                     if isErrorNote {
-                        RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
-                            .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+                        bubbleShape.strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+                    } else if message.role == .assistant {
+                        bubbleShape.strokeBorder(SonnetPalette.ink.opacity(0.08), lineWidth: 1)
                     }
                 }
                 .frame(maxWidth: 520, alignment: message.role == .user ? .trailing : .leading)
@@ -623,7 +641,7 @@ struct ChatBubble: View {
     private var bubbleFill: AnyShapeStyle {
         if isErrorNote { return AnyShapeStyle(Color.orange.opacity(0.08)) }
         return message.role == .user
-            ? AnyShapeStyle(accent.opacity(0.16))
+            ? AnyShapeStyle(SonnetPalette.ink)
             : AnyShapeStyle(SonnetPalette.surface)
     }
 

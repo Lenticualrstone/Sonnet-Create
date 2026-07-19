@@ -57,6 +57,10 @@ public enum L10nKey: String, Sendable {
     case blockSpacing
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
     case importAny, aiAgent, sonnetAI, askAnything, openAsTab, clearChat
+    case openTabs, quickStart, continueWriting, todayWriting, streakDaysFormat, dailyGoalChars, greetingFollowup
+    case sceneBlock, composerPlaceholderScene
+    case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
+    case glassMode, glassModePoint, glassModeFull, glassIntensityLabel, paperGrain, paperGrainCaption
     case touchBarSupport, touchBarFunctions
     case profileTab, notesTab, relationsTab, galleryTab, voiceTab
     case addField, fieldName, fieldValue, addRelation, relationLabel
@@ -374,6 +378,26 @@ public final class Localizer {
         .positionLeft: [.korean: "왼쪽", .japanese: "左", .english: "Left"],
         .positionRight: [.korean: "오른쪽", .japanese: "右", .english: "Right"],
         .importAny: [.korean: "프로젝트/파일 불러오기", .japanese: "プロジェクト/ファイルを読み込む", .english: "Import Project/File"],
+        .openTabs: [.korean: "열린 탭", .japanese: "開いているタブ", .english: "Open Tabs"],
+        .greetingFollowup: [.korean: "어제의 문장에서 이어갈까요?", .japanese: "昨日の文章から続けましょうか？", .english: "Shall we pick up yesterday's sentence?"],
+        .sceneBlock: [.korean: "장면", .japanese: "シーン", .english: "Scene"],
+        .composerPlaceholderScene: [.korean: "장면 제목 입력… ⏎ 장면 경계 삽입", .japanese: "シーンタイトルを入力… ⏎ でシーン境界を挿入", .english: "Scene title… ⏎ inserts a scene break"],
+        .quickStart: [.korean: "빠른 시작", .japanese: "クイックスタート", .english: "Quick Start"],
+        .continueWriting: [.korean: "이어서 쓰기", .japanese: "続きを書く", .english: "Continue Writing"],
+        .todayWriting: [.korean: "오늘의 집필", .japanese: "今日の執筆", .english: "Today's Writing"],
+        .streakDaysFormat: [.korean: "연속 %d일", .japanese: "連続%d日", .english: "%d-day streak"],
+        .dailyGoalChars: [.korean: "자", .japanese: "字", .english: "chars"],
+        .archiveAll: [.korean: "아카이브 전체 →", .japanese: "アーカイブ全体 →", .english: "All archive →"],
+        .autoBackupDone: [.korean: "자동 백업 완료", .japanese: "自動バックアップ完了", .english: "Auto backup complete"],
+        .backupTimelineShort: [.korean: "타임라인", .japanese: "タイムライン", .english: "Timeline"],
+        .aiDraft: [.korean: "AI로 초안", .japanese: "AIで下書き", .english: "Draft with AI"],
+        .aiDraftSubtitle: [.korean: "브리프 → 문서 생성", .japanese: "ブリーフ → 文書生成", .english: "Brief → document"],
+        .glassMode: [.korean: "적용 모드", .japanese: "適用モード", .english: "Glass Mode"],
+        .glassModePoint: [.korean: "포인트 글래스", .japanese: "ポイントグラス", .english: "Point Glass"],
+        .glassModeFull: [.korean: "풀 글래스", .japanese: "フルグラス", .english: "Full Glass"],
+        .glassIntensityLabel: [.korean: "유리 강도", .japanese: "ガラス強度", .english: "Glass Intensity"],
+        .paperGrain: [.korean: "페이퍼 그레인", .japanese: "ペーパーグレイン", .english: "Paper Grain"],
+        .paperGrainCaption: [.korean: "캔버스에 미세 그레인 텍스처 오버레이", .japanese: "キャンバスに微細なグレインを重ねる", .english: "Subtle grain texture over the canvas"],
         .aiAgent: [.korean: "AI 에이전트", .japanese: "AIエージェント", .english: "AI Agent"],
         // 브랜드명이라 언어별로 옮기지 않고 그대로 사용
         .sonnetAI: [.korean: "Sonnet AI", .japanese: "Sonnet AI", .english: "Sonnet AI"],

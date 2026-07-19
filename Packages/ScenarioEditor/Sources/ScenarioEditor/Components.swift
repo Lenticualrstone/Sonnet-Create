@@ -115,13 +115,29 @@ struct ScenarioBlockRow: View {
         }
     }
 
-    /// 구분선 — 장면 전환.
+    /// 구분선 — 장면 전환. 제목이 있으면 중앙 모노 칩(2a 장면 헤더), 없으면 얇은 선.
+    @ViewBuilder
     private var dividerBlock: some View {
-        Rectangle()
-            .fill(.separator)
-            .frame(height: 1)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+        if block.text.isEmpty {
+            Rectangle()
+                .fill(.separator)
+                .frame(height: 1)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+        } else {
+            HStack {
+                Spacer()
+                Text(block.text)
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .kerning(1.2)
+                    .foregroundStyle(SonnetPalette.inkMuted)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(SonnetPalette.ink.opacity(0.05)))
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        }
     }
 
     private var instructionBlock: some View {
@@ -453,7 +469,7 @@ struct CastEditorView: View {
         "person.fill", "theatermasks.fill", "crown.fill", "flame.fill", "leaf.fill",
         "moon.stars.fill", "bolt.fill", "heart.fill", "eye.fill", "pawprint.fill",
     ]
-    private let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6"]
+    private let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C"]
 
     private var member: CastMember? { store.castMember(id: memberID) }
 

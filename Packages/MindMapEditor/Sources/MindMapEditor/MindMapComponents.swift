@@ -151,7 +151,7 @@ struct MindMapInspectorView: View {
     @Bindable var store: MindMapStore
     let onOpenDocument: (UUID) -> Void
 
-    private let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6"]
+    private let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C"]
 
     var body: some View {
         let l10n = Localizer.shared

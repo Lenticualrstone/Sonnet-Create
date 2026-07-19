@@ -140,7 +140,7 @@ public struct SettingsRootView: View {
             HStack {
                 if store.hasChanges {
                     Text("•")
-                        .foregroundStyle(Color(hex: "#FF5B5B"))
+                        .foregroundStyle(SonnetPalette.accent)
                 }
                 Spacer()
                 Button(l10n.t(.cancel)) { store.revert() }
@@ -374,11 +374,31 @@ public struct SettingsRootView: View {
                 )
             }
 
-            LabeledContent(l10n.t(.tabStyle)) {
-                DSSegmentedPicker(selection: $store.draft.tabStyleRaw, options: [
-                    ("chrome", l10n.t(.tabStyleChrome)),
-                    ("capsule", l10n.t(.tabStyleCapsule)),
-                ])
+            // LIQUID GLASS — 적용 모드(포인트/풀)와 강도, 저사양 자동 평면 (4c)
+            Section("LIQUID GLASS") {
+                LabeledContent(l10n.t(.glassMode)) {
+                    DSSegmentedPicker(selection: $store.draft.glassModeRaw, options: [
+                        ("point", l10n.t(.glassModePoint)),
+                        ("full", l10n.t(.glassModeFull)),
+                    ])
+                }
+                LabeledContent(l10n.t(.glassIntensityLabel)) {
+                    BarSlider(
+                        value: $store.draft.glassIntensity, in: 0.2...1.0, step: 0.02,
+                        format: { "\(Int($0 * 100))%" }
+                    )
+                }
+                Toggle(l10n.t(.disableGlass), isOn: $store.draft.disableLiquidGlass)
+                Text(l10n.t(.qualityLow) + " → " + l10n.t(.disableGlass))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(l10n.t(.paperGrain), isOn: $store.draft.paperGrainEnabled)
+                Text(l10n.t(.paperGrainCaption))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             LabeledContent(l10n.t(.qualityTier)) {

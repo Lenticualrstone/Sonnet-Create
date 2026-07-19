@@ -25,8 +25,8 @@ public struct ImportableCharacter: Identifiable, Sendable {
 @MainActor
 @Observable
 public final class ScenarioStore {
-    public enum ComposerMode: Sendable {
-        case line, instruction
+    public enum ComposerMode: Sendable, CaseIterable {
+        case line, instruction, scene
     }
 
     // MARK: 문서 상태
@@ -214,6 +214,14 @@ public final class ScenarioStore {
             return true
         }
 
+        // 장면 모드 (2a) — 입력한 제목을 단 장면 경계(구분선)를 삽입하고 대사 모드로 복귀
+        if editingBlockID == nil, composerMode == .scene {
+            withActiveBlocks { $0.append(ScenarioBlock(kind: .divider, text: text)) }
+            composerText = ""
+            composerMode = .line
+            return true
+        }
+
         if let editingID = editingBlockID {
             withActiveBlocks { blocks in
                 guard let idx = blocks.firstIndex(where: { $0.id == editingID }) else { return }
@@ -273,7 +281,7 @@ public final class ScenarioStore {
     }
 
     public func addCastMember(name: String) {
-        let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6"]
+        let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C"]
         let hex = palette[content.cast.count % palette.count]
         mutate { $0.cast.append(CastMember(name: name, accentHex: hex)) }
     }
