@@ -300,7 +300,7 @@ struct HomeView: View {
                 Spacer()
                 if streak > 0 {
                     Text(String(format: l10n.t(.streakDaysFormat), streak))
-                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .font(DSFonts.font(size: 12, family: .pretendard))
                         .foregroundStyle(accent)
                 }
             }
@@ -422,11 +422,11 @@ struct HomeView: View {
                     .font(DSFonts.font(size: 12.5, weight: .semibold, family: .pretendard))
                 if let latest {
                     Text(latest.date, format: .dateTime.month().day().hour().minute())
-                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .font(DSFonts.font(size: 12, family: .pretendard))
                         .foregroundStyle(SonnetPalette.inkMuted)
                 } else {
                     Text(l10n.t(.noRecents))
-                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .font(DSFonts.font(size: 12, family: .pretendard))
                         .foregroundStyle(SonnetPalette.inkMuted)
                 }
             }

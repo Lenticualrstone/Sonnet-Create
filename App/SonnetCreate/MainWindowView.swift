@@ -628,8 +628,9 @@ struct TabChip: View {
             if tab.content != .home {
                 ZStack {
                     if hasUnsavedChanges, !hovering {
+                        // 미저장 점은 Dirty/Warning 골드 — 버밀리온과 의미 분리 (2단계)
                         Circle()
-                            .fill(accent)
+                            .fill(SonnetPalette.warning)
                             .frame(width: 7, height: 7)
                             .transition(.opacity.combined(with: .scale(scale: 0.5)))
                     }
@@ -647,6 +648,8 @@ struct TabChip: View {
                     }
                     .buttonStyle(.plain)
                     .opacity(hovering ? 1 : 0)
+                    .help(Localizer.shared.t(.close) + " (⌘W)")
+                    .accessibilityLabel(Localizer.shared.t(.close))
                 }
                 .frame(width: 16, height: 16)
             }

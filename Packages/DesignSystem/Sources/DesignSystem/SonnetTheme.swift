@@ -96,6 +96,23 @@ public enum SonnetPalette {
     public static let typeCharacter = dynamicColor(light: "#9E5A3C", dark: "#D08B66")
     /// 기타 첨부 — 슬레이트
     public static let typeAttachment = slate
+
+    // MARK: 의미 토큰 (2단계 — 버밀리온 의미 분리)
+    // 버밀리온이 행동·선택·유형·미저장·검색을 모두 담당하던 것을 역할별로 나눈다.
+    // 새 색을 만들지 않고 기존 팔레트를 재배치한 별칭이다.
+
+    /// Primary Action — 생성·확정·AI 실행 (버밀리온 인장은 여기에만)
+    public static let primaryAction = accent
+    /// Selection 워시 — 선택된 탭·카테고리·세그먼트의 배경
+    public static let selectionWash = accentTint
+    /// Selection 잉크 — 선택 상태의 텍스트/아이콘
+    public static let selectionInk = accentDeep
+    /// Dirty/Warning — 미저장·저장 실패 (행동 색과 분리된 골드 주의 신호)
+    public static let warning = gold
+    /// Search Match — 검색 결과 강조 (골드 링/워시)
+    public static let searchMatch = gold
+    /// Success — 저장·백업 완료 (세이지)
+    public static let success = sage
 }
 
 /// (구) Pilgrimage 팔레트 — v1.3 테마 일원화 이후 통합 팔레트의 별칭으로만 남는다.

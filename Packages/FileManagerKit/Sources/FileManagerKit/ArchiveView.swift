@@ -861,7 +861,8 @@ struct ArchiveRow: View {
                         Text(item.envelope.modifiedAt, style: .date)
                     }
                 }
-                .font(.caption2)
+                // 수정일은 핵심 메타 — 최소 12pt (2단계 3)
+                .font(DSFonts.font(size: 12, family: .pretendard))
                 .foregroundStyle(.secondary)
                 if showTrashMeta, let originLabel {
                     Text("\(Localizer.shared.t(.originalLocation)): \(originLabel)")
@@ -935,7 +936,7 @@ struct ArchiveCard: View {
                 .multilineTextAlignment(.center)
             if showTrashMeta, let trashedAt = item.envelope.trashedAt {
                 Text(trashedAt, style: .relative)
-                    .font(.caption2)
+                    .font(DSFonts.font(size: 12, family: .pretendard))
                     .foregroundStyle(.secondary)
                 if let originLabel {
                     Text(originLabel)
@@ -944,8 +945,9 @@ struct ArchiveCard: View {
                         .lineLimit(1)
                 }
             } else {
+                // 수정일은 핵심 메타 — 최소 12pt (2단계 3)
                 Text(item.envelope.modifiedAt, style: .date)
-                    .font(.caption2)
+                    .font(DSFonts.font(size: 12, family: .pretendard))
                     .foregroundStyle(.secondary)
             }
         }

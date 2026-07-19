@@ -341,9 +341,10 @@ public enum SaveState: Sendable, Equatable {
 
     public var color: Color {
         switch self {
-        case .unsaved: SonnetPalette.accent
+        // 미저장은 Dirty/Warning 골드 — 버밀리온(Primary Action)과 의미를 분리 (2단계)
+        case .unsaved: SonnetPalette.warning
         case .saving, .savedAuto: SonnetPalette.inkMuted
-        case .savedManual: SonnetPalette.sage
+        case .savedManual: SonnetPalette.success
         case .error: Color(hex: "#D28E2E")
         }
     }
@@ -730,6 +731,8 @@ public struct ToolbarIconButton: View {
         .onHover { hovering = $0 }
         .animation(DesignTokens.Motion.snappy, value: hovering)
         .help(help)
+        // 텍스트 없는 아이콘 버튼 — VoiceOver가 도움말 문구를 이름으로 읽는다 (2단계 4)
+        .accessibilityLabel(help)
     }
 }
 

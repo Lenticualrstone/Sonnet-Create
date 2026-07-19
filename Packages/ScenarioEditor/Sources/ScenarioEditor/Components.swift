@@ -86,8 +86,9 @@ struct ScenarioBlockRow: View {
             Button(l10n.t(.delete), role: .destructive) { store.deleteBlock(block.id) }
         }
         .background(
+            // 검색 일치 링은 Search Match 골드 — 선택/행동의 버밀리온과 의미 분리 (2단계)
             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                .strokeBorder(accent.opacity(0.55), lineWidth: 1.5)
+                .strokeBorder(SonnetPalette.searchMatch.opacity(0.7), lineWidth: 1.5)
                 .opacity(store.searchFocusID == block.id ? 1 : 0)
         )
         .opacity(store.editingBlockID == block.id ? 0.4 : 1)
