@@ -140,20 +140,22 @@ struct ScenarioBlockRow: View {
         }
     }
 
+    /// 지문 — 시스템 메시지 문법 (2a): 중앙 정렬 세리프 이탤릭, 최대 480pt.
+    /// 화면을 가로지르는 좌측 바 대신 무대 지시문처럼 흐름 한가운데에 얹힌다.
     private var instructionBlock: some View {
-        HStack(spacing: DesignTokens.Spacing.s) {
-            Rectangle()
-                .fill(.tertiary)
-                .frame(width: 2)
+        HStack {
+            Spacer(minLength: 0)
             Text(markdownText)
-                .font(DSFonts.font(size: 12 * fontScale, family: fontFamily).italic())
+                .font(DSFonts.display(size: 12.5 * fontScale, weight: .regular).italic())
                 .contentLineSpacing(lineScale)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SonnetPalette.inkMuted)
+                .multilineTextAlignment(.center)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 480)
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 6)
-        .padding(.horizontal, 10)
     }
 
     private var markdownText: AttributedString {
@@ -161,6 +163,20 @@ struct ScenarioBlockRow: View {
             markdown: block.text,
             options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         )) ?? AttributedString(block.text)
+
+        // @멘션 인라인 칩 (2a) — 인장 틴트 워시 + 버밀리온. 문장부호/24자에서 끊는다.
+        if block.text.contains("@"),
+           let regex = try? NSRegularExpression(pattern: "@[^@\\n,.!?…]{1,24}") {
+            let source = block.text
+            let fullRange = NSRange(source.startIndex..., in: source)
+            for match in regex.matches(in: source, range: fullRange) {
+                guard let range = Range(match.range, in: source) else { continue }
+                let token = String(source[range]).trimmingCharacters(in: .whitespaces)
+                guard token.count > 1, let target = attributed.range(of: token) else { continue }
+                attributed[target].foregroundColor = SonnetPalette.accent
+                attributed[target].backgroundColor = SonnetPalette.accentTint
+            }
+        }
 
         // 검색 일치 구간 하이라이트 (대소문자·발음 구별 없이 전 구간)
         let query = store.searchQuery

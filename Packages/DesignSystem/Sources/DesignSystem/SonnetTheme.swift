@@ -312,6 +312,10 @@ private struct GlassIntensityKey: EnvironmentKey {
     static let defaultValue = 0.62
 }
 
+private struct DecorAnimationsPausedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 private struct ResolvedAccentKey: EnvironmentKey {
     static let defaultValue: Color = .accentColor
 }
@@ -341,6 +345,12 @@ public extension EnvironmentValues {
     var glassIntensity: Double {
         get { self[GlassIntensityKey.self] }
         set { self[GlassIntensityKey.self] = newValue }
+    }
+
+    /// 앱이 비활성일 때 장식 애니메이션(성운·도트 웨이브 등) 일시정지 — 배터리 절전.
+    var decorAnimationsPaused: Bool {
+        get { self[DecorAnimationsPausedKey.self] }
+        set { self[DecorAnimationsPausedKey.self] = newValue }
     }
 
     /// AppState.resolvedAccent — 테마+강조색상 설정을 조합한 실효 강조색.

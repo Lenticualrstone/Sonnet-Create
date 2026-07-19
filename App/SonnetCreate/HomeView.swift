@@ -643,25 +643,36 @@ private struct HomeProjectRow: View {
 struct DotMatrixWave: View {
     let color: Color
 
+    @Environment(\.decorAnimationsPaused) private var animationsPaused
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { context in
-            let t = context.date.timeIntervalSinceReferenceDate
-            Grid(horizontalSpacing: 2, verticalSpacing: 2) {
-                ForEach(0..<4, id: \.self) { row in
-                    GridRow {
-                        ForEach(0..<4, id: \.self) { col in
-                            let phase = Double(row + col) * 0.11
-                            let wave = 0.5 + 0.5 * sin((t / 1.8 - phase) * 2 * .pi)
-                            RoundedRectangle(cornerRadius: 1)
-                                .fill(color)
-                                .frame(width: 3, height: 3)
-                                .opacity(0.2 + 0.8 * wave)
-                                .scaleEffect(0.72 + 0.28 * wave)
-                        }
-                    }
+        Group {
+            if animationsPaused {
+                grid(time: 0)
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { context in
+                    grid(time: context.date.timeIntervalSinceReferenceDate)
                 }
             }
         }
         .accessibilityHidden(true)
+    }
+
+    private func grid(time t: TimeInterval) -> some View {
+        Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+            ForEach(0..<4, id: \.self) { row in
+                GridRow {
+                    ForEach(0..<4, id: \.self) { col in
+                        let phase = Double(row + col) * 0.11
+                        let wave = 0.5 + 0.5 * sin((t / 1.8 - phase) * 2 * .pi)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(color)
+                            .frame(width: 3, height: 3)
+                            .opacity(0.2 + 0.8 * wave)
+                            .scaleEffect(0.72 + 0.28 * wave)
+                    }
+                }
+            }
+        }
     }
 }

@@ -267,6 +267,8 @@ final class AppState {
     var showCommandPalette = false
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
+    /// 앱 활성 상태 — 비활성이면 장식 애니메이션(성운·도트 웨이브)을 정지해 절전한다
+    var isAppActive = true
 
     /// 휴지통 이동 확인 대기 항목 (확인 팝업)
     var pendingTrashItem: DocumentListItem?
@@ -1101,6 +1103,10 @@ final class AppState {
                message: "\(Localizer.shared.t(.promoteToMindmap)) \(characterName)")
     }
 
+    /// 임베드 미리보기 캐시 — 렌더링마다 디스크를 읽지 않도록 수정 시각을 유효성 토큰으로 쓴다.
+    /// (열린 세션은 인메모리라 캐시 없이 항상 라이브)
+    private var embedPreviewCache: [UUID: (modifiedAt: Date, preview: EmbedPreview)] = [:]
+
     /// 3b — 임베드 블록 미리보기: 대상 문서를 읽어 유형 배지·메타·앞부분 발췌를 만든다.
     private func loadEmbedPreview(_ id: UUID) -> EmbedPreview? {
         // 열려 있는 세션이 있으면 (디스크보다 최신인) 세션 내용을 우선한다 — '라이브' 미리보기
@@ -1110,14 +1116,27 @@ final class AppState {
             // 세션의 document.content는 스토어 변경이 즉시 반영된다 — '라이브' 미리보기
             content = session.document.content
             title = session.title
-        } else if let item = workspace.item(id: id),
-                  let loaded = try? DocumentPackageIO.read(from: item.url) {
+        } else if let item = workspace.item(id: id) {
+            // 디스크 문서 — 수정 시각이 같으면 캐시 재사용, 바뀌었으면 재구축
+            if let cached = embedPreviewCache[id], cached.modifiedAt == item.envelope.modifiedAt {
+                return cached.preview
+            }
+            guard let loaded = try? DocumentPackageIO.read(from: item.url) else { return nil }
             content = loaded.content
             title = loaded.envelope.title
+            if let content, let preview = buildEmbedPreview(content: content, title: title) {
+                embedPreviewCache[id] = (item.envelope.modifiedAt, preview)
+                return preview
+            }
+            return nil
         } else {
             return nil
         }
         guard let content else { return nil }
+        return buildEmbedPreview(content: content, title: title)
+    }
+
+    private func buildEmbedPreview(content: DocumentContent, title: String) -> EmbedPreview? {
 
         switch content {
         case .scenario(let scenario):

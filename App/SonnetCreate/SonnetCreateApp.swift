@@ -47,6 +47,14 @@ struct SonnetCreateApp: App {
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
                 .environment(\.glassIntensity, appState.settings.applied.glassIntensity)
+                // 앱 비활성 시 장식 애니메이션 정지 (배터리 절전)
+                .environment(\.decorAnimationsPaused, !appState.isAppActive)
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    appState.isAppActive = true
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+                    appState.isAppActive = false
+                }
                 .font(DSFonts.font(size: 13, family: appState.settings.applied.fontFamily))
                 // 날짜/시간 포맷이 앱 언어를 따르도록 (시스템 로케일이 영어면 홈 히어로
                 // 날짜가 영어로 나오던 문제)

@@ -144,9 +144,12 @@ public struct AISphere: View {
     private var style: AISphereStyle { styleOverride ?? environmentStyle }
     private var speed: Double { activity.speed }
 
+    @Environment(\.decorAnimationsPaused) private var animationsPaused
+
     public var body: some View {
         Group {
-            if quality == .low {
+            if quality == .low || animationsPaused {
+                // 저사양/앱 비활성 — 정지 프레임으로 절전
                 sphere(time: 0)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
