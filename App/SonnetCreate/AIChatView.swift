@@ -437,6 +437,27 @@ struct AIChatView: View {
             Text(l10n.t(.askAnything))
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            // 실제 활용 예시 3개 — 클릭하면 입력창에 채워진다 (4단계 Sonnet AI)
+            VStack(spacing: 6) {
+                ForEach([L10nKey.aiExampleTighten, .aiExampleVoice, .aiExampleSummarize], id: \.self) { key in
+                    Button {
+                        app.aiChat.input = l10n.t(key)
+                        inputFocused = true
+                    } label: {
+                        Text(l10n.t(key))
+                            .font(.callout)
+                            .foregroundStyle(SonnetPalette.inkSoft)
+                            .lineLimit(1)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .frame(maxWidth: 360)
+                            .background(Capsule().fill(SonnetPalette.ink.opacity(0.05)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .padding(.top, compact ? 24 : 70)
     }
@@ -455,7 +476,7 @@ struct ToolConfirmationSheet: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.title2)
                     .foregroundStyle(.orange)
-                Text("에이전트가 이 작업을 하려고 합니다")
+                Text(Localizer.shared.t(.aiConfirmTitle))
                     .font(.headline)
             }
 

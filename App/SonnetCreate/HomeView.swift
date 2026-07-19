@@ -15,15 +15,28 @@ struct HomeView: View {
     @State private var showBackupTimeline = false
     /// 인사말 타자기 리빌 재생 여부 — nil이면 아직 미결정(placeholder 표시).
     @State private var playGreetingReveal: Bool?
+    /// 홈 실측 폭 — 좁은 창에서 우측 열을 본문 아래로 내린다 (4단계 홈).
+    @State private var homeWidth: CGFloat = 1280
 
     var body: some View {
         let l10n = Localizer.shared
         ScrollView {
-            HStack(alignment: .top, spacing: 40) {
-                mainColumn(l10n)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                sideColumn(l10n)
-                    .frame(width: 300)
+            // 좁은 창(<1020pt)에서는 우측 집필/프로젝트/백업 열이 본문 아래로 흐른다
+            Group {
+                if homeWidth >= 1020 {
+                    HStack(alignment: .top, spacing: 40) {
+                        mainColumn(l10n)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        sideColumn(l10n)
+                            .frame(width: 300)
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 34) {
+                        mainColumn(l10n)
+                        sideColumn(l10n)
+                            .frame(maxWidth: 640, alignment: .leading)
+                    }
+                }
             }
             .padding(.top, 56)
             .padding(.leading, 64)
@@ -31,6 +44,11 @@ struct HomeView: View {
             .padding(.bottom, 96)
             .frame(maxWidth: 1280, alignment: .topLeading)
             .frame(maxWidth: .infinity)
+        }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            homeWidth = width
         }
         // 우하단 AI 플로팅 버튼 — 도트 매트릭스 웨이브 (1b)
         .overlay(alignment: .bottomTrailing) {
@@ -148,7 +166,12 @@ struct HomeView: View {
     private func quickStart(_ l10n: Localizer) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             sectionLabel(l10n.t(.quickStart))
-            HStack(spacing: 12) {
+            // adaptive grid — 좁은 창에서 5장의 카드가 잘리는 대신 3+2 / 2열로 흐른다 (4단계 홈)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 148, maximum: 240), spacing: 12)],
+                alignment: .leading,
+                spacing: 12
+            ) {
                 QuickStartCard(
                     type: .scenario,
                     title: l10n.t(.scenario),

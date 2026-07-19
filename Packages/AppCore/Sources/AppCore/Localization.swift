@@ -60,6 +60,8 @@ public enum L10nKey: String, Sendable {
     case importAny, sonnetAI, askAnything, openAsTab, clearChat
     case openTabs, quickStart, continueWriting, todayWriting, streakDaysFormat, dailyGoalChars, greetingFollowup
     case closeOtherTabs, closeTabsToRight, paletteHints
+    case emptyAddFirstScene, emptyConnectCharacter
+    case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
     case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
     case categorySection
     case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
@@ -398,6 +400,28 @@ public final class Localizer {
             .korean: "↑↓ 이동 · ⏎ 열기 · ⎋ 닫기",
             .japanese: "↑↓ 移動 · ⏎ 開く · ⎋ 閉じる",
             .english: "↑↓ Navigate · ⏎ Open · ⎋ Close",
+        ],
+        .emptyAddFirstScene: [.korean: "첫 장면 추가", .japanese: "最初のシーンを追加", .english: "Add First Scene"],
+        .emptyConnectCharacter: [.korean: "캐릭터 연결", .japanese: "キャラクターをつなぐ", .english: "Connect a Character"],
+        .aiExampleTighten: [
+            .korean: "이 장면의 대사를 더 팽팽하게 다듬어줘",
+            .japanese: "このシーンのセリフをもっと張り詰めた感じに",
+            .english: "Tighten the dialogue in this scene",
+        ],
+        .aiExampleVoice: [
+            .korean: "주인공 말투로 다음 대사를 3개 제안해줘",
+            .japanese: "主人公の口調で次のセリフを3つ提案して",
+            .english: "Suggest 3 next lines in the protagonist's voice",
+        ],
+        .aiExampleSummarize: [
+            .korean: "이 문서를 요약해 플롯 메모 페이지로 만들어줘",
+            .japanese: "この文書を要約してプロットメモのページに",
+            .english: "Summarize this document into a plot-note page",
+        ],
+        .aiConfirmTitle: [
+            .korean: "Sonnet AI가 이 작업을 하려고 합니다",
+            .japanese: "Sonnet AIがこの操作を実行しようとしています",
+            .english: "Sonnet AI wants to perform this action",
         ],
         .closeTabsToRight: [.korean: "오른쪽 탭 닫기", .japanese: "右側のタブを閉じる", .english: "Close Tabs to the Right"],
         .greetingFollowup: [.korean: "어제의 문장에서 이어갈까요?", .japanese: "昨日の文章から続けましょうか？", .english: "Shall we pick up yesterday's sentence?"],

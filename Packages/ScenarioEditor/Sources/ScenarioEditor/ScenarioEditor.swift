@@ -433,13 +433,29 @@ public struct ScenarioEditorView: View {
                     }
 
                     if store.activeBlocks.isEmpty {
-                        Text(l10n.t(.emptyEditorHint))
-                            .font(.callout)
-                            .foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 80)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
+                        // 빈 본문 — 다음 행동으로 이어지는 시작 안내 (4단계 시나리오)
+                        VStack(spacing: DesignTokens.Spacing.m) {
+                            Text(l10n.t(.emptyEditorHint))
+                                .font(.callout)
+                                .foregroundStyle(.tertiary)
+                            if !isReadOnly {
+                                HStack(spacing: DesignTokens.Spacing.s) {
+                                    emptyStateAction(l10n.t(.emptyAddFirstScene), symbol: "film") {
+                                        store.composerMode = .scene
+                                    }
+                                    emptyStateAction(l10n.t(.emptyConnectCharacter), symbol: "person.badge.plus") {
+                                        withAnimation(DesignTokens.Motion.gentle) { showInspector = true }
+                                    }
+                                    emptyStateAction(l10n.t(.aiCompose), symbol: "sparkles") {
+                                        store.aiEnabled = true
+                                    }
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 80)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
                     ForEach(displayedBlocks) { block in
                         ScenarioBlockRow(
@@ -627,6 +643,22 @@ public struct ScenarioEditorView: View {
                 index += 1
             }
         }
+    }
+
+    /// 빈 상태의 행동 칩 — 잉크 워시 배경의 조용한 보조 버튼 (Primary는 컴포저가 담당).
+    private func emptyStateAction(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.callout)
+                .foregroundStyle(SonnetPalette.inkSoft)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule().fill(SonnetPalette.ink.opacity(0.05))
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
     }
 
     private func stopRehearsal() {
