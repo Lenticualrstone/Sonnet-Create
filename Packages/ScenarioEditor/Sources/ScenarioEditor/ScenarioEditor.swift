@@ -440,7 +440,14 @@ public struct ScenarioEditorView: View {
                             .listRowBackground(Color.clear)
                     }
                     ForEach(displayedBlocks) { block in
-                        ScenarioBlockRow(store: store, block: block)
+                        ScenarioBlockRow(
+                            store: store,
+                            block: block,
+                            // 리허설 중 방금 등장한 대사만 타자기 리빌 (9e)
+                            typewriterReveal: isRehearsing
+                                && block.kind == .line
+                                && block.id == displayedBlocks.last?.id
+                        )
                             .id(block.id)
                             .allowsHitTesting(!isReadOnly)
                             .moveDisabled(isReadOnly)

@@ -33,6 +33,8 @@ struct CastAvatar: View {
 struct ScenarioBlockRow: View {
     @Bindable var store: ScenarioStore
     let block: ScenarioBlock
+    /// 리허설 재생 중 방금 등장한 대사 — 타자기 리빌(9e)로 새겨진다.
+    var typewriterReveal: Bool = false
 
     @State private var hovering = false
     @Environment(\.renderQuality) private var quality
@@ -105,11 +107,20 @@ struct ScenarioBlockRow: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(speakers.first.map { Color(hex: $0.accentHex) } ?? .secondary)
                 }
-                Text(markdownText)
-                    .font(DSFonts.font(size: 13 * fontScale, family: fontFamily))
-                    .contentLineSpacing(lineScale)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                if typewriterReveal {
+                    // 리허설 — 대사가 잉크로 새겨지듯 도착 (버밀리온 캐럿)
+                    TypewriterText(
+                        block.text,
+                        font: DSFonts.font(size: 13 * fontScale, family: fontFamily),
+                        color: SonnetPalette.ink
+                    )
+                } else {
+                    Text(markdownText)
+                        .font(DSFonts.font(size: 13 * fontScale, family: fontFamily))
+                        .contentLineSpacing(lineScale)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.vertical, 2)
         }

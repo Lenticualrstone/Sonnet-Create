@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generates the Sonnet Create DMG installer background (PNG).
 
-v1.3 unified theme: white canvas + deep-navy (#031C35) accent — the Finder
-DMG window should feel like an extension of the app itself.
+v2.0 "Seal & Manuscript" brand: warm paper canvas (#F6F4EF), ink text
+(#191713), and the vermilion seal (#B23A21) reserved for actions — the
+Finder DMG window should feel like an extension of the app itself.
 Rendered at 2x (Retina) pixels for create-dmg's --window-size 700 460 (pt).
 Text is kept in English — see the "dmg-english-only" decision: the DMG
 background is a baked image, so per-language variants aren't worth the
@@ -20,21 +21,21 @@ OUT.parent.mkdir(parents=True, exist_ok=True)
 SCALE = 2
 W, H = 700 * SCALE, 460 * SCALE
 
-# v1.3 통합 팔레트 (SonnetPalette와 동일)
-CANVAS = (255, 255, 255)      # canvas #FFFFFF
-SURFACE = (246, 248, 251)     # surface #F6F8FB
-INK = (14, 27, 44)            # ink #0E1B2C
-INK_MUTED = (95, 107, 124)    # inkMuted #5F6B7C
-ACCENT = (3, 28, 53)          # accent #031C35
+# 인장 & 원고 팔레트 (SonnetPalette v4와 동일)
+CANVAS = (246, 244, 239)      # Paper #F6F4EF
+BAND = (236, 232, 224)        # sunken #ECE8E0 — 상단 헤더 밴드
+INK = (25, 23, 19)            # 먹 Ink #191713
+INK_MUTED = (122, 114, 100)   # Muted #7A7264
+SEAL = (178, 58, 33)          # 인장 Seal #B23A21
 
 img = Image.new("RGB", (W, H), CANVAS)
 draw = ImageDraw.Draw(img)
 
-# --- 상단 살짝 가라앉은 띠 — 앱 헤더(sunken 톤)의 결을 잇는다 ---
+# --- 상단 살짝 가라앉은 띠 — 앱 통합 타이틀바(sunken 톤)의 결을 잇는다 ---
 band_h = 116 * SCALE
 for y in range(band_h):
     t = y / band_h
-    color = tuple(round(SURFACE[i] + (CANVAS[i] - SURFACE[i]) * t) for i in range(3))
+    color = tuple(round(BAND[i] + (CANVAS[i] - BAND[i]) * t) for i in range(3))
     draw.line([(0, y), (W, y)], fill=color)
 
 
@@ -50,7 +51,7 @@ pretendard_small = font(pretendard, 11 * SCALE)
 
 CENTER_X = W // 2
 
-# --- 헤더: 브랜드마크 + 워드마크 ---
+# --- 헤더: 잉크 스트로크 브랜드마크 + 워드마크 ---
 brandmark_path = REPO / "App/SonnetCreate/Assets.xcassets/BrandMark.imageset/brandmark@2x.png"
 if brandmark_path.exists():
     mark_size = 34 * SCALE
@@ -64,9 +65,9 @@ draw.text(
     font=georgia_italic, fill=INK_MUTED, anchor="mm"
 )
 
-# 헤더 아래 얇은 액센트 선
+# 헤더 아래 얇은 인장 선
 rule_y = 106 * SCALE
-draw.line([(CENTER_X - 90 * SCALE, rule_y), (CENTER_X + 90 * SCALE, rule_y)], fill=ACCENT, width=max(1, SCALE // 2))
+draw.line([(CENTER_X - 90 * SCALE, rule_y), (CENTER_X + 90 * SCALE, rule_y)], fill=SEAL, width=max(1, SCALE // 2))
 
 # --- 1행: 앱 → Applications 화살표 안내 (아이콘 위치: 220/480) ---
 row1_y = 160 * SCALE
@@ -74,14 +75,14 @@ draw.text((CENTER_X, row1_y - 34 * SCALE), "Drag the app into Applications", fon
 
 arrow_left = 220 * SCALE + 58 * SCALE
 arrow_right = 480 * SCALE - 58 * SCALE
-draw.line([(arrow_left, row1_y), (arrow_right, row1_y)], fill=ACCENT, width=3 * SCALE // 2)
+draw.line([(arrow_left, row1_y), (arrow_right, row1_y)], fill=SEAL, width=3 * SCALE // 2)
 draw.polygon(
     [
         (arrow_right, row1_y - 9 * SCALE // 2),
         (arrow_right, row1_y + 9 * SCALE // 2),
         (arrow_right + 14 * SCALE // 2, row1_y),
     ],
-    fill=ACCENT,
+    fill=SEAL,
 )
 
 # --- 2행: Read Me 안내 (아이콘 위치: 350/330) ---
