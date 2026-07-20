@@ -43,6 +43,37 @@ private func makeWorkspace(documentCount: Int) throws -> (store: WorkspaceStore,
     #expect(store.trashedDocuments.isEmpty)
 }
 
+/// 격리 성능 fixture (지시서 7단계) — 문서 1,000개 워크스페이스에서
+/// 스캔·딥서치가 상호작용을 막을 만큼 느려지지 않는지 계측한다.
+/// 실제 사용자 워크스페이스는 절대 사용하지 않는다 (임시 디렉토리 생성·삭제).
+@MainActor
+@Test func thousandDocumentWorkspacePerformance() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("SonnetCreatePerf-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let store = WorkspaceStore(rootURL: root)
+    for index in 1...1000 {
+        let document = store.createDocument(title: "성능 문서 \(index)", kind: .page)
+        _ = try DocumentPackageIO.write(document)
+    }
+
+    let scanStart = ContinuousClock.now
+    store.scan()
+    let scanElapsed = ContinuousClock.now - scanStart
+    #expect(store.visibleDocuments.count == 1000)
+    // 메인 스레드 스캔이 10초를 넘으면 타이핑·탭 전환이 눈에 띄게 끊긴다
+    #expect(scanElapsed < .seconds(10), "scan: \(scanElapsed)")
+
+    let searchStart = ContinuousClock.now
+    let matches = await store.deepSearch("성능 문서 42")
+    let searchElapsed = ContinuousClock.now - searchStart
+    #expect(!matches.isEmpty)
+    #expect(searchElapsed < .seconds(5), "deepSearch: \(searchElapsed)")
+
+    print("[perf] 1,000 docs — scan: \(scanElapsed), deepSearch: \(searchElapsed)")
+}
+
 /// 다중 영구 삭제 회귀 — 휴지통의 여러 항목을 한 번에 지우면 전부 사라져야 한다 (지시서 1단계 1).
 @MainActor
 @Test func bulkPermanentDeleteRemovesAll() async throws {
