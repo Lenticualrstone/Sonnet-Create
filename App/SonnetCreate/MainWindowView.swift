@@ -186,12 +186,16 @@ struct MainWindowView: View {
             Button(Localizer.shared.t(.retrySave)) {
                 app.pendingSaveFailureTab = nil
                 app.closeTab(tab) // flush를 다시 시도하고, 실패하면 다이얼로그가 재등장
+                app.advanceSaveFailureQueue()
             }
             Button(Localizer.shared.t(.closeWithoutSaving), role: .destructive) {
                 app.pendingSaveFailureTab = nil
                 app.forceCloseTab(tab)
+                app.advanceSaveFailureQueue()
             }
-            Button(Localizer.shared.t(.cancel), role: .cancel) {}
+            Button(Localizer.shared.t(.cancel), role: .cancel) {
+                app.cancelSaveFailureQueue()
+            }
         } message: { tab in
             let detail = app.session(for: tab)?.lastSaveError
             Text(detail.map { "\(Localizer.shared.t(.saveFailedCloseMessage))\n\n\($0)" }
@@ -353,8 +357,9 @@ struct UnifiedTitlebar: View {
     @State private var newDocMenuHover = false
     @State private var showUpdateMenu = false
     @Environment(\.glassIntensity) private var glassIntensity
-    /// 헤더 실측 폭 — 좁은 창에서 우선순위 낮은 패널 토글을 overflow 메뉴로 접는다 (3단계 1)
-    @State private var headerWidth: CGFloat = 0
+    /// 헤더가 좁아 패널 토글을 overflow 메뉴로 접은 상태 — 경계값 근처에서
+    /// 리사이즈할 때 깜빡이지 않도록 ±20pt 히스테리시스 밴드를 둔다 (3단계 1)
+    @State private var toolsCollapsed = false
 
     /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 윈도우 모드에서는
     /// 항상 좌측에 신호등 자리를 남겨야 한다.
@@ -459,7 +464,7 @@ struct UnifiedTitlebar: View {
             // 문서 컨텍스트 패널 토글 (프로젝트 파일/참조/스냅샷).
             // 좁은 창(<1120pt)에서는 하나의 overflow 메뉴로 접는다 — 활성 탭·저장 상태가 우선 (3단계 1).
             if case .document = app.selectedTab?.content {
-                if headerWidth >= 1120 {
+                if !toolsCollapsed {
                     if selectedDocumentHasProject {
                         ToolbarIconButton("folder", help: l10n.t(.projectFiles), isActive: app.showProjectNavigator) {
                             app.showProjectNavigator.toggle()
@@ -509,7 +514,7 @@ struct UnifiedTitlebar: View {
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
         } action: { width in
-            headerWidth = width
+            if width < 1100 { toolsCollapsed = true } else if width > 1140 { toolsCollapsed = false }
         }
     }
 

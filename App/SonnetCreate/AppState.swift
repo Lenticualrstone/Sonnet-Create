@@ -627,18 +627,40 @@ final class AppState {
 
     /// 닫기 시도 중 저장에 실패한 탭 — 확인 다이얼로그(다시 시도/저장 없이 닫기/취소) 대기.
     var pendingSaveFailureTab: OpenTab?
+    /// '다른 탭 모두 닫기'처럼 여러 탭이 연달아 실패했을 때의 대기열 —
+    /// 다이얼로그 슬롯이 하나라 마지막 실패만 묻고 앞의 것들이 묻히던 문제 해소.
+    private var saveFailureQueue: [OpenTab] = []
 
     func closeTab(_ tab: OpenTab) {
         if case .document(let docID) = tab.content, let session = sessions[docID] {
             session.flush()
             // 저장이 실패한 채로 세션을 버리면 변경분이 조용히 사라진다 — 닫기를 보류하고 묻는다.
             if session.saveState == .error {
-                pendingSaveFailureTab = tab
+                if pendingSaveFailureTab == nil {
+                    pendingSaveFailureTab = tab
+                } else if pendingSaveFailureTab?.id != tab.id, !saveFailureQueue.contains(where: { $0.id == tab.id }) {
+                    saveFailureQueue.append(tab)
+                }
                 return
             }
             sessions.removeValue(forKey: docID)
         }
         removeTabFromStrip(tab)
+    }
+
+    /// 저장 실패 다이얼로그 하나를 처리한 뒤 다음 실패 탭을 이어서 묻는다.
+    /// (dismissal이 pendingSaveFailureTab을 nil로 만든 다음 프레임에 제시)
+    func advanceSaveFailureQueue() {
+        guard !saveFailureQueue.isEmpty else { return }
+        let next = saveFailureQueue.removeFirst()
+        DispatchQueue.main.async { [weak self] in
+            self?.pendingSaveFailureTab = next
+        }
+    }
+
+    /// 취소 — 남은 실패 탭들도 더 묻지 않는다 (전부 열린 채 안전하게 유지).
+    func cancelSaveFailureQueue() {
+        saveFailureQueue.removeAll()
     }
 
     /// 이 탭만 남기고 모두 닫기 — 탭별로 기존 닫기 흐름(저장 실패 확인 포함)을 그대로 탄다.

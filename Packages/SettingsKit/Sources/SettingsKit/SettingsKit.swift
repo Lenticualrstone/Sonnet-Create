@@ -224,8 +224,15 @@ public final class SettingsStore {
         }
     }
 
+    /// changeCount 캐시 — JSON 인코딩 2회가 draft 타이핑마다 반복되지 않게.
+    /// (@ObservationIgnored: 캐시 갱신이 뷰 무효화를 유발하지 않도록)
+    @ObservationIgnored private var changeCountCache: (draft: AppSettings, apiKeys: [String: String], count: Int)?
+
     /// draft와 applied가 다른 최상위 필드 수 + 변경된 API 키 수 — 푸터 "변경 N건" 표시용 (4c).
     public var changeCount: Int {
+        if let cache = changeCountCache, cache.draft == draft, cache.apiKeys == draftAPIKeys {
+            return cache.count
+        }
         var count = 0
         if let draftData = try? JSONEncoder().encode(draft),
            let appliedData = try? JSONEncoder().encode(applied),
@@ -239,6 +246,7 @@ public final class SettingsStore {
             count = 1
         }
         count += apiKeyAccounts.filter { (draftAPIKeys[$0] ?? "") != (loadAPIKey?($0) ?? "") }.count
+        changeCountCache = (draft, draftAPIKeys, count)
         return count
     }
 

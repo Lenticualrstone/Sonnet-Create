@@ -17,13 +17,15 @@ struct HomeView: View {
     @State private var playGreetingReveal: Bool?
     /// 홈 실측 폭 — 좁은 창에서 우측 열을 본문 아래로 내린다 (4단계 홈).
     @State private var homeWidth: CGFloat = 1280
+    /// 좁은 레이아웃 상태 — 경계 리사이즈 깜빡임 방지용 ±20pt 히스테리시스.
+    @State private var narrowLayout = false
 
     var body: some View {
         let l10n = Localizer.shared
         ScrollView {
             // 좁은 창(<1020pt)에서는 우측 집필/프로젝트/백업 열이 본문 아래로 흐른다
             Group {
-                if homeWidth >= 1020 {
+                if !narrowLayout {
                     HStack(alignment: .top, spacing: 40) {
                         mainColumn(l10n)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -49,6 +51,7 @@ struct HomeView: View {
             proxy.size.width
         } action: { width in
             homeWidth = width
+            if width < 1000 { narrowLayout = true } else if width > 1040 { narrowLayout = false }
         }
         // 우하단 AI 플로팅 버튼 — 도트 매트릭스 웨이브 (1b)
         .overlay(alignment: .bottomTrailing) {

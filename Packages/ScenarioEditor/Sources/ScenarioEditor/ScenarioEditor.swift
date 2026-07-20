@@ -614,7 +614,10 @@ public struct ScenarioEditorView: View {
     private func startRehearsal() {
         rehearsalTask?.cancel()
         rehearsalPaused = false
-        narrator.onProgress = { spoken in rehearsalSpokenChars = spoken }
+        // 정지 직후 도착하는 늦은 콜백이 상태를 되살리지 않게 리허설 중일 때만 반영
+        narrator.onProgress = { spoken in
+            if rehearsalCount != nil { rehearsalSpokenChars = spoken }
+        }
         withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = 0 }
         rehearsalTask = Task {
             var index = 0
@@ -666,6 +669,7 @@ public struct ScenarioEditorView: View {
     private func stopRehearsal() {
         rehearsalTask?.cancel()
         rehearsalTask = nil
+        narrator.onProgress = nil
         narrator.stop()
         rehearsalSpokenChars = nil
         rehearsalPaused = false
