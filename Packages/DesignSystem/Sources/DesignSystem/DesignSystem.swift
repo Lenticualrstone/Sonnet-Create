@@ -511,6 +511,56 @@ public extension View {
     }
 }
 
+// MARK: - 첫 사용 callout (5단계 상황별 안내)
+
+/// 처음 사용할 때 한 번만 보여주는 작은 callout — 작업을 막는 모달 대신 캔버스 내 힌트.
+/// 닫으면 UserDefaults에 기록돼 다시 나타나지 않는다.
+public struct FirstUseCallout: View {
+    let text: String
+    private let defaultsKey: String
+
+    @State private var visible: Bool
+    @Environment(\.resolvedAccent) private var accent
+
+    public init(id: String, text: String) {
+        self.text = text
+        defaultsKey = "first-use-callout-\(id)"
+        _visible = State(initialValue: !UserDefaults.standard.bool(forKey: "first-use-callout-\(id)"))
+    }
+
+    public var body: some View {
+        if visible {
+            HStack(spacing: 8) {
+                Image(systemName: "lightbulb")
+                    .font(.caption)
+                    .foregroundStyle(accent)
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(SonnetPalette.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    UserDefaults.standard.set(true, forKey: defaultsKey)
+                    withAnimation(DesignTokens.Motion.snappy) { visible = false }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(Localizer.shared.t(.close))
+                .accessibilityLabel(Localizer.shared.t(.close))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(SonnetPalette.accentTint.opacity(0.7)))
+            .overlay(Capsule().strokeBorder(accent.opacity(0.25), lineWidth: 1))
+            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        }
+    }
+}
+
 // MARK: - 등장 애니메이션
 
 /// 아래에서 살짝 떠오르며 페이드인하는 등장 연출 — delay를 계단식으로 주면

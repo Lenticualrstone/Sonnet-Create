@@ -58,8 +58,8 @@ public enum SonnetPalette {
     public static let sunken = dynamicColor(light: "#ECE8E0", dark: "#0C0A08")
     /// 본문 잉크 — 먹
     public static let ink = dynamicColor(light: "#191713", dark: "#F6F4EF")
-    /// 보조 잉크 — Muted
-    public static let inkMuted = dynamicColor(light: "#7A7264", dark: "#B8B2A6")
+    /// 보조 잉크 — Muted (라이트 WCAG 실측 보정: canvas 5.08:1 · sunken 4.57:1)
+    public static let inkMuted = dynamicColor(light: "#6F6759", dark: "#B8B2A6")
     /// 부드러운 잉크 — 비활성 크롬 텍스트 (먹과 Muted 사이)
     public static let inkSoft = dynamicColor(light: "#443E33", dark: "#D8D2C6")
     /// 브랜드 액센트 — 인장 Seal (행동: 생성·확정·AI에만 사용)
@@ -70,12 +70,12 @@ public enum SonnetPalette {
     public static let accentTint = dynamicColor(light: "#F3E4DE", dark: "#33201A")
     /// 먹록 Pine — 보조 의미색 (마인드맵·연결)
     public static let pine = dynamicColor(light: "#3E5C50", dark: "#8FB3A2")
-    /// 골드 — 페이지(.scpa) 유형색
-    public static let gold = dynamicColor(light: "#8A6D2F", dark: "#D4A854")
+    /// 골드 — 페이지(.scpa) 유형색 (라이트 WCAG 실측 보정: canvas 5.08:1 · sunken 4.57:1)
+    public static let gold = dynamicColor(light: "#7F642A", dark: "#D4A854")
     /// 슬레이트 — 첨부/기타 유형색
     public static let slate = dynamicColor(light: "#5F6B7C", dark: "#9AA7B8")
-    /// 세이지 — 저장 성공 신호색
-    public static let sage = dynamicColor(light: "#5B8A4C", dark: "#8AB77C")
+    /// 세이지 — 저장 성공 신호색 (라이트 WCAG 실측 보정: canvas 5.43:1 · sunken 4.88:1)
+    public static let sage = dynamicColor(light: "#476D3B", dark: "#8AB77C")
     /// 배경 도트 기본색 (도트 격자·장식)
     public static let dot = dynamicColor(light: "#443E33", dark: "#8C8579")
     /// 글래스 표면 가장자리 림 — 라이트는 백색 하이라이트, 다크는 은은한 윤곽

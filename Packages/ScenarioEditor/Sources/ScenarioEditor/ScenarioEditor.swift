@@ -522,6 +522,8 @@ public struct ScenarioEditorView: View {
 
             if !isReadOnly {
                 VStack(spacing: DesignTokens.Spacing.s) {
+                    // 첫 사용 안내 — 입력 모드 3종을 한 번만 짧게 (5단계 상황별 안내)
+                    FirstUseCallout(id: "scenario-modes", text: l10n.t(.calloutScenarioModes))
                     if store.aiEnabled, !store.pendingSuggestions.isEmpty || store.isGenerating {
                         SuggestionStrip(store: store)
                     }

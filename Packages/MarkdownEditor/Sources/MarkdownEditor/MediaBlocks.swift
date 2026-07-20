@@ -468,14 +468,38 @@ struct EmbedBlockView: View {
     var body: some View {
         let l10n = Localizer.shared
         if let documentID = block.embeddedDocumentID {
-            if let preview = store.embedPreviewLoader?(documentID) {
-                previewCard(preview, documentID: documentID, l10n: l10n)
+            if let loader = store.embedPreviewLoader {
+                if let preview = loader(documentID) {
+                    previewCard(preview, documentID: documentID, l10n: l10n)
+                } else {
+                    missingCard(l10n)
+                }
             } else {
-                missingCard(l10n)
+                // 호스트가 로더를 아직 연결하지 않음 — '없음'으로 오판하지 않게 로딩 표시 (4단계)
+                loadingCard
             }
         } else {
             pickerCard(l10n)
         }
+    }
+
+    /// 로딩 상태 — 시머 플레이스홀더 (원본 없음과 시각적으로 구분).
+    private var loadingCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(SonnetPalette.ink.opacity(0.08))
+                .frame(width: 180, height: 11)
+            RoundedRectangle(cornerRadius: 4)
+                .fill(SonnetPalette.ink.opacity(0.06))
+                .frame(width: 260, height: 10)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(SonnetPalette.sunken.opacity(0.5))
+        )
     }
 
     /// 대상 미지정 — 문서 선택 메뉴.
@@ -516,14 +540,32 @@ struct EmbedBlockView: View {
         .menuIndicator(.hidden)
     }
 
-    /// 대상 문서를 찾을 수 없음 (삭제/이동).
+    /// 대상 문서를 찾을 수 없음 (삭제/이동) — 다른 문서를 다시 고르는 복구 경로를 함께 제공.
+    /// 임베드 제거는 블록 행 메뉴가 담당한다 (원본 열기/제거 혼동 방지).
     private func missingCard(_ l10n: Localizer) -> some View {
-        HStack(spacing: 8) {
+        let catalog = store.documentCatalog?() ?? []
+        return HStack(spacing: 8) {
             Image(systemName: "questionmark.folder")
                 .foregroundStyle(.orange)
             Text(l10n.t(.embedMissing))
                 .font(DSFonts.font(size: 12.5, family: .pretendard))
                 .foregroundStyle(SonnetPalette.inkMuted)
+            Spacer()
+            if !catalog.isEmpty {
+                Menu {
+                    ForEach(catalog, id: \.id) { entry in
+                        Button(entry.title.isEmpty ? l10n.t(.untitled) : entry.title) {
+                            store.setEmbedTarget(block.id, documentID: entry.id)
+                        }
+                    }
+                } label: {
+                    Text(l10n.t(.choose))
+                        .font(DSFonts.font(size: 11.5, family: .pretendard))
+                        .foregroundStyle(accent)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)

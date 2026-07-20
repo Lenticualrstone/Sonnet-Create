@@ -121,6 +121,16 @@ public struct PageEditorView: View {
         ZStack(alignment: .bottom) {
             pageList(l10n)
 
+            // 첫 사용 안내 — 임베드/백링크를 한 번만 짧게 (5단계 상황별 안내).
+            // 캐릭터 페이지는 폼 탭이 기본이라 제외.
+            if !store.isCharacterPage {
+                VStack {
+                    FirstUseCallout(id: "page-embed", text: l10n.t(.calloutPageEmbed))
+                        .padding(.top, DesignTokens.Spacing.s)
+                    Spacer()
+                }
+            }
+
             // '/' 커맨드 팔레트 — 하단 도킹 (행 팝오버는 AppKit 크래시 유발)
             if store.slashBlockID != nil {
                 SlashCommandMenu(store: store)

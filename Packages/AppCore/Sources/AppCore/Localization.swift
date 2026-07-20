@@ -98,7 +98,8 @@ public enum L10nKey: String, Sendable {
     case aboutMe, recentlyDeleted, choosePhoto, removePhoto, viewProfile
     case authRequiredHidden, authRequiredTrash, authReason, unlocked
     case profile, workspace, documents, untitled, editContent
-    case addNode, nodeText, nodePage, nodeImage, nodeFile, edgeCaption, zoomReset
+    case addNode, nodeText, nodePage, nodeImage, nodeFile, edgeCaption, zoomReset, zoomFit
+    case calloutScenarioModes, calloutMindmapLink, calloutPageEmbed
     case blockParagraph, blockHeading1, blockHeading2, blockHeading3
     case blockBulleted, blockNumbered, blockTask, blockToggle, blockQuote, blockCode, blockDivider, blockCallout
     case slashHint, exportMarkdown, importMarkdown
@@ -652,6 +653,22 @@ public final class Localizer {
         .nodeFile: [.korean: "파일", .japanese: "ファイル", .english: "File"],
         .edgeCaption: [.korean: "연결선 캡션", .japanese: "接続キャプション", .english: "Edge Caption"],
         .zoomReset: [.korean: "확대 초기화", .japanese: "ズームをリセット", .english: "Reset Zoom"],
+        .zoomFit: [.korean: "전체 맞춤", .japanese: "全体表示", .english: "Fit to Content"],
+        .calloutScenarioModes: [
+            .korean: "입력기 왼쪽에서 대사·지침·장면 모드를 전환할 수 있어요 — 장면 모드는 입력한 제목을 장면 경계로 삽입합니다.",
+            .japanese: "入力欄の左でセリフ・指示・シーンのモードを切り替えられます — シーンモードは入力したタイトルをシーン境界として挿入します。",
+            .english: "Switch between line, direction and scene modes on the composer's left — scene mode inserts your title as a scene boundary.",
+        ],
+        .calloutMindmapLink: [
+            .korean: "페이지 노드에 문서를 연결하면 캔버스에서 바로 열 수 있어요 — 노드를 선택하고 인스펙터의 ‘문서 연결…’을 사용하세요.",
+            .japanese: "ページノードにドキュメントをつなぐとキャンバスから直接開けます — ノードを選択してインスペクタの「ドキュメントをリンク…」を使ってください。",
+            .english: "Link a document to a page node to open it right from the canvas — select a node and use “Link Document…” in the inspector.",
+        ],
+        .calloutPageEmbed: [
+            .korean: "/ 커맨드로 다른 문서를 임베드하면 원본이 바뀔 때 미리보기도 함께 갱신됩니다.",
+            .japanese: "/ コマンドで他のドキュメントを埋め込むと、原本の変更に合わせてプレビューも更新されます。",
+            .english: "Embed another document with the / command — its preview stays in sync with the original.",
+        ],
         .blockParagraph: [.korean: "본문", .japanese: "本文", .english: "Text"],
         .blockHeading1: [.korean: "제목 1", .japanese: "見出し1", .english: "Heading 1"],
         .blockHeading2: [.korean: "제목 2", .japanese: "見出し2", .english: "Heading 2"],

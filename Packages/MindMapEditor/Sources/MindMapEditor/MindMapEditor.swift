@@ -17,6 +17,8 @@ public struct MindMapEditorView: View {
     @State private var gestureBaseZoom: Double?
     @State private var gestureBaseOffset: CGSize?
     @State private var showInspector = true
+    /// 캔버스 실측 크기 — 전체 맞춤(fit) 줌 계산에 사용.
+    @State private var canvasSize: CGSize = .zero
 
     @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
@@ -46,6 +48,11 @@ public struct MindMapEditorView: View {
         VStack(spacing: 0) {
             toolbar(l10n)
             Divider().opacity(0.4)
+            // 첫 사용 안내 — 문서 링크 노드 사용법을 한 번만 (5단계 상황별 안내)
+            if !isReadOnly {
+                FirstUseCallout(id: "mindmap-doc-link", text: l10n.t(.calloutMindmapLink))
+                    .padding(.top, DesignTokens.Spacing.s)
+            }
             HStack(spacing: 0) {
                 canvas(l10n)
                 if showInspector, store.selectedNode != nil, !isReadOnly {
@@ -130,6 +137,12 @@ public struct MindMapEditorView: View {
                     .foregroundStyle(.secondary)
                     .frame(width: 40)
                 ToolbarIconButton("plus.magnifyingglass", help: "+") { setZoom(zoom * 1.25) }
+                // 전체 맞춤 — 모든 노드가 화면에 들어오게 줌/이동 (4단계 마인드맵)
+                ToolbarIconButton("arrow.down.left.and.arrow.up.right", help: l10n.t(.zoomFit)) {
+                    fitToContent()
+                }
+                .disabled(store.content.nodes.isEmpty)
+                .opacity(store.content.nodes.isEmpty ? 0.35 : 1)
                 ToolbarIconButton("arrow.counterclockwise", help: l10n.t(.zoomReset)) {
                     withAnimation(DesignTokens.Motion.gentle) {
                         zoom = 1
@@ -151,6 +164,26 @@ public struct MindMapEditorView: View {
     private func setZoom(_ value: Double) {
         withAnimation(DesignTokens.Motion.snappy) {
             zoom = min(3, max(0.25, value))
+        }
+        persistViewport()
+    }
+
+    /// 모든 노드의 경계 상자를 화면에 맞춘다 — 여백 포함, 줌 한계 내에서.
+    private func fitToContent() {
+        let nodes = store.content.nodes
+        guard !nodes.isEmpty, canvasSize.width > 0, canvasSize.height > 0,
+              let minX = nodes.map(\.x).min(), let maxX = nodes.map(\.x).max(),
+              let minY = nodes.map(\.y).min(), let maxY = nodes.map(\.y).max()
+        else { return }
+        // 노드 카드 크기 여유분을 포함한 경계
+        let width = max(maxX - minX + 280, 1)
+        let height = max(maxY - minY + 200, 1)
+        let fitZoom = min(3, max(0.25, min(canvasSize.width / width, canvasSize.height / height)))
+        let centerX = (minX + maxX) / 2
+        let centerY = (minY + maxY) / 2
+        withAnimation(DesignTokens.Motion.gentle) {
+            zoom = fitZoom
+            offset = CGSize(width: -centerX * fitZoom, height: -centerY * fitZoom)
         }
         persistViewport()
     }
@@ -236,6 +269,11 @@ public struct MindMapEditorView: View {
                 }
             }
             .coordinateSpace(name: "mindmapCanvas")
+            .onGeometryChange(for: CGSize.self) { proxy in
+                proxy.size
+            } action: { size in
+                canvasSize = size
+            }
             .simultaneousGesture(magnifyGesture)
             .clipped()
             .focusable()
