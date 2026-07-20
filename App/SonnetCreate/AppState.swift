@@ -267,9 +267,6 @@ final class AppState {
     /// ⌘K 커맨드 팔레트 표시 여부 — 레일 검색 버튼과 단축키가 공유한다
     var showCommandPalette = false
 
-    /// 홈 인사말 타자기 리빌을 이번 세션에 이미 재생했는지 — 첫 진입 1회만 (매번은 피로).
-    var homeGreetingRevealPlayed = false
-
     /// 첫 실행 온보딩 표시 여부 — 새 워크스페이스 첫 실행 1회 + 설정에서 재실행.
     var showOnboarding = false
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
@@ -621,9 +618,15 @@ final class AppState {
     }
 
     /// ⌘1~9 — n번째 탭 선택.
+    /// ⌘1~9 — 홈은 로고 담당이라 제외한, 열린 탭 목록 기준 인덱스.
+    var openTabsExcludingHome: [OpenTab] {
+        tabs.filter { $0.content != .home }
+    }
+
     func selectTab(at index: Int) {
-        guard tabs.indices.contains(index) else { return }
-        selectExistingTab(tabs[index])
+        let list = openTabsExcludingHome
+        guard list.indices.contains(index) else { return }
+        selectExistingTab(list[index])
     }
 
     /// 탭 스트립에서 이미 열려 있는 탭을 직접 클릭해 전환할 때 — 뒤로/앞으로 히스토리에도 반영한다.

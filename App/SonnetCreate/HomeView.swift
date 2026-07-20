@@ -13,8 +13,8 @@ struct HomeView: View {
     @Environment(\.resolvedAccent) private var accent
 
     @State private var showBackupTimeline = false
-    /// 인사말 타자기 리빌 재생 여부 — nil이면 아직 미결정(placeholder 표시).
-    @State private var playGreetingReveal: Bool?
+    /// 인사말 타자기 리빌 재시작 토큰 — 홈 진입마다 증가시켜 TypewriterText를 다시 새긴다.
+    @State private var revealToken = 0
     /// 홈 실측 폭 — 좁은 창에서 우측 열을 본문 아래로 내린다 (4단계 홈).
     @State private var homeWidth: CGFloat = 1280
     /// 좁은 레이아웃 상태 — 경계 리사이즈 깜빡임 방지용 ±20pt 히스테리시스.
@@ -106,17 +106,14 @@ struct HomeView: View {
             VStack(alignment: .leading, spacing: 4) {
                 ZStack(alignment: .topLeading) {
                     // 정적 원문으로 자리를 잡아 리빌 중 아래 행이 밀리지 않게 한다
-                    Text(greetingText).opacity(playGreetingReveal == nil ? 1 : 0)
-                    if playGreetingReveal == true {
-                        TypewriterText(
-                            greetingText,
-                            font: DSFonts.display(size: heroSize, weight: .semibold),
-                            color: SonnetPalette.ink,
-                            caretHeight: heroSize * 0.88
-                        )
-                    } else if playGreetingReveal == false {
-                        Text(greetingText)
-                    }
+                    Text(greetingText).opacity(0)
+                    TypewriterText(
+                        greetingText,
+                        font: DSFonts.display(size: heroSize, weight: .semibold),
+                        color: SonnetPalette.ink,
+                        caretHeight: heroSize * 0.88
+                    )
+                    .id(revealToken)
                 }
                 Text(l10n.t(.greetingFollowup))
             }
@@ -128,10 +125,10 @@ struct HomeView: View {
             // 세로 확장을 명시해 항상 줄바꿈되게 한다
             .fixedSize(horizontal: false, vertical: true)
         }
+        // 홈에 들어올 때마다 인사말을 타자기로 다시 새긴다 (모션 줄이기면 정적).
+        // revealToken을 바꿔 TypewriterText(.task(id:))를 재시작시킨다.
         .onAppear {
-            guard playGreetingReveal == nil else { return }
-            playGreetingReveal = !app.homeGreetingRevealPlayed
-            app.homeGreetingRevealPlayed = true
+            revealToken += 1
         }
     }
 

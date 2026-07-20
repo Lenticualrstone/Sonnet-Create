@@ -333,6 +333,8 @@ public struct ArchiveView: View {
                     .padding(.horizontal, 18)
                     .padding(.bottom, 2)
 
+                // 높이는 프로젝트 수에 비례 — 적으면 목록만큼만, 많으면 240pt까지 스크롤.
+                // (고정 220pt면 프로젝트가 적어도 '+새 프로젝트'가 멀리 떨어져 보였다)
                 ScrollView {
                     VStack(spacing: 2) {
                         ForEach(workspace.projects) { project in
@@ -340,7 +342,7 @@ public struct ArchiveView: View {
                         }
                     }
                 }
-                .frame(maxHeight: 220)
+                .frame(maxHeight: min(CGFloat(workspace.projects.count) * 33 + 2, 240))
 
                 if let requestNewProject {
                     Button {
@@ -1105,8 +1107,13 @@ struct ArchiveCard: View {
         .padding(DesignTokens.Spacing.m)
         .frame(maxWidth: .infinity)
         .glassSurface(cornerRadius: DesignTokens.Radius.medium, quality: quality)
+        // 그림자는 둥근 shape에 직접 — glassSurface 위 .shadow는 사각 bounding box로 각지게 나온다
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(SonnetPalette.surface)
+                .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
+        )
         .scaleEffect(hovering ? 1.03 : 1)
-        .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
         .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
         .onHover { hovering = $0 }
         .onTapGesture(count: clickCount) { onOpen(item) }
@@ -1197,8 +1204,13 @@ struct OtherFileCard: View {
         .padding(DesignTokens.Spacing.m)
         .frame(maxWidth: .infinity)
         .glassSurface(cornerRadius: DesignTokens.Radius.medium, quality: quality)
+        // 그림자는 둥근 shape에 직접 — glassSurface 위 .shadow는 사각 bounding box로 각지게 나온다
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(SonnetPalette.surface)
+                .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
+        )
         .scaleEffect(hovering ? 1.03 : 1)
-        .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
         .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
         .onHover { hovering = $0 }
         .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }

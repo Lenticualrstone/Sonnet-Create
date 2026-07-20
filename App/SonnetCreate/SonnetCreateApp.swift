@@ -95,17 +95,18 @@ struct SonnetCreateApp: App {
                     .keyboardShortcut("s", modifiers: .command)
             }
             CommandMenu(Localizer.shared.t(.documents)) {
+                let openTabs = appState.openTabsExcludingHome
                 ForEach(1...9, id: \.self) { number in
                     let index = number - 1
                     Button(
-                        appState.tabs.indices.contains(index)
-                            ? appState.tabTitle(for: appState.tabs[index])
+                        openTabs.indices.contains(index)
+                            ? appState.tabTitle(for: openTabs[index])
                             : "—"
                     ) {
                         appState.selectTab(at: index)
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: .command)
-                    .disabled(!appState.tabs.indices.contains(index))
+                    .disabled(!openTabs.indices.contains(index))
                 }
             }
         }

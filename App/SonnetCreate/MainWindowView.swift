@@ -384,12 +384,25 @@ struct UnifiedTitlebar: View {
 
     var body: some View {
         let l10n = Localizer.shared
+        let isHome = app.selectedTab?.content == .home
         HStack(spacing: 8) {
-            // 잉크 스트로크 로고 — 신호등 바로 옆, 타이틀바 소속 (11a)
-            InkStrokeMark(size: 20, color: accent)
-                .frame(width: 26, height: 26)
-                .padding(.leading, needsTrafficLightInset ? 76 : 16)
-                .background(windowDragArea)
+            // 잉크 스트로크 로고 = 홈 버튼 — 홈 탭 칩을 상시 유지하는 대신 로고로 홈에 간다 (공간 절약).
+            // 홈에 있을 때는 인장 틴트 배경으로 활성 표시.
+            Button {
+                app.selectOrOpenHome()
+            } label: {
+                InkStrokeMark(size: 20, color: accent)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(isHome ? SonnetPalette.accentTint : .clear)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .help(l10n.t(.home))
+            .accessibilityLabel(l10n.t(.home))
+            .padding(.leading, needsTrafficLightInset ? 76 : 16)
 
             Rectangle()
                 .fill(SonnetPalette.ink.opacity(0.1))
@@ -413,7 +426,8 @@ struct UnifiedTitlebar: View {
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 4) {
-                        ForEach(app.tabs) { tab in
+                        // 홈은 로고 버튼이 담당하므로 탭 스트립에는 칩을 그리지 않는다
+                        ForEach(app.tabs.filter { $0.content != .home }) { tab in
                             TabChip(tab: tab)
                                 .id(tab.id)
                         }
@@ -501,8 +515,10 @@ struct UnifiedTitlebar: View {
                 updateIndicator(update, l10n)
             }
 
-            // '열린 탭 N ▾' — 넘침 대비 전체 탭 메뉴 (5b)
-            openTabsMenu(l10n)
+            // '열린 탭 N ▾' — 넘침 대비 전체 탭 메뉴 (5b). 홈은 로고 담당이라 제외.
+            if app.tabs.contains(where: { $0.content != .home }) {
+                openTabsMenu(l10n)
+            }
 
             // 저장 상태 배지 — 문서 탭에서만
             if let tab = app.selectedTab, let session = app.session(for: tab) {
@@ -565,8 +581,9 @@ struct UnifiedTitlebar: View {
 
     /// '열린 탭 N ▾' 칩 — 클릭 시 전체 탭 목록 메뉴 (⌘1~9 병기).
     private func openTabsMenu(_ l10n: Localizer) -> some View {
-        Menu {
-            ForEach(Array(app.tabs.enumerated()), id: \.element.id) { index, tab in
+        let openTabs = app.tabs.filter { $0.content != .home }
+        return Menu {
+            ForEach(Array(openTabs.enumerated()), id: \.element.id) { index, tab in
                 Button {
                     app.selectExistingTab(tab)
                 } label: {
@@ -578,7 +595,7 @@ struct UnifiedTitlebar: View {
                 }
             }
         } label: {
-            Text("\(l10n.t(.openTabs)) \(app.tabs.count) ▾")
+            Text("\(l10n.t(.openTabs)) \(openTabs.count) ▾")
                 .font(DSFonts.font(size: 11.5, weight: .medium, family: .pretendard))
                 .foregroundStyle(SonnetPalette.inkSoft)
                 .padding(.horizontal, 11)
