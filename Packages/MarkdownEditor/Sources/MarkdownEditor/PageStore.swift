@@ -24,7 +24,8 @@ public final class PageStore {
     /// 같은 프로젝트의 다른 캐릭터 페이지 목록 — 관계 탭용 (앱이 주입)
     public var characterCatalog: (() -> [(id: UUID, name: String)])?
     /// 이 캐릭터의 등장 기록 (시나리오 제목, 대사 수) — 보조 표시용 (앱이 주입)
-    public var appearanceStats: (() -> [(title: String, lineCount: Int)])?
+    /// 등장 시나리오 역참조 — 문서 id를 함께 주어 클릭 시 바로 이동할 수 있게 한다.
+    public var appearanceStats: (() -> [(id: UUID, title: String, lineCount: Int)])?
     /// 다른 문서 열기 (관계 노드 클릭 등, 앱이 주입)
     public var onOpenDocument: ((UUID) -> Void)?
     /// 관계망을 마인드맵 문서로 승격 (3c — 앱이 주입: 새 .scno 생성 후 열기)

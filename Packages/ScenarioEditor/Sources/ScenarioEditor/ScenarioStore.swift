@@ -53,6 +53,57 @@ public final class ScenarioStore {
     /// 프로젝트 캐릭터 페이지 목록 (앱이 주입)
     public var characterCatalog: (() -> [ImportableCharacter])?
 
+    // MARK: 캐릭터 문서 연동 (C안 — 문서가 원본, 캐스트는 폴백)
+
+    /// 캐릭터 문서 표시 캐시 (문서 UUID → 이름·역할·심볼·색).
+    /// characterCatalog는 호출마다 디스크를 읽으므로 렌더마다 부를 수 없다 —
+    /// 열 때/편집 후/워크스페이스 변경 시에만 갱신한다.
+    public private(set) var characterIndex: [UUID: ImportableCharacter] = [:]
+
+    /// 연결된 캐릭터 문서를 수정한다 (앱이 주입) — 이름은 문서 제목, 나머지는 프로필.
+    /// nil 인자는 '변경 없음'.
+    public var onUpdateCharacterPage: ((_ pageID: UUID, _ name: String?, _ role: String?, _ symbolName: String?, _ accentHex: String?) -> Void)?
+
+    /// 캐릭터 문서 캐시 갱신 — 시나리오를 열 때·편집 직후·워크스페이스가 바뀔 때 호출.
+    public func refreshCharacterIndex() {
+        guard let characterCatalog else { return }
+        characterIndex = Dictionary(
+            characterCatalog().map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    /// 표시용 캐스트 — 캐릭터 문서가 연결돼 있으면 문서 값(이름·역할·심볼·색)이 이긴다.
+    /// 연결이 없거나 문서를 찾을 수 없으면 캐스트 자체 값을 그대로 쓴다(단독 시나리오 폴백).
+    public func resolved(_ member: CastMember) -> CastMember {
+        guard let pageID = member.characterPageID, let doc = characterIndex[pageID] else { return member }
+        var merged = member
+        merged.name = doc.name
+        merged.roleLine = doc.role
+        merged.symbolName = doc.symbolName
+        merged.accentHex = doc.accentHex
+        return merged
+    }
+
+    /// 문서 값이 반영된 전체 캐스트 (표시 전용).
+    public var resolvedCast: [CastMember] {
+        content.cast.map(resolved)
+    }
+
+    /// 연결된 캐릭터 문서가 사라진 캐스트인지 — 끊긴 링크 표시용.
+    public func hasBrokenLink(_ member: CastMember) -> Bool {
+        guard let pageID = member.characterPageID else { return false }
+        // 인덱스가 아직 비어 있으면(미갱신) 끊겼다고 단정하지 않는다
+        return !characterIndex.isEmpty && characterIndex[pageID] == nil
+    }
+
+    /// 캐스트의 캐릭터 문서 연결을 해제한다 (문서는 건드리지 않음).
+    public func unlinkCharacterPage(_ memberID: UUID) {
+        guard var member = castMember(id: memberID) else { return }
+        member.characterPageID = nil
+        updateCastMember(member)
+    }
+
     // MARK: 검색/undo
 
     public var searchQuery: String = ""
@@ -393,8 +444,9 @@ public final class ScenarioStore {
         content.cast.first { $0.id == id }
     }
 
+    /// 블록의 화자 — 캐릭터 문서가 연결돼 있으면 문서 값으로 표시된다 (C안).
     public func speakers(of block: ScenarioBlock) -> [CastMember] {
-        block.speakerIDs.compactMap { castMember(id: $0) }
+        block.speakerIDs.compactMap { castMember(id: $0).map(resolved) }
     }
 
     @discardableResult
@@ -411,6 +463,24 @@ public final class ScenarioStore {
             guard let idx = c.cast.firstIndex(where: { $0.id == member.id }) else { return }
             c.cast[idx] = member
         }
+    }
+
+    /// 인스펙터 편집 진입점 (C안) — 캐릭터 문서가 연결돼 있으면 **문서를 원본으로** 수정하고,
+    /// 캐스트에는 같은 값을 캐시해 둔다. 연결이 없으면 캐스트만 수정한다.
+    /// 이렇게 해야 시나리오에서 이름을 바꿔도 캐릭터 파일과 따로 놀지 않는다.
+    public func editCastMember(_ member: CastMember) {
+        let previous = castMember(id: member.id)
+        updateCastMember(member)
+
+        guard let pageID = member.characterPageID, characterIndex[pageID] != nil else { return }
+        let changedName = previous?.name != member.name ? member.name : nil
+        let changedRole = previous?.roleLine != member.roleLine ? member.roleLine : nil
+        let changedSymbol = previous?.symbolName != member.symbolName ? member.symbolName : nil
+        let changedAccent = previous?.accentHex != member.accentHex ? member.accentHex : nil
+        guard changedName != nil || changedRole != nil || changedSymbol != nil || changedAccent != nil else { return }
+
+        onUpdateCharacterPage?(pageID, changedName, changedRole, changedSymbol, changedAccent)
+        refreshCharacterIndex()
     }
 
     public func removeCastMember(_ id: UUID) {

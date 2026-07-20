@@ -233,15 +233,26 @@ struct CharacterProfileTab: View {
                 Label(l10n.t(.appearances), systemImage: "clock.arrow.circlepath")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                // 등장 시나리오 — 클릭하면 그 시나리오로 바로 이동 (실제 편집 흐름으로 연결)
                 ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
-                    HStack(spacing: 6) {
-                        Text(stat.title)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(String(format: l10n.t(.linesCountFormat), stat.lineCount))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                    Button {
+                        store.onOpenDocument?(stat.id)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "text.bubble")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.tertiary)
+                            Text(stat.title)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(String(format: l10n.t(.linesCountFormat), stat.lineCount))
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.top, DesignTokens.Spacing.m)

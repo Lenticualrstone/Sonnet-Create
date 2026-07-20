@@ -1111,6 +1111,13 @@ final class AppState {
                         )
                     }
             }
+            // C안 — 인스펙터 편집을 캐릭터 문서(원본)로 넘긴다
+            store.onUpdateCharacterPage = { [weak self] pageID, name, role, symbolName, accentHex in
+                self?.updateCharacterPage(
+                    id: pageID, name: name, role: role, symbolName: symbolName, accentHex: accentHex
+                )
+            }
+            store.refreshCharacterIndex()
         case .page(let store):
             let selfID = session.id
             let projectID = session.document.envelope.projectID
@@ -1267,8 +1274,8 @@ final class AppState {
     }
 
     /// 캐릭터의 등장 기록 — 워크스페이스 시나리오를 스캔해 대사 수 집계 (보조 정보).
-    private func appearanceStats(forCharacterPage pageID: UUID) -> [(title: String, lineCount: Int)] {
-        var results: [(title: String, lineCount: Int)] = []
+    private func appearanceStats(forCharacterPage pageID: UUID) -> [(id: UUID, title: String, lineCount: Int)] {
+        var results: [(id: UUID, title: String, lineCount: Int)] = []
         let scenarios = workspace.visibleDocuments.filter { $0.envelope.kind == .scenario }
         for item in scenarios {
             guard let loaded = try? DocumentPackageIO.read(from: item.url),
@@ -1279,7 +1286,7 @@ final class AppState {
             let count = allBlocks.filter { block in
                 block.kind == .line && !castIDs.isDisjoint(with: block.speakerIDs)
             }.count
-            results.append((title: item.envelope.title, lineCount: count))
+            results.append((id: item.envelope.id, title: item.envelope.title, lineCount: count))
         }
         return results.sorted { $0.lineCount > $1.lineCount }
     }
@@ -1328,6 +1335,50 @@ final class AppState {
             workspace.scan()
             return document.envelope.id
         }
+    }
+
+    /// 캐릭터 문서를 시나리오 인스펙터 편집으로 갱신한다 (C안 — 문서가 원본).
+    /// 이름은 문서 제목, 역할·심볼·색은 프로필. 열려 있으면 세션 경유, 아니면 디스크 직접.
+    func updateCharacterPage(
+        id: UUID,
+        name: String?,
+        role: String?,
+        symbolName: String?,
+        accentHex: String?
+    ) {
+        // 열려 있는 세션 — 편집이 즉시 화면에 반영되고 자동저장을 탄다
+        if let session = sessions[id] {
+            if let name, !name.trimmingCharacters(in: .whitespaces).isEmpty {
+                session.title = name
+            }
+            if case .page(let store) = session.editor {
+                store.updateProfile { profile in
+                    if let role { profile.role = role }
+                    if let symbolName { profile.symbolName = symbolName }
+                    if let accentHex { profile.accentHex = accentHex }
+                }
+            }
+            return
+        }
+
+        // 닫힌 문서 — 디스크에서 읽어 고치고 다시 쓴다
+        guard let item = workspace.item(id: id),
+              var loaded = try? DocumentPackageIO.read(from: item.url)
+        else { return }
+        if let name, !name.trimmingCharacters(in: .whitespaces).isEmpty {
+            loaded.envelope.title = name
+        }
+        if case .page(var content) = loaded.content {
+            var profile = content.profile ?? CharacterProfile()
+            if let role { profile.role = role }
+            if let symbolName { profile.symbolName = symbolName }
+            if let accentHex { profile.accentHex = accentHex }
+            content.profile = profile
+            loaded.content = .page(content)
+        }
+        loaded.envelope.modifiedAt = Date()
+        guard (try? DocumentPackageIO.write(loaded)) != nil else { return }
+        workspace.scan()
     }
 
     /// 문서 이름 변경 — 열려 있으면 세션 경유(자동저장), 아니면 디스크에서 직접.

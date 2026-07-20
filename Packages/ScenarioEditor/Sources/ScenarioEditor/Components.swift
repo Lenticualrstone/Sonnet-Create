@@ -365,7 +365,8 @@ struct CharacterInspectorView: View {
             .padding(DesignTokens.Spacing.m)
 
             List {
-                ForEach(store.content.cast) { member in
+                // 문서가 연결된 캐스트는 문서 값으로 표시된다 (C안)
+                ForEach(store.resolvedCast) { member in
                     CastInspectorRow(
                         store: store,
                         member: member,
@@ -381,6 +382,9 @@ struct CharacterInspectorView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+
+            // 프로젝트 캐릭터 — 아직 등장하지 않은 캐릭터를 한 번에 등장시킨다 (부가 개선 ①)
+            unlistedCharactersSection(l10n)
 
             Divider().opacity(0.4)
             HStack(spacing: 6) {
@@ -398,6 +402,53 @@ struct CharacterInspectorView: View {
             .padding(DesignTokens.Spacing.s)
             .allowsHitTesting(!isReadOnly)
             .opacity(isReadOnly ? 0.4 : 1)
+        }
+    }
+
+    /// 프로젝트에 있지만 이 시나리오에 아직 등장하지 않은 캐릭터 — 클릭 한 번으로 캐스트에 추가.
+    @ViewBuilder
+    private func unlistedCharactersSection(_ l10n: Localizer) -> some View {
+        let linked = Set(store.content.cast.compactMap(\.characterPageID))
+        let unlisted = (store.characterCatalog?() ?? []).filter { !linked.contains($0.id) }
+        if !unlisted.isEmpty, !isReadOnly {
+            Divider().opacity(0.4)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(l10n.t(.projectCharacters))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 6)
+                ScrollView {
+                    VStack(spacing: 1) {
+                        ForEach(unlisted) { character in
+                            Button {
+                                store.importCastMember(character)
+                                store.refreshCharacterIndex()
+                            } label: {
+                                HStack(spacing: 7) {
+                                    Image(systemName: character.symbolName)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color(hex: character.accentHex))
+                                        .frame(width: 18)
+                                    Text(character.name)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(maxHeight: min(CGFloat(unlisted.count) * 28 + 2, 120))
+            }
         }
     }
 
@@ -466,8 +517,13 @@ struct CastInspectorRow: View {
                     Text(member.name)
                         .font(.callout.weight(.medium))
                         .lineLimit(1)
-                    // 페이지 연결 표시 — 문서가 있으면 작은 문서 글리프 (없음/있음 시각 구분)
-                    if member.characterPageID != nil {
+                    // 연결 상태 — 정상이면 문서 글리프, 문서가 사라졌으면 끊긴 링크 경고
+                    if store.hasBrokenLink(member) {
+                        Image(systemName: "link.badge.plus")
+                            .font(.system(size: 9))
+                            .foregroundStyle(SonnetPalette.warning)
+                            .help(Localizer.shared.t(.brokenCharacterLink))
+                    } else if member.characterPageID != nil {
                         Image(systemName: "doc.text.fill")
                             .font(.system(size: 8))
                             .foregroundStyle(Color(hex: member.accentHex).opacity(0.8))
@@ -501,9 +557,9 @@ struct CastInspectorRow: View {
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        // 페이지가 있으면 행 클릭 = 바로 열기, 없으면 편집 팝오버 (공통 요구)
+        // 페이지가 있으면 행 클릭 = 바로 열기, 없거나 끊겼으면 편집 팝오버 (공통 요구)
         .onTapGesture {
-            if let pageID = member.characterPageID {
+            if let pageID = member.characterPageID, !store.hasBrokenLink(member) {
                 onOpen(pageID)
             } else {
                 beginEditing()
@@ -514,8 +570,22 @@ struct CastInspectorRow: View {
         }
         .contextMenu {
             Button(l10n.t(.editContent)) { beginEditing() }
-            if let pageID = member.characterPageID {
+            if let pageID = member.characterPageID, !store.hasBrokenLink(member) {
                 Button(l10n.t(.open)) { onOpen(pageID) }
+            }
+            // 끊긴 링크 — 문서가 사라졌으면 연결을 풀거나 새 페이지를 만들어 붙인다
+            if store.hasBrokenLink(member) {
+                Button(l10n.t(.unlinkCharacterPage)) { store.unlinkCharacterPage(member.id) }
+                Button(l10n.t(.newCharacter)) {
+                    var relinked = member
+                    relinked.characterPageID = nil
+                    store.updateCastMember(relinked)
+                    if let pageID = onCreatePage(relinked, false) {
+                        relinked.characterPageID = pageID
+                        store.updateCastMember(relinked)
+                        store.refreshCharacterIndex()
+                    }
+                }
             }
             Divider()
             Button(l10n.t(.delete), role: .destructive) { store.removeCastMember(member.id) }
@@ -545,7 +615,8 @@ struct CastEditorView: View {
     ]
     private let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C"]
 
-    private var member: CastMember? { store.castMember(id: memberID) }
+    /// 표시·편집 기준 — 연결된 캐릭터 문서가 있으면 문서 값이 원본 (C안)
+    private var member: CastMember? { store.castMember(id: memberID).map(store.resolved) }
 
     var body: some View {
         let l10n = Localizer.shared
@@ -678,7 +749,8 @@ struct CastEditorView: View {
     private func update(_ transform: (inout CastMember) -> Void) {
         guard var current = member else { return }
         transform(&current)
-        store.updateCastMember(current)
+        // C안 — 연결된 캐릭터 문서가 있으면 문서(원본)에 반영된다
+        store.editCastMember(current)
     }
 
     private func field(_ keyPath: WritableKeyPath<CastMember, String>) -> Binding<String> {

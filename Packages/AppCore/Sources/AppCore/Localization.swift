@@ -64,6 +64,7 @@ public enum L10nKey: String, Sendable {
     case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
     case accessibilitySection, reduceMotionLabel, reduceMotionCaption
     case voiceAuto, restoreSnapshotDiffFormat
+    case brokenCharacterLink, unlinkCharacterPage, projectCharacters
     case newProjectNamePrompt, createAction, projectsEmptyHint, projectDocCountFormat
     case relationsEmptyHint, galleryEmptyHint, voiceEmptyHint
     case onboardingWelcomeTitle, onboardingWelcomeBody, onboardingStorageCaption
@@ -436,6 +437,13 @@ public final class Localizer {
         ],
         .accessibilitySection: [.korean: "접근성", .japanese: "アクセシビリティ", .english: "Accessibility"],
         .voiceAuto: [.korean: "자동 배정", .japanese: "自動割り当て", .english: "Automatic"],
+        .brokenCharacterLink: [
+            .korean: "연결된 캐릭터 문서를 찾을 수 없습니다",
+            .japanese: "リンクされたキャラクター文書が見つかりません",
+            .english: "Linked character document not found",
+        ],
+        .unlinkCharacterPage: [.korean: "연결 해제", .japanese: "リンクを解除", .english: "Unlink"],
+        .projectCharacters: [.korean: "프로젝트 캐릭터", .japanese: "プロジェクトのキャラクター", .english: "Project Characters"],
         .restoreSnapshotDiffFormat: [
             .korean: "현재 상태와 %d곳이 다릅니다. 복원해도 새 스냅샷으로 언제든 돌아올 수 있습니다.",
             .japanese: "現在の状態と%d箇所異なります。復元しても新しいスナップショットでいつでも戻れます。",
