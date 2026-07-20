@@ -792,10 +792,12 @@ public final class Localizer {
         .greetingAfternoon: [.korean: "무엇을 창작해볼까요?", .japanese: "今日は何を創りますか？", .english: "What shall we create?"],
         .greetingEvening: [.korean: "저녁이네요. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね。今日の物語を続けましょうか？", .english: "Good evening. Shall we continue the story?"],
         .greetingNight: [.korean: "깊은 밤, 영감이 찾아오는 시간이에요.", .japanese: "深い夜、インスピレーションが訪れる時間です。", .english: "Late night — when inspiration comes."],
-        .greetingMorningNamed: [.korean: "좋은 아침이에요, %@ 님. 무엇을 써볼까요?", .japanese: "おはようございます、%@さん。何を書きましょう？", .english: "Good morning, %@. What shall we write?"],
-        .greetingAfternoonNamed: [.korean: "%@ 님, 무엇을 창작해볼까요?", .japanese: "%@さん、今日は何を創りますか？", .english: "%@, what shall we create?"],
-        .greetingEveningNamed: [.korean: "저녁이네요, %@ 님. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね、%@さん。今日の物語を続けましょうか？", .english: "Good evening, %@. Shall we continue the story?"],
-        .greetingNightNamed: [.korean: "깊은 밤이에요, %@ 님. 영감이 찾아오는 시간이죠.", .japanese: "深い夜ですね、%@さん。インスピレーションが訪れる時間です。", .english: "Late night, %@ — when inspiration comes."],
+        // 히어로 1행에 들어가도록 짧게 유지한다 — 뒤따르는 문장은 greetingFollowup이 담당.
+        // (길면 세리프 34pt에서 두 줄로 접혀 이름과 호칭이 갈라진다)
+        .greetingMorningNamed: [.korean: "좋은 아침이에요, %@ 님.", .japanese: "おはようございます、%@さん。", .english: "Good morning, %@."],
+        .greetingAfternoonNamed: [.korean: "%@ 님, 좋은 오후예요.", .japanese: "%@さん、こんにちは。", .english: "Good afternoon, %@."],
+        .greetingEveningNamed: [.korean: "저녁이네요, %@ 님.", .japanese: "夜ですね、%@さん。", .english: "Good evening, %@."],
+        .greetingNightNamed: [.korean: "깊은 밤이에요, %@ 님.", .japanese: "深い夜ですね、%@さん。", .english: "Late night, %@."],
         .sphereDensity: [.korean: "입자 밀도", .japanese: "パーティクル密度", .english: "Particle Density"],
         .sphereDensitySparse: [.korean: "성기게", .japanese: "疎", .english: "Sparse"],
         .sphereDensityNormal: [.korean: "보통", .japanese: "標準", .english: "Normal"],

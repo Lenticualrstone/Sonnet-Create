@@ -177,7 +177,7 @@ struct RailView: View {
     }
 
     private var authorInitial: String {
-        let name = app.settings.applied.authorName.trimmingCharacters(in: .whitespaces)
+        let name = app.settings.applied.authorName.trimmingCharacters(in: .whitespacesAndNewlines)
         return name.isEmpty ? "✎" : String(name.prefix(1))
     }
 }

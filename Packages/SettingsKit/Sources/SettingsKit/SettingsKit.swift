@@ -258,6 +258,9 @@ public final class SettingsStore {
 
     /// '저장' 버튼 — draft를 적용/영속화.
     public func save() {
+        // 이름에 섞여 들어간 개행/여백은 저장 시점에 정리한다 —
+        // 홈 인사말이 "이름 / 님." 으로 갈라지던 원인.
+        draft.authorName = draft.authorName.trimmingCharacters(in: .whitespacesAndNewlines)
         applied = draft
         Self.persist(applied)
         for account in apiKeyAccounts {

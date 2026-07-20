@@ -104,23 +104,24 @@ struct HomeView: View {
                 .foregroundStyle(SonnetPalette.inkMuted)
                 .kerning(0.7)
             VStack(alignment: .leading, spacing: 4) {
-                ZStack(alignment: .topLeading) {
-                    // 정적 원문으로 자리를 잡아 리빌 중 아래 행이 밀리지 않게 한다
-                    Text(greetingText).opacity(0)
-                    TypewriterText(
-                        greetingText,
-                        font: DSFonts.display(size: heroSize, weight: .semibold),
-                        color: SonnetPalette.ink,
-                        caretHeight: heroSize * 0.88
-                    )
-                    .id(revealToken)
-                }
+                // 전체 문장이 항상 배치되고 안 나온 글자만 투명하므로 placeholder가 필요 없다.
+                // 캐럿은 여러 줄 대형 타이포에서 줄바꿈을 흔들어 끈다.
+                TypewriterText(
+                    greetingText,
+                    font: DSFonts.display(size: heroSize, weight: .semibold),
+                    color: SonnetPalette.ink,
+                    showsCaret: false
+                )
+                .id(revealToken)
                 Text(l10n.t(.greetingFollowup))
             }
             .font(DSFonts.display(size: heroSize, weight: .semibold))
             .foregroundStyle(SonnetPalette.ink)
             .lineSpacing(6)
             .lineLimit(nil)
+            // 가용 폭을 모두 쓰게 한다 — 그러지 않으면 VStack이 짧은 쪽 문장 폭에 맞춰져
+            // 인사말이 "이름 / 님." 으로 접힌다
+            .frame(maxWidth: .infinity, alignment: .leading)
             // ko 로케일의 줄바꿈 전략에서 세리프 커스텀 폰트가 말줄임되는 문제 —
             // 세로 확장을 명시해 항상 줄바꿈되게 한다
             .fixedSize(horizontal: false, vertical: true)
@@ -513,7 +514,7 @@ struct HomeView: View {
     /// 작가 이름이 설정돼 있으면 이름을 넣은 인사말, 아니면 일반 문구.
     private var greetingText: String {
         let l10n = Localizer.shared
-        let name = app.settings.applied.authorName.trimmingCharacters(in: .whitespaces)
+        let name = app.settings.applied.authorName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return l10n.t(timeOfDay.plainKey) }
         return String(format: l10n.t(timeOfDay.namedKey), name)
     }

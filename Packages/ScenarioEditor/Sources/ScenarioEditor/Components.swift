@@ -153,7 +153,8 @@ struct ScenarioBlockRow: View {
                         TypewriterText(
                             block.text,
                             font: .system(size: 10, weight: .semibold, design: .monospaced),
-                            color: SonnetPalette.inkMuted
+                            color: SonnetPalette.inkMuted,
+                            showsCaret: false
                         )
                     } else {
                         Text(block.text)

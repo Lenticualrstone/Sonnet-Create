@@ -241,6 +241,8 @@ public struct TypewriterText: View {
     var kerning: CGFloat
     /// 캐럿 높이 — 본문 13pt 기준 14. 홈 히어로 같은 대형 타이포에서는 키워 쓴다.
     var caretHeight: CGFloat
+    /// 점멸 캐럿 표시 — 여러 줄 대형 타이포(홈 히어로 등)에서는 끄는 편이 안정적이다.
+    var showsCaret: Bool
 
     @State private var visibleCount = 0
     @State private var finishedAt: Date?
@@ -253,7 +255,8 @@ public struct TypewriterText: View {
         progress: Int? = nil,
         speed: Double = 1,
         kerning: CGFloat = 0,
-        caretHeight: CGFloat = 14
+        caretHeight: CGFloat = 14,
+        showsCaret: Bool = true
     ) {
         self.text = text
         self.font = font
@@ -262,6 +265,21 @@ public struct TypewriterText: View {
         self.speed = speed
         self.kerning = kerning
         self.caretHeight = caretHeight
+        self.showsCaret = showsCaret
+    }
+
+    /// 문장 전체를 항상 배치하고, 아직 나오지 않은 글자만 투명하게 둔다.
+    /// prefix로 잘라 그리면 글자가 늘어날 때마다 줄바꿈 위치가 달라져
+    /// 여러 줄 문장에서 레이아웃이 흔들린다(홈 히어로가 3줄로 깨지던 원인).
+    private var attributed: AttributedString {
+        var string = AttributedString(text)
+        string.foregroundColor = color
+        let count = min(max(visibleCount, 0), text.count)
+        if count < text.count {
+            let start = string.index(string.startIndex, offsetByCharacters: count)
+            string[start...].foregroundColor = .clear
+        }
+        return string
     }
 
     private var interval: Double {
@@ -271,13 +289,12 @@ public struct TypewriterText: View {
 
     public var body: some View {
         HStack(alignment: .lastTextBaseline, spacing: 2) {
-            Text(String(text.prefix(visibleCount)))
+            Text(attributed)
                 .kerning(kerning)
                 .font(font)
-                .foregroundStyle(color)
                 .fixedSize(horizontal: false, vertical: true)
             // 모션 줄이기 — 점멸 캐럿(TimelineView)도 생략해 완전 정적으로
-            if !motionReduced {
+            if showsCaret, !motionReduced {
                 caret
             }
         }
