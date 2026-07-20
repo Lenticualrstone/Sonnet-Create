@@ -1305,7 +1305,10 @@ final class AppState {
 
     /// 시나리오 캐스트로부터 캐릭터 페이지(.scpa) 생성 — 같은 프로젝트의 world/에 만든다.
     /// 호출 직후 열어서 편집을 유도하며, 역시 실제 편집 전에는 디스크에 쓰지 않는다.
-    func createCharacterPage(for member: CastMember, linkedTo session: DocumentSession) -> UUID? {
+    /// 캐스트에 연결할 캐릭터 페이지(.scpa)를 만든다.
+    /// `activate: true`면 탭으로 열고(팝오버 '새 캐릭터'), `false`면 파일만 만들어
+    /// 탭을 열지 않는다(인스펙터 '캐릭터 추가' — 연속 추가 시 화면이 튀지 않게).
+    func createCharacterPage(for member: CastMember, linkedTo session: DocumentSession, activate: Bool = true) -> UUID? {
         let project = workspace.project(id: session.document.envelope.projectID)
         let document = workspace.createDocument(
             title: member.name.isEmpty ? Localizer.shared.t(.newCharacter) : member.name,
@@ -1313,11 +1316,18 @@ final class AppState {
             pageRole: .character,
             in: project
         )
-        let id = openUnsavedDocument(document)
-        // 캐스트가 이 UUID를 characterPageID로 즉시 참조하므로, 편집 전에 닫혀도
-        // 참조가 허공을 가리키지 않도록 지금 바로 디스크에 1회 저장해 둔다.
-        sessions[id]?.persistInitial()
-        return id
+        if activate {
+            let id = openUnsavedDocument(document)
+            // 캐스트가 이 UUID를 characterPageID로 즉시 참조하므로, 편집 전에 닫혀도
+            // 참조가 허공을 가리키지 않도록 지금 바로 디스크에 1회 저장해 둔다.
+            sessions[id]?.persistInitial()
+            return id
+        } else {
+            // 탭 없이 디스크에만 — 캐스트 클릭 시 openDocument로 로드된다.
+            guard (try? DocumentPackageIO.write(document)) != nil else { return nil }
+            workspace.scan()
+            return document.envelope.id
+        }
     }
 
     /// 문서 이름 변경 — 열려 있으면 세션 경유(자동저장), 아니면 디스크에서 직접.

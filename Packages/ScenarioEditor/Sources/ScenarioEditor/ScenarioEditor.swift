@@ -12,7 +12,7 @@ public struct ScenarioEditorView: View {
     let saveState: SaveState
     let onManualSave: () -> Void
     let onOpenCharacterPage: (UUID) -> Void
-    let onCreateCharacterPage: (CastMember) -> UUID?
+    let onCreateCharacterPage: (CastMember, Bool) -> UUID?
     /// 캐릭터 인스펙터 배치 (설정: 왼쪽/오른쪽)
     let inspectorOnRight: Bool
 
@@ -79,7 +79,7 @@ public struct ScenarioEditorView: View {
         saveState: SaveState,
         onManualSave: @escaping () -> Void,
         onOpenCharacterPage: @escaping (UUID) -> Void = { _ in },
-        onCreateCharacterPage: @escaping (CastMember) -> UUID? = { _ in nil },
+        onCreateCharacterPage: @escaping (CastMember, Bool) -> UUID? = { _, _ in nil },
         inspectorOnRight: Bool = false
     ) {
         self.store = store

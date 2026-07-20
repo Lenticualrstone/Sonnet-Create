@@ -892,7 +892,9 @@ struct DocumentHostView: View {
                 saveState: session.saveState,
                 onManualSave: { session.save(manual: true) },
                 onOpenCharacterPage: { app.openDocument(id: $0) },
-                onCreateCharacterPage: { app.createCharacterPage(for: $0, linkedTo: session) },
+                onCreateCharacterPage: { member, activate in
+                    app.createCharacterPage(for: member, linkedTo: session, activate: activate)
+                },
                 // 우측은 프로젝트 파일 인스펙터 자리 — 캐릭터 인스펙터는 항상 좌측 고정
                 inspectorOnRight: false
             )

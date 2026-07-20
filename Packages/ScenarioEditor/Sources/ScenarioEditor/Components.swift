@@ -343,7 +343,7 @@ struct CharacterInspectorView: View {
     @Bindable var store: ScenarioStore
     let onOpenCharacterPage: (UUID) -> Void
     /// 캐스트로부터 캐릭터 페이지(.scpa) 생성 — 생성된 문서 UUID 반환 (앱이 주입)
-    let onCreateCharacterPage: (CastMember) -> UUID?
+    let onCreateCharacterPage: (CastMember, Bool) -> UUID?
 
     @State private var newName = ""
     @Environment(\.resolvedAccent) private var accent
@@ -404,7 +404,15 @@ struct CharacterInspectorView: View {
     private func addMember() {
         let name = newName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        store.addCastMember(name: name)
+        // A안: 캐릭터를 추가하면 곧바로 캐릭터 페이지(.scpa)를 만들고 캐스트에 연결한다
+        // — 캐스트가 처음부터 1급 문서가 되도록 (형식적 화자로만 남지 않게).
+        let member = store.addCastMember(name: name)
+        // activate: false — 페이지 파일만 만들고 탭은 열지 않는다 (연속 추가 시 화면 안 튐)
+        if let pageID = onCreateCharacterPage(member, false) {
+            var linked = member
+            linked.characterPageID = pageID
+            store.updateCastMember(linked)
+        }
         newName = ""
     }
 
@@ -444,7 +452,7 @@ struct CastInspectorRow: View {
     @Bindable var store: ScenarioStore
     let member: CastMember
     let onOpen: (UUID) -> Void
-    let onCreatePage: (CastMember) -> UUID?
+    let onCreatePage: (CastMember, Bool) -> UUID?
 
     @State private var hovering = false
     @State private var editing = false
@@ -454,9 +462,17 @@ struct CastInspectorRow: View {
         HStack(spacing: DesignTokens.Spacing.s) {
             CastAvatar(member: member, size: 40)
             VStack(alignment: .leading, spacing: 1) {
-                Text(member.name)
-                    .font(.callout.weight(.medium))
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(member.name)
+                        .font(.callout.weight(.medium))
+                        .lineLimit(1)
+                    // 페이지 연결 표시 — 문서가 있으면 작은 문서 글리프 (없음/있음 시각 구분)
+                    if member.characterPageID != nil {
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(Color(hex: member.accentHex).opacity(0.8))
+                    }
+                }
                 if !member.roleLine.isEmpty {
                     Text(member.roleLine)
                         .font(.caption2)
@@ -465,10 +481,16 @@ struct CastInspectorRow: View {
                 }
             }
             Spacer()
+            // hover 편집 버튼 — 행 클릭은 페이지 열기로 갔으므로 편집은 여기로
             if hovering {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Button { beginEditing() } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(l10n.t(.editContent))
             }
         }
         .padding(.vertical, 4)
@@ -479,7 +501,14 @@ struct CastInspectorRow: View {
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { beginEditing() }
+        // 페이지가 있으면 행 클릭 = 바로 열기, 없으면 편집 팝오버 (공통 요구)
+        .onTapGesture {
+            if let pageID = member.characterPageID {
+                onOpen(pageID)
+            } else {
+                beginEditing()
+            }
+        }
         .popover(isPresented: $editing, arrowEdge: .trailing) {
             CastEditorView(store: store, memberID: member.id, onOpen: onOpen, onCreatePage: onCreatePage)
         }
@@ -506,7 +535,7 @@ struct CastEditorView: View {
     @Bindable var store: ScenarioStore
     let memberID: UUID
     let onOpen: (UUID) -> Void
-    let onCreatePage: (CastMember) -> UUID?
+    let onCreatePage: (CastMember, Bool) -> UUID?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -621,7 +650,8 @@ struct CastEditorView: View {
                     }
                 } else {
                     Button {
-                        if let pageID = onCreatePage(member) {
+                        // 팝오버의 '새 캐릭터'는 만들고 바로 연다 (activate: true)
+                        if let pageID = onCreatePage(member, true) {
                             update { $0.characterPageID = pageID }
                             dismiss()
                             onOpen(pageID)

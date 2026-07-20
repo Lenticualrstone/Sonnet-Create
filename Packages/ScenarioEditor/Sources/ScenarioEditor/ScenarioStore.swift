@@ -397,10 +397,13 @@ public final class ScenarioStore {
         block.speakerIDs.compactMap { castMember(id: $0) }
     }
 
-    public func addCastMember(name: String) {
+    @discardableResult
+    public func addCastMember(name: String) -> CastMember {
         let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C"]
         let hex = palette[content.cast.count % palette.count]
-        mutate { $0.cast.append(CastMember(name: name, accentHex: hex)) }
+        let member = CastMember(name: name, accentHex: hex)
+        mutate { $0.cast.append(member) }
+        return member
     }
 
     public func updateCastMember(_ member: CastMember) {
