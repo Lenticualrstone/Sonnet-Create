@@ -14,6 +14,11 @@ extension AppState {
     /// 스플래시 종료 시 호출 — 새 워크스페이스의 첫 실행에만 온보딩을 띄운다.
     /// 기존 사용자는(문서/프로젝트 보유) 조용히 지나가고 플래그만 기록한다.
     func evaluateOnboarding() {
+        // UI 테스트: 환경 변수로만 제어 — 영속 플래그를 읽지도 쓰지도 않는다
+        if Self.isUITest {
+            showOnboarding = ProcessInfo.processInfo.environment["UITEST_ONBOARDING"] == "1"
+            return
+        }
         guard !UserDefaults.standard.bool(forKey: Self.onboardingShownKey) else { return }
         UserDefaults.standard.set(true, forKey: Self.onboardingShownKey)
         guard workspace.visibleDocuments.isEmpty, workspace.projects.isEmpty else { return }

@@ -389,8 +389,19 @@ final class AppState {
     var isDownloadingUpdate = false
     var isCreatingGuideProject = false
 
+    /// UI 테스트 모드 — `--uitest` 인자로 기동되면 참.
+    /// 스플래시 생략, 온보딩은 UITEST_ONBOARDING=1일 때만, 워크스페이스는
+    /// UITEST_WORKSPACE 경로(임시 격리)로 강제된다. 사용자 데이터는 건드리지 않는다.
+    static let isUITest = ProcessInfo.processInfo.arguments.contains("--uitest")
+
     init() {
-        let root = URL(fileURLWithPath: settings.applied.workspacePath, isDirectory: true)
+        // UI 테스트는 실제 사용자 워크스페이스 대신 격리 경로를 쓴다 (영속 설정은 오염 안 함)
+        let root: URL = if Self.isUITest,
+                           let path = ProcessInfo.processInfo.environment["UITEST_WORKSPACE"] {
+            URL(fileURLWithPath: path, isDirectory: true)
+        } else {
+            URL(fileURLWithPath: settings.applied.workspacePath, isDirectory: true)
+        }
         workspace = WorkspaceStore(rootURL: root)
         backupManager = BackupManager(workspaceRoot: root)
         selectedTabID = tabs.first?.id

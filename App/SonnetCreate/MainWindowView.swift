@@ -32,8 +32,8 @@ struct MainWindowView: View {
     /// 프로젝트 파일 인스펙터 폭 — 드래그로 조절, 재시작 후에도 유지
     @AppStorage("project-navigator-width") private var navigatorWidth = 232.0
     @State private var navigatorDragBaseWidth: Double?
-    /// 시동 스플래시 (8a) — 창 최초 표시 시 한 번만.
-    @State private var showSplash = true
+    /// 시동 스플래시 (8a) — 창 최초 표시 시 한 번만. UI 테스트는 즉시 홈으로.
+    @State private var showSplash = !AppState.isUITest
 
     var body: some View {
         @Bindable var app = app
@@ -118,6 +118,10 @@ struct MainWindowView: View {
         // 크롬(버튼/탭/툴바)의 안내 텍스트가 커서로 선택되는 것을 방지.
         // 본문 텍스트 선택이 필요한 곳(시나리오 블록 등)은 개별적으로 다시 활성화한다.
         .textSelection(.disabled)
+        // UI 테스트는 스플래시를 건너뛰므로 온보딩 평가를 여기서 대신 수행한다
+        .onAppear {
+            if AppState.isUITest { app.evaluateOnboarding() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
             withAnimation(DesignTokens.Motion.rise) { app.isFullscreen = true }
         }

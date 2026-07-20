@@ -276,7 +276,10 @@ public struct TypewriterText: View {
                 .font(font)
                 .foregroundStyle(color)
                 .fixedSize(horizontal: false, vertical: true)
-            caret
+            // 모션 줄이기 — 점멸 캐럿(TimelineView)도 생략해 완전 정적으로
+            if !motionReduced {
+                caret
+            }
         }
         .task(id: text) {
             // 모션 줄이기 — 리빌 없이 전문 즉시 표시 (6단계)

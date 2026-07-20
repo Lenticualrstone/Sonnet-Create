@@ -42,13 +42,16 @@ struct SonnetCreateApp: App {
                 .environment(\.pageTypewriterMode, appState.settings.applied.pageTypewriterEnabled)
                 .environment(\.mindmapAutoOpenInspector, appState.settings.applied.mindmapAutoOpenInspector)
                 .environment(\.aiSphereDensity, AISphereDensity(rawValue: appState.settings.applied.aiSphereDensityRaw) ?? .normal)
-                .modifier(MotionPolicy(appReduce: appState.settings.applied.reduceMotionEnabled))
+                // UI 테스트는 상시 애니메이션(성운·도트)이 유휴 감지를 막지 않도록 모션을 강제 정지
+                .modifier(MotionPolicy(
+                    appReduce: appState.settings.applied.reduceMotionEnabled || AppState.isUITest
+                ))
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
                 .environment(\.glassIntensity, appState.settings.applied.glassIntensity)
-                // 앱 비활성 시 장식 애니메이션 정지 (배터리 절전)
-                .environment(\.decorAnimationsPaused, !appState.isAppActive)
+                // 앱 비활성 시 장식 애니메이션 정지 (배터리 절전) — UI 테스트도 항상 정지
+                .environment(\.decorAnimationsPaused, !appState.isAppActive || AppState.isUITest)
                 .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
                     appState.isAppActive = true
                 }
