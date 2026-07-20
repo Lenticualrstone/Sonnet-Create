@@ -1,18 +1,12 @@
 <p align="center">
-  <img src="App/SonnetCreate/Assets.xcassets/BrandMark.imageset/brandmark@2x.png" width="96" alt="Sonnet Create" />
-</p>
-
-<h1 align="center">Sonnet Create</h1>
-
-<p align="center">
-  <em>marks · scenes · worlds — 하나의 워크스페이스에서 쓰는 이야기</em>
+  <img src="docs/readme-hero.png" alt="Sonnet Create — marks · scenes · worlds, 하나의 워크스페이스에서 쓰는 이야기" />
 </p>
 
 <p align="center">
   <img alt="Platform" src="https://img.shields.io/badge/platform-macOS%2026%2B-9C4A2E" />
   <img alt="Swift" src="https://img.shields.io/badge/Swift-6.0-9C4A2E" />
   <img alt="License" src="https://img.shields.io/badge/license-MIT-9C4A2E" />
-  <img alt="Version" src="https://img.shields.io/badge/version-1.0-9C4A2E" />
+  <img alt="Version" src="https://img.shields.io/badge/version-2.0.1-9C4A2E" />
 </p>
 
 ---
@@ -31,7 +25,7 @@ macOS 26 Tahoe / 27 GoldenGate의 Liquid Glass 디자인 언어를 기준으로 
 - **블록 페이지 에디터(`.scpa`)** — Notion형 `/` 커맨드, 표·이미지·토글 등 12종 블록, Markdown 왕복 변환
 - **캐릭터 페이지** — 프로필/노트/관계/갤러리/보이스 탭, 캐스트와 양방향으로 연결
 - **참조 패널** — 문서 간 링크·백링크 자동 추적, 본문까지 포함한 딥서치
-- **AI 에이전트** — Apple 온디바이스 / Anthropic / 오프라인 초안, 시나리오 자동작성 제안
+- **Sonnet AI** — Apple 온디바이스 / Anthropic / OpenAI / Gemini / Grok, 시나리오 자동작성 제안과 문서 도구 실행
 - **자동 백업 & 타임라인 복원**, 파일 아카이브(가리기·휴지통, Touch ID 게이트)
 
 전체 변경 이력은 [CHANGELOG.md](CHANGELOG.md)에서 확인할 수 있다.
