@@ -204,6 +204,8 @@ public struct AISphere: View {
     @Environment(\.motionReduced) private var motionReduced
 
     @State private var field = NebulaDustField()
+    /// 커서 위치 (뷰 좌표, nil = 비호버) — 가루가 커서에서 밀려나는 인터랙션.
+    @State private var hover: CGPoint?
 
     public init(size: CGFloat = 96, activity: Activity = .idle) {
         self.size = size
@@ -218,11 +220,17 @@ public struct AISphere: View {
     public var body: some View {
         Group {
             if quality == .low || animationsPaused || motionReduced {
-                // 저사양/앱 비활성/모션 줄이기 — 정지 프레임
+                // 저사양/앱 비활성/모션 줄이기 — 정지 프레임 (커서 반응도 정지)
                 sphere(time: 0)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
                     sphere(time: context.date.timeIntervalSinceReferenceDate)
+                }
+                .onContinuousHover { phase in
+                    switch phase {
+                    case .active(let point): hover = point
+                    case .ended: hover = nil
+                    }
                 }
             }
         }
@@ -232,7 +240,11 @@ public struct AISphere: View {
     private func sphere(time: TimeInterval) -> some View {
         let variant = variant
         Canvas { context, canvasSize in
-            field.ensure(count: size < 44 ? density.smallCount : density.largeCount)
+            // 초소형(아이콘급) 스피어는 감밀도 — 다중 인스턴스 동시 표시 부하 완화
+            let particleCount = size < 24
+                ? density.smallCount * 2 / 3
+                : (size < 44 ? density.smallCount : density.largeCount)
+            field.ensure(count: particleCount)
             field.step(
                 to: time,
                 speed: activity.speed,
@@ -278,6 +290,9 @@ public struct AISphere: View {
             let sinPitch = sin(pitch)
             let dotScale = max(0.9, sphereRadius / 118)
 
+            // 커서 분산 — 가까운 가루일수록 강하게 밀려난다 (가우시안 감쇠, 시각적 왜곡만)
+            let disperse2 = sphereRadius * sphereRadius * 0.35
+
             for particle in field.particles {
                 let x1 = particle.x * cosYaw + particle.z * sinYaw
                 let z1 = particle.z * cosYaw - particle.x * sinYaw
@@ -289,14 +304,24 @@ public struct AISphere: View {
                 let alpha = envelope * (0.1 + depth * 0.55) * glow
                 guard alpha > 0.01 else { continue }
 
+                var px = center.x + x1 * sphereRadius
+                var py = center.y + y1 * sphereRadius
+                if let hover {
+                    let dx = px - hover.x
+                    let dy = py - hover.y
+                    let dist2 = dx * dx + dy * dy
+                    let influence = exp(-dist2 / disperse2)
+                    if influence > 0.02 {
+                        let distance = max(dist2.squareRoot(), 1)
+                        let push = influence * sphereRadius * 0.28
+                        px += dx / distance * push
+                        py += dy / distance * push
+                    }
+                }
+
                 let dot = particle.size * dotScale * (0.55 + depth * 0.85)
                 context.fill(
-                    Path(CGRect(
-                        x: center.x + x1 * sphereRadius - dot / 2,
-                        y: center.y + y1 * sphereRadius - dot / 2,
-                        width: dot,
-                        height: dot
-                    )),
+                    Path(CGRect(x: px - dot / 2, y: py - dot / 2, width: dot, height: dot)),
                     with: .color(dustColor(variant, warm: particle.warm, alpha: alpha))
                 )
             }
