@@ -17,6 +17,7 @@ import SwiftUI
 /// 탭 하나의 내용.
 enum TabContent: Hashable {
     case home
+    case projects
     case archive
     case aiChat
     case profile
@@ -293,6 +294,7 @@ final class AppState {
     /// 하나의 탐색 지점 — 현재 선택된 탭이 무엇을 보여주고 있었는지를 나타낸다.
     enum NavigationStep: Equatable {
         case home
+        case projects
         case archive(category: ArchiveView.Category, projectID: UUID?)
         case aiChat
         case profile
@@ -338,6 +340,7 @@ final class AppState {
     private func apply(_ step: NavigationStep) {
         switch step {
         case .home: selectOrOpenHome()
+        case .projects: openProjectsTab()
         case .aiChat: openAIChatTab()
         case .profile: openProfileTab()
         case .archive(let category, let projectID): openArchiveTab(category: category, project: projectID)
@@ -480,6 +483,30 @@ final class AppState {
         pushNavigation(.aiChat)
     }
 
+    /// 프로젝트 화면 열기 — 프로젝트 카드 그리드 (레일·⌘K 공용).
+    func openProjectsTab() {
+        openSingletonTab(.projects)
+        pushNavigation(.projects)
+    }
+
+    // MARK: 새 프로젝트 (이름 입력 프롬프트)
+
+    /// 새 프로젝트 이름 입력 프롬프트 표시 — 모든 생성 진입점(홈·아카이브·프로젝트·⌘K·메뉴)이 공유.
+    var showNewProjectPrompt = false
+
+    func promptNewProject() {
+        showNewProjectPrompt = true
+    }
+
+    /// 이름으로 프로젝트를 만들고 아카이브의 해당 프로젝트로 이동한다.
+    @discardableResult
+    func createProjectAndReveal(name: String) -> ProjectFolder? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let project = try? workspace.createProject(name: trimmed) else { return nil }
+        openArchiveTab(category: .all, project: project.id)
+        return project
+    }
+
     /// 에이전트 호출의 단일 진입점 — 문서 작업 중이면 화면을 유지한 채 플로팅 패널을,
     /// 그 외(홈/아카이브 등)에는 채팅 탭을 연다. (✨ 버튼 · ⇧⌘A 공용)
     func toggleAgentSurface() {
@@ -604,6 +631,7 @@ final class AppState {
     func selectExistingTab(_ tab: OpenTab) {
         switch tab.content {
         case .home: selectOrOpenHome()
+        case .projects: openProjectsTab()
         case .archive: openArchiveTab(category: lastKnownArchiveState.category, project: lastKnownArchiveState.projectID)
         case .aiChat: openAIChatTab()
         case .profile: openProfileTab()
@@ -1324,6 +1352,7 @@ final class AppState {
         let l10n = Localizer.shared
         switch tab.content {
         case .home: return l10n.t(.home)
+        case .projects: return l10n.t(.project)
         case .archive: return l10n.t(.archive)
         case .aiChat: return l10n.t(.sonnetAI)
         case .profile: return l10n.t(.profilePage)
@@ -1336,6 +1365,7 @@ final class AppState {
     func tabSymbol(for tab: OpenTab) -> String {
         switch tab.content {
         case .home: "house"
+        case .projects: "folder"
         case .archive: "archivebox"
         case .aiChat: "sparkles"
         case .profile: "person.crop.circle"

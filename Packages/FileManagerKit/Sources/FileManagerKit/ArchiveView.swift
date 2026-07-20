@@ -65,6 +65,10 @@ public struct ArchiveView: View {
     let onNavigate: ((Category, UUID?) -> Void)?
     /// 빈 카테고리의 빠른 생성 버튼 — 앱이 컨텍스트 프로젝트를 반영해 생성한다
     let onCreate: ((DocumentKind, PageRole?) -> Void)?
+    /// 사이드바 프로젝트 섹션의 '+ 새 프로젝트' — 앱이 이름 입력 프롬프트를 띄운다 (A안)
+    let requestNewProject: (() -> Void)?
+    /// 사이드바 프로젝트 우클릭 삭제 요청 — 앱이 확인 팝업을 거친다
+    let requestDeleteProject: ((ProjectFolder) -> Void)?
 
     @State private var category: Category = .all
     @State private var sortOrder: SortOrder = .modified
@@ -74,6 +78,9 @@ public struct ArchiveView: View {
     @State private var projectFilter: UUID?
     @State private var selection: Set<String> = []
     @State private var lastSelectedID: String?
+    /// 사이드바에서 이름 변경 중인 프로젝트 (팝오버)
+    @State private var renamingProjectID: UUID?
+    @State private var projectDraftName = ""
     /// 키보드 탐색 포커스 (↑↓ 이동, ⏎ 열기) — 마우스 선택과 독립
     @State private var keyFocusID: String?
     /// 리스트가 키보드 포커스를 갖고 있는지 (.focusable + FocusState)
@@ -95,7 +102,9 @@ public struct ArchiveView: View {
         isSessionUnlocked: Bool = false,
         onRestoreFallback: (() -> Void)? = nil,
         onNavigate: ((Category, UUID?) -> Void)? = nil,
-        onCreate: ((DocumentKind, PageRole?) -> Void)? = nil
+        onCreate: ((DocumentKind, PageRole?) -> Void)? = nil,
+        requestNewProject: (() -> Void)? = nil,
+        requestDeleteProject: ((ProjectFolder) -> Void)? = nil
     ) {
         self.workspace = workspace
         self.onOpen = onOpen
@@ -108,6 +117,8 @@ public struct ArchiveView: View {
         self.onRestoreFallback = onRestoreFallback
         self.onNavigate = onNavigate
         self.onCreate = onCreate
+        self.requestNewProject = requestNewProject
+        self.requestDeleteProject = requestDeleteProject
     }
 
     public var body: some View {
@@ -310,6 +321,48 @@ public struct ArchiveView: View {
                 categoryRow(candidate, l10n)
             }
 
+            // 프로젝트 섹션 — 목록을 상설 노출, 클릭=필터 토글, 우클릭=관리 (A안)
+            if !workspace.projects.isEmpty {
+                Divider().opacity(0.35)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+
+                Text(l10n.t(.project))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 2)
+
+                ScrollView {
+                    VStack(spacing: 2) {
+                        ForEach(workspace.projects) { project in
+                            projectRow(project, l10n)
+                        }
+                    }
+                }
+                .frame(maxHeight: 220)
+
+                if let requestNewProject {
+                    Button {
+                        requestNewProject()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(l10n.t(.newProject))
+                                .font(DSFonts.font(size: 12, family: .pretendard))
+                        }
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                }
+            }
+
             Spacer(minLength: 0)
 
             Divider().opacity(0.35)
@@ -323,6 +376,84 @@ public struct ArchiveView: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(SonnetPalette.sunken.opacity(0.45))
+    }
+
+    /// 프로젝트 행 — 클릭하면 해당 프로젝트로 필터 (다시 클릭하면 해제).
+    @ViewBuilder
+    private func projectRow(_ project: ProjectFolder, _ l10n: Localizer) -> some View {
+        let isSelected = projectFilter == project.id
+        let count = workspace.visibleDocuments.filter { $0.envelope.projectID == project.id }.count
+        Button {
+            withAnimation(DesignTokens.Motion.glassPop) {
+                projectFilter = isSelected ? nil : project.id
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isSelected ? "folder.fill" : "folder")
+                    .font(.system(size: 12))
+                    .foregroundStyle(isSelected ? accent : SonnetPalette.inkMuted)
+                    .frame(width: 16)
+                Text(project.manifest.name)
+                    .font(DSFonts.font(size: 13, weight: isSelected ? .semibold : .regular, family: .pretendard))
+                    .foregroundStyle(isSelected ? SonnetPalette.ink : SonnetPalette.inkSoft)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if count > 0 {
+                    Text("\(count)")
+                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(SonnetPalette.accentTint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .contextMenu {
+            Button(l10n.t(.rename)) { beginRenameProject(project) }
+            if let requestDeleteProject {
+                Divider()
+                Button(l10n.t(.delete), role: .destructive) { requestDeleteProject(project) }
+            }
+        }
+        .popover(
+            isPresented: Binding(
+                get: { renamingProjectID == project.id },
+                set: { if !$0 { renamingProjectID = nil } }
+            ),
+            arrowEdge: .trailing
+        ) {
+            HStack(spacing: 6) {
+                TextField(l10n.t(.newProjectNamePrompt), text: $projectDraftName)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+                    .onSubmit { commitRenameProject(project) }
+                Button(l10n.t(.done)) { commitRenameProject(project) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+            .padding(10)
+        }
+    }
+
+    private func beginRenameProject(_ project: ProjectFolder) {
+        projectDraftName = project.manifest.name
+        DispatchQueue.main.async { renamingProjectID = project.id }
+    }
+
+    private func commitRenameProject(_ project: ProjectFolder) {
+        let trimmed = projectDraftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            workspace.renameProject(project, to: trimmed)
+        }
+        renamingProjectID = nil
     }
 
     @ViewBuilder

@@ -64,6 +64,7 @@ public enum L10nKey: String, Sendable {
     case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
     case accessibilitySection, reduceMotionLabel, reduceMotionCaption
     case voiceAuto, restoreSnapshotDiffFormat
+    case newProjectNamePrompt, createAction, projectsEmptyHint, projectDocCountFormat
     case relationsEmptyHint, galleryEmptyHint, voiceEmptyHint
     case onboardingWelcomeTitle, onboardingWelcomeBody, onboardingStorageCaption
     case onboardingTypesTitle, typeDescScenario, typeDescMindmap, typeDescPage, typeDescCharacter
@@ -440,6 +441,14 @@ public final class Localizer {
             .japanese: "現在の状態と%d箇所異なります。復元しても新しいスナップショットでいつでも戻れます。",
             .english: "%d place(s) differ from the current state. You can always come back via a new snapshot.",
         ],
+        .newProjectNamePrompt: [.korean: "프로젝트 이름", .japanese: "プロジェクト名", .english: "Project name"],
+        .createAction: [.korean: "만들기", .japanese: "作成", .english: "Create"],
+        .projectsEmptyHint: [
+            .korean: "프로젝트는 세계관과 캐릭터를 함께 담는 폴더예요. 시나리오·마인드맵·페이지가 그 안에서 서로 연결됩니다.",
+            .japanese: "プロジェクトは世界観とキャラクターをまとめるフォルダです。シナリオ・マインドマップ・ページがその中で相互にリンクします。",
+            .english: "A project is a folder that holds a world and its characters. Scenarios, mind maps, and pages all link together inside it.",
+        ],
+        .projectDocCountFormat: [.korean: "문서 %d개", .japanese: "ドキュメント%d件", .english: "%d documents"],
         .relationsEmptyHint: [
             .korean: "관계를 추가하면 방사형 관계도가 자동으로 그려집니다. 관계가 쌓이면 마인드맵으로 승격해 큰 그림을 편집할 수 있어요.",
             .japanese: "関係を追加すると放射状の関係図が自動で描かれます。関係が増えたらマインドマップに昇格して全体像を編集できます。",

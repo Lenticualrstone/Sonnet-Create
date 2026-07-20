@@ -296,7 +296,7 @@ struct HomeView: View {
                 .font(DSType.body())
                 .foregroundStyle(SonnetPalette.inkMuted)
             Button {
-                _ = try? app.workspace.createProject(name: l10n.t(.newProject))
+                app.promptNewProject()
             } label: {
                 Label(l10n.t(.createFirstProject), systemImage: "folder.badge.plus")
             }
@@ -422,7 +422,7 @@ struct HomeView: View {
                 }
             }
             Button {
-                _ = try? app.workspace.createProject(name: l10n.t(.newProject))
+                app.promptNewProject()
             } label: {
                 HStack(spacing: 8) {
                     Text("＋")

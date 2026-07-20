@@ -214,7 +214,10 @@ struct CommandPaletteView: View {
                 app.createAndOpen(kind: .page, pageRole: .character, in: target)
             },
             PaletteAction(id: "new-project", title: l10n.t(.newProject), symbol: "folder.badge.plus") {
-                _ = try? app.workspace.createProject(name: l10n.t(.newProject))
+                app.promptNewProject()
+            },
+            PaletteAction(id: "projects", title: l10n.t(.project), symbol: "folder") {
+                app.openProjectsTab()
             },
             PaletteAction(id: "archive", title: l10n.t(.archive), symbol: "archivebox") {
                 app.openArchiveTab()

@@ -49,8 +49,17 @@ struct RailView: View {
                 app.selectOrOpenHome()
             }
 
+            // 프로젝트 — 카드 그리드 화면 (프로젝트가 1급 시민)
             RailButton(
                 symbol: "folder",
+                help: l10n.t(.project),
+                isActive: isSelected(.projects)
+            ) {
+                app.openProjectsTab()
+            }
+
+            RailButton(
+                symbol: "archivebox",
                 help: l10n.t(.archive),
                 isActive: isSelected(.archive)
             ) {

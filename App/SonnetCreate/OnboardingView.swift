@@ -193,8 +193,9 @@ struct OnboardingView: View {
                     title: l10n.t(.onboardingFirstProjectOption),
                     caption: l10n.t(.onboardingFirstProjectCaption)
                 ) {
-                    _ = try? app.workspace.createProject(name: l10n.t(.newProject))
                     finish()
+                    // 온보딩이 닫힌 뒤 이름 입력 프롬프트로 이어진다
+                    app.promptNewProject()
                 }
                 startOption(
                     symbol: "doc",

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		037F14B6FF278676A602E731 /* ProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14966C7D2C00A80A9CE0115 /* ProjectsView.swift */; };
 		0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A225ADDF85117C42771140CB /* ReferencePanelView.swift */; };
 		08E7CB4C3FC3194116332A82 /* MarkdownEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 9E2A054BB2B7B62B5886B52A /* MarkdownEditor */; };
 		0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D11BB4282BA195D4F440C97 /* HomeView.swift */; };
@@ -114,6 +115,7 @@
 		AD78E348E12059A02780BCD4 /* BackupKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BackupKit; path = ../Packages/BackupKit; sourceTree = SOURCE_ROOT; };
 		B272B5B24C1D05E090A56FDE /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
 		BEF97F3EBD79DB77E8B85FD0 /* AppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AppCore; path = ../Packages/AppCore; sourceTree = SOURCE_ROOT; };
+		C14966C7D2C00A80A9CE0115 /* ProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsView.swift; sourceTree = "<group>"; };
 		DA3306994A69721E5EB757A5 /* QuickLookPreview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuickLookPreview.entitlements; sourceTree = "<group>"; };
 		E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHTML.swift; sourceTree = "<group>"; };
 		E3ED3D33526C84530606161E /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -176,6 +178,7 @@
 				9D2DD6F7D78DD554B7D78CBC /* OnboardingView.swift */,
 				0573DE5D33E846CBAC56F881 /* ProfileView.swift */,
 				E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */,
+				C14966C7D2C00A80A9CE0115 /* ProjectsView.swift */,
 				A225ADDF85117C42771140CB /* ReferencePanelView.swift */,
 				E3ED3D33526C84530606161E /* SidebarView.swift */,
 				1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */,
@@ -416,6 +419,7 @@
 				0DD98C875149FAACF0F32715 /* OnboardingView.swift in Sources */,
 				51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */,
 				5E9DA683C799988C7528B0D5 /* ProjectNavigatorView.swift in Sources */,
+				037F14B6FF278676A602E731 /* ProjectsView.swift in Sources */,
 				0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */,
 				67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */,
 				2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */,

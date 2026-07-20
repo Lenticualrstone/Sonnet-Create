@@ -128,6 +128,14 @@ struct MainWindowView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
             withAnimation(DesignTokens.Motion.rise) { app.isFullscreen = false }
         }
+        // 새 프로젝트 — 이름 입력 프롬프트 (모든 생성 진입점 공용)
+        .sheet(isPresented: Binding(
+            get: { app.showNewProjectPrompt },
+            set: { app.showNewProjectPrompt = $0 }
+        )) {
+            NewProjectPrompt()
+                .environment(app)
+        }
         // 휴지통 이동 확인 (단건/다건 공용) — 선택 수·대표 제목 표시, 복구 가능함을 명시
         .confirmationDialog(
             Localizer.shared.t(.moveToTrash),
@@ -266,6 +274,8 @@ struct MainWindowView: View {
         switch tab.content {
         case .home:
             HomeView()
+        case .projects:
+            ProjectsView()
         case .aiChat:
             AIChatView()
         case .profile:
@@ -293,7 +303,9 @@ struct MainWindowView: View {
                 },
                 onCreate: { kind, role in
                     app.createAndOpen(kind: kind, pageRole: role, in: app.creationTargetProject)
-                }
+                },
+                requestNewProject: { app.promptNewProject() },
+                requestDeleteProject: { app.requestDeleteProject($0) }
             )
         case .document(let docID):
             if let session = app.sessions[docID] {
@@ -434,7 +446,7 @@ struct UnifiedTitlebar: View {
                 }
                 Divider()
                 Button(l10n.t(.newProject), systemImage: "folder.badge.plus") {
-                    _ = try? app.workspace.createProject(name: l10n.t(.newProject))
+                    app.promptNewProject()
                 }
             } label: {
                 Image(systemName: "plus")
