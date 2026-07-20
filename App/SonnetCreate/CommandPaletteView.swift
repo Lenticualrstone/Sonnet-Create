@@ -165,10 +165,34 @@ struct CommandPaletteView: View {
         } else {
             documents = Array(documentResults.filter { !openTabIDs.contains($0.id) }.prefix(12))
         }
-        let matchingActions = query.isEmpty
+        var matchingActions = query.isEmpty
             ? actions
             : actions.filter { $0.title.localizedCaseInsensitiveContains(query) }
+        // 빈 쿼리에서는 최근 실행한 명령이 앞으로 온다 (자주 쓰는 흐름 학습)
+        if query.isEmpty {
+            let recents = Self.recentActionIDs()
+            matchingActions = matchingActions.enumerated().sorted { lhs, rhs in
+                let lhsRank = recents.firstIndex(of: lhs.element.id) ?? Int.max
+                let rhsRank = recents.firstIndex(of: rhs.element.id) ?? Int.max
+                return lhsRank == rhsRank ? lhs.offset < rhs.offset : lhsRank < rhsRank
+            }.map(\.element)
+        }
         return openTabs + documents.map(PaletteItem.document) + matchingActions.map(PaletteItem.action)
+    }
+
+    // MARK: 최근 실행 학습
+
+    private static let recentActionsKey = "palette-recent-actions"
+
+    private static func recentActionIDs() -> [String] {
+        UserDefaults.standard.stringArray(forKey: recentActionsKey) ?? []
+    }
+
+    private static func recordRecentAction(_ id: String) {
+        var ids = recentActionIDs()
+        ids.removeAll { $0 == id }
+        ids.insert(id, at: 0)
+        UserDefaults.standard.set(Array(ids.prefix(8)), forKey: recentActionsKey)
     }
 
     private var actions: [PaletteAction] {
@@ -310,6 +334,7 @@ struct CommandPaletteView: View {
         case .document(let doc):
             app.openDocument(doc)
         case .action(let action):
+            Self.recordRecentAction(action.id)
             action.run()
         }
     }

@@ -72,6 +72,18 @@ final class RehearsalNarrator: NSObject, AVSpeechSynthesizerDelegate {
 /// 캐스트 → 목소리 배정. 설치된 현재 언어 보이스를 캐스트 순서대로 돌려가며 할당해,
 /// 캐릭터마다 다른 목소리가 나게 한다 (보이스가 하나뿐이면 모두 같은 목소리).
 enum RehearsalVoiceCasting {
+    /// 현재 언어의 설치 보이스 목록 — 캐스트 편집 팝오버의 수동 배정 메뉴용.
+    static func availableVoices(languageCode: String) -> [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix(languageCode) }
+            .sorted { $0.name < $1.name }
+    }
+
+    /// identifier → 표시 이름 (미설치면 nil).
+    static func voiceName(identifier: String) -> String? {
+        AVSpeechSynthesisVoice(identifier: identifier)?.name
+    }
+
     static func voice(languageCode: String, castIndex: Int?) -> AVSpeechSynthesisVoice? {
         let candidates = AVSpeechSynthesisVoice.speechVoices()
             .filter { $0.language.hasPrefix(languageCode) }

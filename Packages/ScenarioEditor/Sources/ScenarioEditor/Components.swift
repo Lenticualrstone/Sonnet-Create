@@ -1,4 +1,5 @@
 import AppCore
+import AVFoundation
 import DesignSystem
 import DocumentKit
 import SwiftUI
@@ -570,6 +571,42 @@ struct CastEditorView: View {
                         .buttonStyle(.plain)
                     }
                 }
+
+                // 리허설 낭독 목소리 — 자동(캐스트 순환) 또는 수동 지정
+                Menu {
+                    Button {
+                        update { $0.voiceIdentifier = nil }
+                    } label: {
+                        if member.voiceIdentifier == nil {
+                            Label(l10n.t(.voiceAuto), systemImage: "checkmark")
+                        } else {
+                            Text(l10n.t(.voiceAuto))
+                        }
+                    }
+                    Divider()
+                    ForEach(RehearsalVoiceCasting.availableVoices(
+                        languageCode: Localizer.shared.language.rawValue
+                    ), id: \.identifier) { voice in
+                        Button {
+                            update { $0.voiceIdentifier = voice.identifier }
+                        } label: {
+                            if member.voiceIdentifier == voice.identifier {
+                                Label(voice.name, systemImage: "checkmark")
+                            } else {
+                                Text(voice.name)
+                            }
+                        }
+                    }
+                } label: {
+                    Label(
+                        member.voiceIdentifier.flatMap { identifier in
+                            RehearsalVoiceCasting.voiceName(identifier: identifier)
+                        } ?? l10n.t(.voiceAuto),
+                        systemImage: "speaker.wave.2"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .help(l10n.t(.rehearsalVoice))
 
                 Divider()
 

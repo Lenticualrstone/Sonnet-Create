@@ -11,6 +11,9 @@ public struct CastMember: Identifiable, Codable, Sendable, Equatable, Hashable {
     public var accentHex: String
     /// 프로젝트 캐릭터 페이지(.scpa, character) 참조
     public var characterPageID: UUID?
+    /// 리허설 낭독 목소리 (AVSpeechSynthesisVoice identifier) — nil이면 자동 배정.
+    /// 선택적 필드라 구버전 파일과 양방향 호환된다.
+    public var voiceIdentifier: String?
 
     public init(
         id: UUID = UUID(),
@@ -18,7 +21,8 @@ public struct CastMember: Identifiable, Codable, Sendable, Equatable, Hashable {
         roleLine: String = "",
         symbolName: String = "person.fill",
         accentHex: String = "#5AC8FA",
-        characterPageID: UUID? = nil
+        characterPageID: UUID? = nil,
+        voiceIdentifier: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -26,6 +30,7 @@ public struct CastMember: Identifiable, Codable, Sendable, Equatable, Hashable {
         self.symbolName = symbolName
         self.accentHex = accentHex
         self.characterPageID = characterPageID
+        self.voiceIdentifier = voiceIdentifier
     }
 }
 

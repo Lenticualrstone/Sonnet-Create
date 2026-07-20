@@ -63,6 +63,7 @@ public enum L10nKey: String, Sendable {
     case emptyAddFirstScene, emptyConnectCharacter
     case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
     case accessibilitySection, reduceMotionLabel, reduceMotionCaption
+    case voiceAuto, restoreSnapshotDiffFormat
     case relationsEmptyHint, galleryEmptyHint, voiceEmptyHint
     case onboardingWelcomeTitle, onboardingWelcomeBody, onboardingStorageCaption
     case onboardingTypesTitle, typeDescScenario, typeDescMindmap, typeDescPage, typeDescCharacter
@@ -433,6 +434,12 @@ public final class Localizer {
             .english: "Sonnet AI wants to perform this action",
         ],
         .accessibilitySection: [.korean: "접근성", .japanese: "アクセシビリティ", .english: "Accessibility"],
+        .voiceAuto: [.korean: "자동 배정", .japanese: "自動割り当て", .english: "Automatic"],
+        .restoreSnapshotDiffFormat: [
+            .korean: "현재 상태와 %d곳이 다릅니다. 복원해도 새 스냅샷으로 언제든 돌아올 수 있습니다.",
+            .japanese: "現在の状態と%d箇所異なります。復元しても新しいスナップショットでいつでも戻れます。",
+            .english: "%d place(s) differ from the current state. You can always come back via a new snapshot.",
+        ],
         .relationsEmptyHint: [
             .korean: "관계를 추가하면 방사형 관계도가 자동으로 그려집니다. 관계가 쌓이면 마인드맵으로 승격해 큰 그림을 편집할 수 있어요.",
             .japanese: "関係を追加すると放射状の関係図が自動で描かれます。関係が増えたらマインドマップに昇格して全体像を編集できます。",

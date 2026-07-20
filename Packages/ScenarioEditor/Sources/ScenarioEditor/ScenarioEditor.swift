@@ -687,10 +687,17 @@ public struct ScenarioEditorView: View {
         return String(attributed.characters)
     }
 
-    /// 첫 화자의 캐스트 순번으로 목소리를 고정 배정 — 캐릭터마다 다른 목소리.
+    /// 낭독 목소리 — 캐스트에 수동 지정이 있으면 그 목소리, 없으면 순번 자동 배정.
     private func rehearsalVoice(for block: ScenarioBlock) -> AVSpeechSynthesisVoice? {
-        let castIndex = block.speakerIDs.first.flatMap { id in
-            store.content.cast.firstIndex { $0.id == id }
+        let member = block.speakerIDs.first.flatMap { id in
+            store.content.cast.first { $0.id == id }
+        }
+        if let identifier = member?.voiceIdentifier,
+           let chosen = AVSpeechSynthesisVoice(identifier: identifier) {
+            return chosen
+        }
+        let castIndex = member.flatMap { chosen in
+            store.content.cast.firstIndex { $0.id == chosen.id }
         }
         return RehearsalVoiceCasting.voice(
             languageCode: Localizer.shared.language.rawValue,
