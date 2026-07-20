@@ -8,6 +8,8 @@ import SwiftUI
 struct SplashView: View {
     @Environment(\.renderQuality) private var quality
     @Environment(\.motionReduced) private var motionReduced
+    /// 나선에 새길 문서 제목들 (앱이 주입) — 비어 있으면 나선을 그리지 않는다.
+    var spiralWords: [String] = []
     let onFinished: () -> Void
 
     @State private var strokeProgress: [Double] = [0, 0, 0]
@@ -19,6 +21,19 @@ struct SplashView: View {
     var body: some View {
         ZStack {
             SonnetPalette.canvas.ignoresSafeArea()
+
+            // 내 원고 제목들이 소용돌이치는 활자 나선 — 워크스페이스가 곧 인트로가 된다.
+            // 문서가 몇 개 없으면(신규 사용자) 그리지 않고 기존 획순 연출만 보여준다.
+            if !spiralWords.isEmpty, quality != .low {
+                SpiralTypeField(
+                    words: spiralWords,
+                    speed: motionReduced ? 0 : 0.05,
+                    maxOpacity: 0.22,
+                    color: SonnetPalette.ink
+                )
+                .ignoresSafeArea()
+                .opacity(fadingOut ? 0 : 1)
+            }
 
             VStack(spacing: 26) {
                 if quality == .low {

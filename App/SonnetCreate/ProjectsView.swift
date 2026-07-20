@@ -232,6 +232,19 @@ private struct ProjectCard: View {
                     .fill(SonnetPalette.surface)
                     .shadow(color: SonnetPalette.ink.opacity(0.07), radius: 5, y: 2)
             )
+            // 표지 — 이 프로젝트 문서 제목들로 짠 활자 나선 (아주 옅은 정적 장식)
+            .background {
+                if members.count >= 3 {
+                    SpiralTypeField(
+                        words: members.prefix(10).map(\.envelope.title),
+                        speed: 0,
+                        maxOpacity: 0.14,
+                        color: SonnetPalette.ink
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
+                    .allowsHitTesting(false)
+                }
+            }
             .overlay(
                 RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
                     .strokeBorder(SonnetPalette.ink.opacity(0.09), lineWidth: 1)
