@@ -83,10 +83,19 @@ struct MainWindowView: View {
                 CommandPaletteView(isPresented: $app.showCommandPalette)
             }
         }
+        // 첫 실행 온보딩 (5단계) — 스플래시가 끝난 뒤 새 워크스페이스에서 1회
+        .overlay {
+            if app.showOnboarding, !showSplash {
+                OnboardingView()
+            }
+        }
         // 시동 스플래시 (8a) — 잉크 스트로크 획순 드로우 → 워드마크 → 잉크 바 → 홈 인계
         .overlay {
             if showSplash {
-                SplashView { showSplash = false }
+                SplashView {
+                    showSplash = false
+                    app.evaluateOnboarding()
+                }
             }
         }
         .background {

@@ -72,6 +72,11 @@ struct GuideProjectSettingsSection: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             HStack(spacing: 8) {
+                // 첫 실행 안내(온보딩)를 언제든 다시 열 수 있게 (5단계)
+                Button(l10n.t(.onboardingReplay)) {
+                    app.replayOnboarding()
+                }
+                .controlSize(.small)
                 Spacer()
                 if app.isCreatingGuideProject {
                     ProgressView().controlSize(.small)

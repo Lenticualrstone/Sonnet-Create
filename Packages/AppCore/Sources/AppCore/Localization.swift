@@ -64,6 +64,12 @@ public enum L10nKey: String, Sendable {
     case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
     case accessibilitySection, reduceMotionLabel, reduceMotionCaption
     case relationsEmptyHint, galleryEmptyHint, voiceEmptyHint
+    case onboardingWelcomeTitle, onboardingWelcomeBody, onboardingStorageCaption
+    case onboardingTypesTitle, typeDescScenario, typeDescMindmap, typeDescPage, typeDescCharacter
+    case onboardingStartTitle, onboardingGuideOption, onboardingGuideCaption
+    case onboardingFirstProjectOption, onboardingFirstProjectCaption
+    case onboardingSoloOption, onboardingSoloCaption
+    case onboardingSkip, onboardingNext, onboardingBack, onboardingReplay
     case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
     case categorySection
     case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
@@ -440,6 +446,89 @@ public final class Localizer {
             .korean: "보이스 카드는 AI가 이 캐릭터의 대사를 쓸 때 말투 기준이 됩니다 — 예시 대사가 있을수록 자동작성 품질이 올라갑니다.",
             .japanese: "ボイスカードはAIがこのキャラクターのセリフを書くときの口調の基準になります — 例文が多いほど自動生成の品質が上がります。",
             .english: "Voice cards anchor this character's tone when the AI writes dialogue — the more sample lines, the better the drafts.",
+        ],
+        .onboardingWelcomeTitle: [
+            .korean: "Sonnet Create에 오신 것을 환영합니다",
+            .japanese: "Sonnet Createへようこそ",
+            .english: "Welcome to Sonnet Create",
+        ],
+        .onboardingWelcomeBody: [
+            .korean: "이야기의 모든 조각 — 시나리오, 마인드맵, 페이지, 캐릭터 — 를 하나의 워크스페이스에서 씁니다. 세 걸음이면 준비가 끝나요.",
+            .japanese: "物語のすべてのピース — シナリオ、マインドマップ、ページ、キャラクター — をひとつのワークスペースで書きます。3ステップで準備完了です。",
+            .english: "Write every piece of your story — scenarios, mind maps, pages, characters — in one workspace. Three quick steps and you're set.",
+        ],
+        .onboardingStorageCaption: [
+            .korean: "문서는 이 폴더에 저장됩니다. 설정 > 기본에서 언제든 바꿀 수 있어요.",
+            .japanese: "ドキュメントはこのフォルダに保存されます。設定 > 一般でいつでも変更できます。",
+            .english: "Documents are stored in this folder. You can change it anytime in Settings > General.",
+        ],
+        .onboardingTypesTitle: [
+            .korean: "네 가지 문서",
+            .japanese: "4つのドキュメント",
+            .english: "Four Kinds of Documents",
+        ],
+        .typeDescScenario: [
+            .korean: "대사·지침 블록과 분기로 쓰는 채팅형 대본 (.scen)",
+            .japanese: "セリフ・指示ブロックと分岐で書くチャット型脚本 (.scen)",
+            .english: "Chat-style script with dialogue, directions and branches (.scen)",
+        ],
+        .typeDescMindmap: [
+            .korean: "무한 캔버스에 노드를 잇는 세계관 지도 (.scno)",
+            .japanese: "無限キャンバスにノードをつなぐ世界観マップ (.scno)",
+            .english: "World map of linked nodes on an infinite canvas (.scno)",
+        ],
+        .typeDescPage: [
+            .korean: "블록 편집과 / 커맨드로 쓰는 자유 노트 (.scpa)",
+            .japanese: "ブロック編集と / コマンドで書く自由ノート (.scpa)",
+            .english: "Free-form notes with block editing and / commands (.scpa)",
+        ],
+        .typeDescCharacter: [
+            .korean: "프로필·관계·보이스로 완성하는 인물 서류",
+            .japanese: "プロフィール・関係・ボイスで仕上げる人物ファイル",
+            .english: "Character dossier with profile, relations and voice",
+        ],
+        .onboardingStartTitle: [
+            .korean: "어떻게 시작할까요?",
+            .japanese: "どう始めますか？",
+            .english: "How would you like to start?",
+        ],
+        .onboardingGuideOption: [
+            .korean: "가이드 프로젝트로 배우기",
+            .japanese: "ガイドプロジェクトで学ぶ",
+            .english: "Learn with the Guide Project",
+        ],
+        .onboardingGuideCaption: [
+            .korean: "예제 문서가 담긴 튜토리얼 프로젝트를 내려받아요",
+            .japanese: "サンプル入りのチュートリアルプロジェクトをダウンロードします",
+            .english: "Download a tutorial project with example documents",
+        ],
+        .onboardingFirstProjectOption: [
+            .korean: "빈 프로젝트 만들기",
+            .japanese: "空のプロジェクトを作る",
+            .english: "Create an Empty Project",
+        ],
+        .onboardingFirstProjectCaption: [
+            .korean: "프로젝트 폴더를 만들고 직접 시작해요",
+            .japanese: "プロジェクトフォルダを作ってゼロから始めます",
+            .english: "Make a project folder and start from scratch",
+        ],
+        .onboardingSoloOption: [
+            .korean: "독립 문서로 시작",
+            .japanese: "単独ドキュメントで始める",
+            .english: "Start with a Standalone Document",
+        ],
+        .onboardingSoloCaption: [
+            .korean: "홈의 빠른 시작에서 바로 문서를 만들어요",
+            .japanese: "ホームのクイックスタートからすぐ作成できます",
+            .english: "Create documents right away from Quick Start on Home",
+        ],
+        .onboardingSkip: [.korean: "건너뛰기", .japanese: "スキップ", .english: "Skip"],
+        .onboardingNext: [.korean: "다음", .japanese: "次へ", .english: "Next"],
+        .onboardingBack: [.korean: "이전", .japanese: "戻る", .english: "Back"],
+        .onboardingReplay: [
+            .korean: "첫 실행 안내 다시 보기",
+            .japanese: "初回ガイドをもう一度見る",
+            .english: "Replay First-Run Intro",
         ],
         .reduceMotionLabel: [.korean: "모션 줄이기", .japanese: "モーションを減らす", .english: "Reduce Motion"],
         .reduceMotionCaption: [

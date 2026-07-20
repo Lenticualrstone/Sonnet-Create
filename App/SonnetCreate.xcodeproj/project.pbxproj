@@ -11,6 +11,7 @@
 		08E7CB4C3FC3194116332A82 /* MarkdownEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 9E2A054BB2B7B62B5886B52A /* MarkdownEditor */; };
 		0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D11BB4282BA195D4F440C97 /* HomeView.swift */; };
 		0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 732C34C9124878FB3421665B /* TouchBarController.swift */; };
+		0DD98C875149FAACF0F32715 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D2DD6F7D78DD554B7D78CBC /* OnboardingView.swift */; };
 		0E27B11F3544F7119C5D46D5 /* QuickLookPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */; };
 		2BE731F8989DBAB49443A5E5 /* MindMapEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 2156137A81292CD1ACB4C89C /* MindMapEditor */; };
@@ -95,6 +96,7 @@
 		8B5242E6D85B6063EED37A75 /* PersistenceKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PersistenceKit; path = ../Packages/PersistenceKit; sourceTree = SOURCE_ROOT; };
 		8D11BB4282BA195D4F440C97 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		99DDCD817FBAB1586D2FD450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9D2DD6F7D78DD554B7D78CBC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		A225ADDF85117C42771140CB /* ReferencePanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferencePanelView.swift; sourceTree = "<group>"; };
 		A4046E7879AFA051EBD1A564 /* PreviewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewProvider.swift; sourceTree = "<group>"; };
 		A674A976F8B9DDDADE87118C /* MindMapEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MindMapEditor; path = ../Packages/MindMapEditor; sourceTree = SOURCE_ROOT; };
@@ -161,6 +163,7 @@
 				8D11BB4282BA195D4F440C97 /* HomeView.swift */,
 				F5F9B00914469D62BA5273B3 /* Info.plist */,
 				B272B5B24C1D05E090A56FDE /* MainWindowView.swift */,
+				9D2DD6F7D78DD554B7D78CBC /* OnboardingView.swift */,
 				0573DE5D33E846CBAC56F881 /* ProfileView.swift */,
 				E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */,
 				A225ADDF85117C42771140CB /* ReferencePanelView.swift */,
@@ -359,6 +362,7 @@
 				519495F81274ADAC54E8A6BA /* GuideProjectSystem.swift in Sources */,
 				0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */,
 				C494EDD5B6181E2B58C3A896 /* MainWindowView.swift in Sources */,
+				0DD98C875149FAACF0F32715 /* OnboardingView.swift in Sources */,
 				51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */,
 				5E9DA683C799988C7528B0D5 /* ProjectNavigatorView.swift in Sources */,
 				0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */,

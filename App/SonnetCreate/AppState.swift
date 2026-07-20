@@ -268,6 +268,9 @@ final class AppState {
 
     /// 홈 인사말 타자기 리빌을 이번 세션에 이미 재생했는지 — 첫 진입 1회만 (매번은 피로).
     var homeGreetingRevealPlayed = false
+
+    /// 첫 실행 온보딩 표시 여부 — 새 워크스페이스 첫 실행 1회 + 설정에서 재실행.
+    var showOnboarding = false
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
     /// 앱 활성 상태 — 비활성이면 장식 애니메이션(성운·도트 웨이브)을 정지해 절전한다
