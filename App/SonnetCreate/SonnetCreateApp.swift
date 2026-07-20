@@ -42,6 +42,7 @@ struct SonnetCreateApp: App {
                 .environment(\.pageTypewriterMode, appState.settings.applied.pageTypewriterEnabled)
                 .environment(\.mindmapAutoOpenInspector, appState.settings.applied.mindmapAutoOpenInspector)
                 .environment(\.aiSphereDensity, AISphereDensity(rawValue: appState.settings.applied.aiSphereDensityRaw) ?? .normal)
+                .modifier(MotionPolicy(appReduce: appState.settings.applied.reduceMotionEnabled))
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
@@ -127,6 +128,17 @@ struct SonnetCreateApp: App {
             .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
             .preferredColorScheme(appState.settings.applied.themeMode.colorScheme)
         }
+    }
+}
+
+/// 모션 줄이기 실효값 주입 — 시스템 손쉬운 사용(동작 줄이기) 또는 앱 설정이 켜지면
+/// `\.motionReduced`가 참이 된다 (6단계). 소비처: 스플래시·디더·타자기·성운·rise.
+private struct MotionPolicy: ViewModifier {
+    let appReduce: Bool
+    @Environment(\.accessibilityReduceMotion) private var systemReduce
+
+    func body(content: Content) -> some View {
+        content.environment(\.motionReduced, systemReduce || appReduce)
     }
 }
 

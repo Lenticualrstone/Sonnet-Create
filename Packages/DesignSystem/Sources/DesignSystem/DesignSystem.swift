@@ -155,6 +155,10 @@ private struct MindmapAutoOpenInspectorKey: EnvironmentKey {
     static let defaultValue = true
 }
 
+private struct MotionReducedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 public extension EnvironmentValues {
     var renderQuality: RenderQuality {
         get { self[RenderQualityKey.self] }
@@ -209,6 +213,13 @@ public extension EnvironmentValues {
         get { self[MindmapAutoOpenInspectorKey.self] }
         set { self[MindmapAutoOpenInspectorKey.self] = newValue }
     }
+
+    /// 모션 줄이기 실효값 — 시스템 손쉬운 사용(동작 줄이기) 또는 앱 설정이 켜지면 참 (6단계).
+    /// 스플래시·디더·타자기·성운·rise 등 장식 모션이 즉시 표시/정적 페이드로 대체된다.
+    var motionReduced: Bool {
+        get { self[MotionReducedKey.self] }
+        set { self[MotionReducedKey.self] = newValue }
+    }
 }
 
 public extension View {
@@ -239,9 +250,11 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
     @Environment(\.liquidGlassDisabled) private var glassDisabled
     @Environment(\.interfaceTheme) private var theme
     @Environment(\.glassIntensity) private var glassIntensity
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
-        if glassDisabled {
+        // 시스템 '투명도 줄이기'는 글래스 끄기와 동일하게 불투명 표면 + 테두리로 (6단계)
+        if glassDisabled || reduceTransparency {
             // 레트로 미니멀: 불투명 표면 + 얇은 잉크 테두리
             content
                 .background(shape.fill(flatFill))
@@ -506,13 +519,19 @@ private struct FadeUpOnAppear: ViewModifier {
     let delay: Double
     let distance: CGFloat
     @State private var shown = false
+    @Environment(\.motionReduced) private var motionReduced
 
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
-            .offset(y: shown ? 0 : distance)
+            // 모션 줄이기 — 이동 없이 120ms opacity만 (6단계)
+            .offset(y: shown || motionReduced ? 0 : distance)
             .onAppear {
-                withAnimation(DesignTokens.Motion.arrival.delay(delay)) { shown = true }
+                withAnimation(
+                    motionReduced
+                        ? .easeOut(duration: 0.12)
+                        : DesignTokens.Motion.arrival.delay(delay)
+                ) { shown = true }
             }
     }
 }

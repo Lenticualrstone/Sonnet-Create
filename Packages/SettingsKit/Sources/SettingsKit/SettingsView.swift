@@ -443,6 +443,14 @@ public struct SettingsRootView: View {
                     (RenderQuality.high, l10n.t(.qualityHigh)),
                 ])
             }
+
+            // 접근성 (6단계) — 시스템 손쉬운 사용 설정은 자동 반영되고, 여기서는 앱 강제 켬
+            Section(l10n.t(.accessibilitySection)) {
+                Toggle(l10n.t(.reduceMotionLabel), isOn: $store.draft.reduceMotionEnabled)
+                Text(l10n.t(.reduceMotionCaption))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
     }

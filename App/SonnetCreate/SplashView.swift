@@ -7,6 +7,7 @@ import SwiftUI
 /// 홈 계단식 등장에 인계한다. 저사양(Low)에서는 9a 도트 매트릭스 부트로 대체.
 struct SplashView: View {
     @Environment(\.renderQuality) private var quality
+    @Environment(\.motionReduced) private var motionReduced
     let onFinished: () -> Void
 
     @State private var strokeProgress: [Double] = [0, 0, 0]
@@ -119,7 +120,21 @@ struct SplashView: View {
     }
 
     /// 시퀀스: 칩 팝 → 획 3개 스태거 드로우 → 워드마크 rise → 잉크 바 → 페이드아웃.
+    /// 모션 줄이기 — 연출 없이 완성 프레임을 짧게 보여주고 정적 페이드로 인계 (6단계).
     private func run() {
+        if motionReduced {
+            chipShown = true
+            strokeProgress = [1, 1, 1]
+            wordmarkShown = true
+            barProgress = 1
+            Task {
+                try? await Task.sleep(for: .milliseconds(700))
+                withAnimation(.easeIn(duration: 0.15)) { fadingOut = true }
+                try? await Task.sleep(for: .milliseconds(160))
+                onFinished()
+            }
+            return
+        }
         withAnimation(DesignTokens.Motion.glassPop) { chipShown = true }
         for index in 0..<3 {
             withAnimation(

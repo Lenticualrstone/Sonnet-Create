@@ -28,6 +28,7 @@ struct MainWindowView: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.motionReduced) private var motionReduced
     /// 프로젝트 파일 인스펙터 폭 — 드래그로 조절, 재시작 후에도 유지
     @AppStorage("project-navigator-width") private var navigatorWidth = 232.0
     @State private var navigatorDragBaseWidth: Double?
@@ -237,15 +238,20 @@ struct MainWindowView: View {
                 tabContent(tab)
                     .id(tab.id)
                     .transition(.asymmetric(
-                        insertion: isSpatial
-                            ? .ditherReveal
-                            : .opacity.combined(with: .offset(y: 14)),
+                        // 모션 줄이기 — 디더/rise 대신 120ms opacity (6단계)
+                        insertion: motionReduced
+                            ? .opacity
+                            : (isSpatial
+                                ? .ditherReveal
+                                : .opacity.combined(with: .offset(y: 14))),
                         removal: .identity
                     ))
             }
         }
         .animation(
-            isSpatial ? .linear(duration: 0.68) : DesignTokens.Motion.rise,
+            motionReduced
+                ? .easeOut(duration: 0.12)
+                : (isSpatial ? .linear(duration: 0.68) : DesignTokens.Motion.rise),
             value: app.selectedTabID
         )
     }

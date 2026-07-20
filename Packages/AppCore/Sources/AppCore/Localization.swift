@@ -62,6 +62,7 @@ public enum L10nKey: String, Sendable {
     case closeOtherTabs, closeTabsToRight, paletteHints
     case emptyAddFirstScene, emptyConnectCharacter
     case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
+    case accessibilitySection, reduceMotionLabel, reduceMotionCaption
     case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
     case categorySection
     case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
@@ -422,6 +423,13 @@ public final class Localizer {
             .korean: "Sonnet AI가 이 작업을 하려고 합니다",
             .japanese: "Sonnet AIがこの操作を実行しようとしています",
             .english: "Sonnet AI wants to perform this action",
+        ],
+        .accessibilitySection: [.korean: "접근성", .japanese: "アクセシビリティ", .english: "Accessibility"],
+        .reduceMotionLabel: [.korean: "모션 줄이기", .japanese: "モーションを減らす", .english: "Reduce Motion"],
+        .reduceMotionCaption: [
+            .korean: "스플래시·화면 전환·타자기 리빌·AI 성운 등 장식 모션을 즉시 표시로 대체합니다. 시스템 손쉬운 사용의 ‘동작 줄이기’도 자동 반영됩니다.",
+            .japanese: "スプラッシュ・画面遷移・タイプライター・AI星雲などの装飾モーションを即時表示に置き換えます。システムの「視差効果を減らす」も自動で反映されます。",
+            .english: "Replaces decorative motion (splash, transitions, typewriter, AI nebula) with instant display. The system Reduce Motion setting is also honored automatically.",
         ],
         .closeTabsToRight: [.korean: "오른쪽 탭 닫기", .japanese: "右側のタブを閉じる", .english: "Close Tabs to the Right"],
         .greetingFollowup: [.korean: "어제의 문장에서 이어갈까요?", .japanese: "昨日の文章から続けましょうか？", .english: "Shall we pick up yesterday's sentence?"],

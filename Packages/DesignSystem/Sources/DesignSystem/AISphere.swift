@@ -201,6 +201,7 @@ public struct AISphere: View {
     @Environment(\.aiSphereDensity) private var density
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.decorAnimationsPaused) private var animationsPaused
+    @Environment(\.motionReduced) private var motionReduced
 
     @State private var field = NebulaDustField()
 
@@ -216,8 +217,8 @@ public struct AISphere: View {
 
     public var body: some View {
         Group {
-            if quality == .low || animationsPaused {
-                // 저사양/앱 비활성 — 정지 프레임으로 절전
+            if quality == .low || animationsPaused || motionReduced {
+                // 저사양/앱 비활성/모션 줄이기 — 정지 프레임
                 sphere(time: 0)
             } else {
                 TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in

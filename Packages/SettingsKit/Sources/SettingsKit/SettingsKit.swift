@@ -47,6 +47,8 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var scenarioInspectorOnRight: Bool = false
     /// 성운 스피어 입자 밀도 — "sparse" | "normal"(기본) | "dense"
     public var aiSphereDensityRaw: String = "normal"
+    /// 접근성: 모션 줄이기 — 시스템 손쉬운 사용과 별개로 앱에서 강제 (6단계)
+    public var reduceMotionEnabled: Bool = false
     public var quality: RenderQuality = .standard
     public var backgroundSpeed: Double = 0.6
     public var backgroundDensity: Double = 34
@@ -132,6 +134,7 @@ public struct AppSettings: Codable, Sendable, Equatable {
         touchBarEnabled = try c.decodeIfPresent(Bool.self, forKey: .touchBarEnabled) ?? d.touchBarEnabled
         scenarioInspectorOnRight = try c.decodeIfPresent(Bool.self, forKey: .scenarioInspectorOnRight) ?? d.scenarioInspectorOnRight
         aiSphereDensityRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereDensityRaw) ?? d.aiSphereDensityRaw
+        reduceMotionEnabled = try c.decodeIfPresent(Bool.self, forKey: .reduceMotionEnabled) ?? d.reduceMotionEnabled
         quality = try c.decodeIfPresent(RenderQuality.self, forKey: .quality) ?? d.quality
         backgroundSpeed = try c.decodeIfPresent(Double.self, forKey: .backgroundSpeed) ?? d.backgroundSpeed
         backgroundDensity = try c.decodeIfPresent(Double.self, forKey: .backgroundDensity) ?? d.backgroundDensity

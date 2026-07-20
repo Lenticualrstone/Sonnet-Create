@@ -244,6 +244,7 @@ public struct TypewriterText: View {
 
     @State private var visibleCount = 0
     @State private var finishedAt: Date?
+    @Environment(\.motionReduced) private var motionReduced
 
     public init(
         _ text: String,
@@ -278,6 +279,12 @@ public struct TypewriterText: View {
             caret
         }
         .task(id: text) {
+            // 모션 줄이기 — 리빌 없이 전문 즉시 표시 (6단계)
+            guard !motionReduced else {
+                visibleCount = text.count
+                finishedAt = .distantPast
+                return
+            }
             guard progress == nil else {
                 visibleCount = min(progress ?? 0, text.count)
                 return
@@ -293,6 +300,7 @@ public struct TypewriterText: View {
             finishedAt = Date()
         }
         .onChange(of: progress) { _, newValue in
+            guard !motionReduced else { return }
             if let newValue {
                 visibleCount = max(visibleCount, min(newValue, text.count))
                 if visibleCount >= text.count, finishedAt == nil { finishedAt = Date() }
