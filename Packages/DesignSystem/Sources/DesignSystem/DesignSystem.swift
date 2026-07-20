@@ -568,8 +568,15 @@ public struct FirstUseCallout: View {
 private struct FadeUpOnAppear: ViewModifier {
     let delay: Double
     let distance: CGFloat
+    /// 세션당 1회 키 — 같은 키로 이미 재생했으면 즉시 표시 (탭 재방문마다
+    /// 스태거가 반복돼 전환이 난잡해지는 문제의 공통 해법).
+    let onceKey: String?
+
     @State private var shown = false
     @Environment(\.motionReduced) private var motionReduced
+
+    /// 이번 세션에 이미 재생한 키들.
+    @MainActor private static var playedKeys: Set<String> = []
 
     func body(content: Content) -> some View {
         content
@@ -577,19 +584,24 @@ private struct FadeUpOnAppear: ViewModifier {
             // 모션 줄이기 — 이동 없이 120ms opacity만 (6단계)
             .offset(y: shown || motionReduced ? 0 : distance)
             .onAppear {
+                if let onceKey, Self.playedKeys.contains(onceKey) {
+                    shown = true
+                    return
+                }
                 withAnimation(
                     motionReduced
                         ? .easeOut(duration: 0.12)
                         : DesignTokens.Motion.arrival.delay(delay)
                 ) { shown = true }
+                if let onceKey { Self.playedKeys.insert(onceKey) }
             }
     }
 }
 
 public extension View {
     /// 등장 시 아래→위 페이드 (delay로 스태거).
-    func fadeUpOnAppear(delay: Double = 0, distance: CGFloat = 14) -> some View {
-        modifier(FadeUpOnAppear(delay: delay, distance: distance))
+    func fadeUpOnAppear(delay: Double = 0, distance: CGFloat = 14, once: String? = nil) -> some View {
+        modifier(FadeUpOnAppear(delay: delay, distance: distance, onceKey: once))
     }
 }
 

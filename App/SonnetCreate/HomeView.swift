@@ -68,16 +68,16 @@ struct HomeView: View {
     private func mainColumn(_ l10n: Localizer) -> some View {
         VStack(alignment: .leading, spacing: 34) {
             hero(l10n)
-                .fadeUpOnAppear()
+                .fadeUpOnAppear(once: "home")
 
             searchTrigger(l10n)
-                .fadeUpOnAppear(delay: 0.045)
+                .fadeUpOnAppear(delay: 0.045, once: "home")
 
             quickStart(l10n)
-                .fadeUpOnAppear(delay: 0.09)
+                .fadeUpOnAppear(delay: 0.09, once: "home")
 
             continueSection(l10n)
-                .fadeUpOnAppear(delay: 0.135)
+                .fadeUpOnAppear(delay: 0.135, once: "home")
         }
     }
 
@@ -299,11 +299,11 @@ struct HomeView: View {
     private func sideColumn(_ l10n: Localizer) -> some View {
         VStack(spacing: 14) {
             writingCard(l10n)
-                .fadeUpOnAppear(delay: 0.09)
+                .fadeUpOnAppear(delay: 0.09, once: "home")
             projectsCard(l10n)
-                .fadeUpOnAppear(delay: 0.135)
+                .fadeUpOnAppear(delay: 0.135, once: "home")
             backupCard(l10n)
-                .fadeUpOnAppear(delay: 0.18)
+                .fadeUpOnAppear(delay: 0.18, once: "home")
         }
     }
 

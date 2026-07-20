@@ -238,35 +238,23 @@ struct MainWindowView: View {
             )
     }
 
-    /// 탭 전환 — EXIT 즉시. ENTER는 문서면 rise 360ms(8b), 홈/아카이브 같은
-    /// 대공간 이동이면 디더 디졸브(9b) — 판화가 찍히듯 점묘로 나타난다.
+    /// 탭 전환 — 조용한 크로스페이드로 통일 (사용자 확정: 디더/rise의 시차 등장이
+    /// 난잡해 180ms ease-out 페이드 + 미세 스케일로 교체. 원고를 넘기는 감각).
     @ViewBuilder
     private var content: some View {
-        let isSpatial: Bool = {
-            if case .document = app.selectedTab?.content { return false }
-            return true
-        }()
         ZStack {
             if let tab = app.selectedTab {
                 tabContent(tab)
                     .id(tab.id)
                     .transition(.asymmetric(
-                        // 모션 줄이기 — 디더/rise 대신 120ms opacity (6단계)
                         insertion: motionReduced
                             ? .opacity
-                            : (isSpatial
-                                ? .ditherReveal
-                                : .opacity.combined(with: .offset(y: 14))),
-                        removal: .identity
+                            : .opacity.combined(with: .scale(scale: 0.995)),
+                        removal: .opacity
                     ))
             }
         }
-        .animation(
-            motionReduced
-                ? .easeOut(duration: 0.12)
-                : (isSpatial ? .linear(duration: 0.68) : DesignTokens.Motion.rise),
-            value: app.selectedTabID
-        )
+        .animation(.easeOut(duration: motionReduced ? 0.12 : 0.18), value: app.selectedTabID)
     }
 
     @ViewBuilder
