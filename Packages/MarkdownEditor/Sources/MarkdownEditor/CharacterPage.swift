@@ -292,6 +292,22 @@ struct CharacterRelationsTab: View {
         let catalog = store.characterCatalog?() ?? []
         ScrollView {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.l) {
+                // 빈 상태 — 인물 추가와 마인드맵 승격을 함께 안내 (4단계 캐릭터)
+                if relations.isEmpty {
+                    VStack(spacing: DesignTokens.Spacing.s) {
+                        Image(systemName: "person.line.dotted.person")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.tertiary)
+                        Text(l10n.t(.relationsEmptyHint))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 420)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 48)
+                }
+
                 // 방사형 관계도 (자동 생성) + 마인드맵 승격 (3c)
                 if !relations.isEmpty {
                     if store.onPromoteRelations != nil {
@@ -494,6 +510,21 @@ struct CharacterGalleryTab: View {
         let items = store.content.profile?.gallery ?? []
         ScrollView {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.m) {
+                // 빈 상태 — 추가 방법과 지원 형식 안내 (4단계 캐릭터)
+                if items.isEmpty {
+                    VStack(spacing: DesignTokens.Spacing.s) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.tertiary)
+                        Text(l10n.t(.galleryEmptyHint))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 420)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 48)
+                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: DesignTokens.Spacing.m)], spacing: DesignTokens.Spacing.m) {
                     ForEach(items) { item in
                         galleryCard(item, l10n: l10n)
@@ -636,9 +667,12 @@ struct CharacterVoiceTab: View {
                         Image(systemName: "waveform")
                             .font(.system(size: 30))
                             .foregroundStyle(.tertiary)
-                        Text(l10n.t(.aiCompose) + " ← " + l10n.t(.voiceTab))
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                        // AI 대사 품질에 미치는 영향을 설명한다 (4단계 캐릭터)
+                        Text(l10n.t(.voiceEmptyHint))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 420)
                         Button {
                             store.updateProfile { $0.voice = CharacterVoice() }
                         } label: {

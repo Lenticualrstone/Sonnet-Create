@@ -63,6 +63,7 @@ public enum L10nKey: String, Sendable {
     case emptyAddFirstScene, emptyConnectCharacter
     case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
     case accessibilitySection, reduceMotionLabel, reduceMotionCaption
+    case relationsEmptyHint, galleryEmptyHint, voiceEmptyHint
     case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
     case categorySection
     case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
@@ -425,6 +426,21 @@ public final class Localizer {
             .english: "Sonnet AI wants to perform this action",
         ],
         .accessibilitySection: [.korean: "접근성", .japanese: "アクセシビリティ", .english: "Accessibility"],
+        .relationsEmptyHint: [
+            .korean: "관계를 추가하면 방사형 관계도가 자동으로 그려집니다. 관계가 쌓이면 마인드맵으로 승격해 큰 그림을 편집할 수 있어요.",
+            .japanese: "関係を追加すると放射状の関係図が自動で描かれます。関係が増えたらマインドマップに昇格して全体像を編集できます。",
+            .english: "Add relations to draw an automatic radial map. Once they grow, promote them to a mind map to edit the big picture.",
+        ],
+        .galleryEmptyHint: [
+            .korean: "아래 ‘이미지 추가’로 이 캐릭터의 이미지를 모아 보세요 — PNG·JPG·HEIC·WebP 등 이미지 형식을 지원합니다.",
+            .japanese: "下の「画像を追加」でこのキャラクターの画像を集めましょう — PNG・JPG・HEIC・WebPなどに対応しています。",
+            .english: "Use “Add Image” below to collect images of this character — PNG, JPG, HEIC, WebP and more are supported.",
+        ],
+        .voiceEmptyHint: [
+            .korean: "보이스 카드는 AI가 이 캐릭터의 대사를 쓸 때 말투 기준이 됩니다 — 예시 대사가 있을수록 자동작성 품질이 올라갑니다.",
+            .japanese: "ボイスカードはAIがこのキャラクターのセリフを書くときの口調の基準になります — 例文が多いほど自動生成の品質が上がります。",
+            .english: "Voice cards anchor this character's tone when the AI writes dialogue — the more sample lines, the better the drafts.",
+        ],
         .reduceMotionLabel: [.korean: "모션 줄이기", .japanese: "モーションを減らす", .english: "Reduce Motion"],
         .reduceMotionCaption: [
             .korean: "스플래시·화면 전환·타자기 리빌·AI 성운 등 장식 모션을 즉시 표시로 대체합니다. 시스템 손쉬운 사용의 ‘동작 줄이기’도 자동 반영됩니다.",

@@ -676,7 +676,11 @@ public struct ArchiveView: View {
 
     private var gridView: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: DesignTokens.Spacing.m)], spacing: DesignTokens.Spacing.m) {
+            // 카드 최소·최대 폭 지정 — 넓은 화면에서 카드가 늘어나 고립돼 보이지 않게 (4단계 아카이브)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150, maximum: 230), spacing: DesignTokens.Spacing.m)],
+                spacing: DesignTokens.Spacing.m
+            ) {
                 ForEach(entries) { entry in
                     switch entry {
                     case .document(let item):
