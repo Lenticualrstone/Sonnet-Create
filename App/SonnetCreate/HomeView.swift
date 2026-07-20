@@ -84,6 +84,17 @@ struct HomeView: View {
         }
     }
 
+    /// 히어로 크기 — 창 폭에 따라 단계 축소 (2단계 3: 좁은 창에서 위압적이지 않게).
+    private var heroSize: CGFloat {
+        if homeWidth >= 1180 {
+            34
+        } else if homeWidth >= 1000 {
+            30
+        } else {
+            26
+        }
+    }
+
     /// 세리프 타이포 히어로 — 날짜 캡션 + 2행 인사말.
     /// 앱 세션 첫 진입 1회만 인사말 첫 줄이 타자기 리빌(9e)로 새겨진다 (매번은 피로).
     private func hero(_ l10n: Localizer) -> some View {
@@ -99,9 +110,9 @@ struct HomeView: View {
                     if playGreetingReveal == true {
                         TypewriterText(
                             greetingText,
-                            font: DSFonts.display(size: 34, weight: .semibold),
+                            font: DSFonts.display(size: heroSize, weight: .semibold),
                             color: SonnetPalette.ink,
-                            caretHeight: 30
+                            caretHeight: heroSize * 0.88
                         )
                     } else if playGreetingReveal == false {
                         Text(greetingText)
@@ -109,7 +120,7 @@ struct HomeView: View {
                 }
                 Text(l10n.t(.greetingFollowup))
             }
-            .font(DSFonts.display(size: 34, weight: .semibold))
+            .font(DSFonts.display(size: heroSize, weight: .semibold))
             .foregroundStyle(SonnetPalette.ink)
             .lineSpacing(6)
             .lineLimit(nil)

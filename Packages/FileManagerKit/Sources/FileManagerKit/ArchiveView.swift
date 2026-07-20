@@ -127,21 +127,27 @@ public struct ArchiveView: View {
                         .padding(.horizontal, DesignTokens.Spacing.m)
                         .padding(.top, 4)
                 }
-                selectionBar(l10n)
-                if isProtected, !unlockGranted {
-                    lockedPlaceholder(l10n)
-                } else if category == .all {
-                    if overviewSections.isEmpty, otherItems.isEmpty {
-                        emptyPlaceholder(l10n)
-                    } else {
-                        overviewView
+                // 다중 선택 액션바는 목록 위에 떠 있는 오버레이 — 콘텐츠를 밀어내지 않는다 (4단계 아카이브)
+                ZStack(alignment: .top) {
+                    Group {
+                        if isProtected, !unlockGranted {
+                            lockedPlaceholder(l10n)
+                        } else if category == .all {
+                            if overviewSections.isEmpty, otherItems.isEmpty {
+                                emptyPlaceholder(l10n)
+                            } else {
+                                overviewView
+                            }
+                        } else if entries.isEmpty {
+                            emptyPlaceholder(l10n)
+                        } else if isGrid {
+                            gridView
+                        } else {
+                            listView
+                        }
                     }
-                } else if entries.isEmpty {
-                    emptyPlaceholder(l10n)
-                } else if isGrid {
-                    gridView
-                } else {
-                    listView
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    selectionBar(l10n)
                 }
             }
         }
@@ -460,7 +466,17 @@ public struct ArchiveView: View {
             }
             .padding(.horizontal, DesignTokens.Spacing.m)
             .padding(.vertical, DesignTokens.Spacing.s)
-            .background(Color.primary.opacity(0.05))
+            .background(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .fill(SonnetPalette.surface)
+                    .shadow(color: SonnetPalette.ink.opacity(0.14), radius: 8, y: 3)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .strokeBorder(SonnetPalette.ink.opacity(0.09), lineWidth: 1)
+            )
+            .padding(.horizontal, DesignTokens.Spacing.m)
+            .padding(.top, DesignTokens.Spacing.s)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }

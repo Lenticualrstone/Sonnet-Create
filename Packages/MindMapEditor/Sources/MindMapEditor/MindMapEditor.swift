@@ -48,13 +48,15 @@ public struct MindMapEditorView: View {
         VStack(spacing: 0) {
             toolbar(l10n)
             Divider().opacity(0.4)
-            // 첫 사용 안내 — 문서 링크 노드 사용법을 한 번만 (5단계 상황별 안내)
-            if !isReadOnly {
-                FirstUseCallout(id: "mindmap-doc-link", text: l10n.t(.calloutMindmapLink))
-                    .padding(.top, DesignTokens.Spacing.s)
-            }
             HStack(spacing: 0) {
                 canvas(l10n)
+                    // 첫 사용 안내 — 캔버스를 밀어내지 않는 오버레이 (5단계 상황별 안내)
+                    .overlay(alignment: .top) {
+                        if !isReadOnly {
+                            FirstUseCallout(id: "mindmap-doc-link", text: l10n.t(.calloutMindmapLink))
+                                .padding(.top, DesignTokens.Spacing.s)
+                        }
+                    }
                 if showInspector, store.selectedNode != nil, !isReadOnly {
                     Divider().opacity(0.4)
                     MindMapInspectorView(store: store, onOpenDocument: onOpenDocument)
