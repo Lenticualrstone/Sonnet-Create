@@ -378,12 +378,21 @@ public struct SettingsRootView: View {
 
     private func appearanceTab(_ l10n: Localizer) -> some View {
         Form {
+            // 테마 선택 — 실제 캔버스/인장 색을 보여주는 미리보기 타일 (4c: 현재 선택을 보여주는 실제 미리보기)
             LabeledContent(l10n.t(.themeMode)) {
-                DSSegmentedPicker(selection: $store.draft.themeMode, options: [
-                    (ThemeMode.system, l10n.t(.themeSystem)),
-                    (ThemeMode.light, l10n.t(.themeLight)),
-                    (ThemeMode.dark, l10n.t(.themeDark)),
-                ])
+                HStack(spacing: 12) {
+                    themeTile(.system, style: .lightDark, label: l10n.t(.themeSystem))
+                    themeTile(
+                        .light,
+                        style: .split(main: Color(hex: "#F6F4EF"), accent: Color(hex: "#B23A21")),
+                        label: l10n.t(.themeLight)
+                    )
+                    themeTile(
+                        .dark,
+                        style: .split(main: Color(hex: "#12100D"), accent: Color(hex: "#E8695A")),
+                        label: l10n.t(.themeDark)
+                    )
+                }
             }
 
             // AI 성운 스피어 — 라이브 프리뷰를 보며 밀도를 고른다 (draft 즉시 반영, 저장 시 앱 전역 적용).
@@ -417,11 +426,9 @@ public struct SettingsRootView: View {
                         ("full", l10n.t(.glassModeFull)),
                     ])
                 }
+                // 유리 강도 — 4c 눈금-렌즈 슬라이더 (렌즈 노브가 눈금 위를 미끄러진다)
                 LabeledContent(l10n.t(.glassIntensityLabel)) {
-                    BarSlider(
-                        value: $store.draft.glassIntensity, in: 0.2...1.0, step: 0.02,
-                        format: { "\(Int($0 * 100))%" }
-                    )
+                    LensTickSlider(value: $store.draft.glassIntensity, range: 0.2...1.0, step: 0.02)
                 }
                 Toggle(l10n.t(.disableGlass), isOn: $store.draft.disableLiquidGlass)
                 Text(l10n.t(.qualityLow) + " → " + l10n.t(.disableGlass))
@@ -453,6 +460,33 @@ public struct SettingsRootView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// 테마 미리보기 타일 — 클릭으로 선택, 선택 상태는 인장 보더.
+    private func themeTile(_ mode: ThemeMode, style: ThemeSwatchStyle, label: String) -> some View {
+        let isSelected = store.draft.themeMode == mode
+        return Button {
+            store.draft.themeMode = mode
+        } label: {
+            VStack(spacing: 5) {
+                ThemeColorTile(style: style)
+                    .frame(width: 46, height: 32)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(
+                                isSelected ? SonnetPalette.accent : SonnetPalette.ink.opacity(0.12),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
+                Text(label)
+                    .font(.caption2.weight(isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? SonnetPalette.accentDeep : .secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: 텍스트 — 전 에디터 공통 글꼴/간격
@@ -775,6 +809,79 @@ public struct TouchBarPreviewView: View {
         .frame(height: 34)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.black))
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// 4c 눈금-렌즈 슬라이더 — 채워진 눈금은 인장(버밀리온), 글래스 렌즈 노브가 그 위를
+/// 미끄러진다. 값 텍스트는 노브 밖 우측 고정이라 렌즈에 가려 읽기 어려운 일이 없다.
+private struct LensTickSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+
+    @Environment(\.resolvedAccent) private var accent
+
+    private var fraction: Double {
+        (value - range.lowerBound) / (range.upperBound - range.lowerBound)
+    }
+
+    private func setValue(fromX x: CGFloat, width: CGFloat) {
+        let usable = max(width - 26, 1)
+        let f = min(1, max(0, (x - 13) / usable))
+        let raw = range.lowerBound + f * (range.upperBound - range.lowerBound)
+        let stepped = (raw / step).rounded() * step
+        value = min(range.upperBound, max(range.lowerBound, stepped))
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            GeometryReader { geo in
+                let width = geo.size.width
+                ZStack(alignment: .leading) {
+                    HStack(spacing: 0) {
+                        ForEach(0..<24, id: \.self) { index in
+                            let tickFraction = Double(index) / 23.0
+                            Capsule()
+                                .fill(tickFraction <= fraction ? accent : SonnetPalette.ink.opacity(0.15))
+                                .frame(width: 2.5, height: index.isMultiple(of: 3) ? 14 : 10)
+                            if index < 23 { Spacer(minLength: 0) }
+                        }
+                    }
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Circle().strokeBorder(SonnetPalette.glassRim, lineWidth: 1))
+                        .overlay(Capsule().fill(accent).frame(width: 3, height: 14))
+                        .frame(width: 26, height: 26)
+                        .shadow(color: SonnetPalette.ink.opacity(0.2), radius: 4, y: 2)
+                        .offset(x: fraction * (width - 26))
+                }
+                .frame(height: 30)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            setValue(fromX: gesture.location.x, width: width)
+                        }
+                )
+            }
+            .frame(width: 200, height: 30)
+
+            Text("\(Int((value * 100).rounded()))%")
+                .font(DSType.mono(size: 12, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(width: 42, alignment: .trailing)
+        }
+        // 커스텀 슬라이더 — VoiceOver 값/증감 액션 제공 (6단계)
+        .accessibilityElement()
+        .accessibilityLabel(Localizer.shared.t(.glassIntensityLabel))
+        .accessibilityValue("\(Int((value * 100).rounded()))%")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: value = min(range.upperBound, value + step)
+            case .decrement: value = max(range.lowerBound, value - step)
+            @unknown default: break
+            }
+        }
     }
 }
 
