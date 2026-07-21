@@ -17,8 +17,6 @@ public struct ScenarioEditorView: View {
     let inspectorOnRight: Bool
 
     @State private var showInspector = true
-    /// 플롯을 3D 궤도(구조 보기)로 볼지 — 기본은 기존 카드 타임라인.
-    @AppStorage("scenario-plot-orbit") private var showPlotOrbit = false
     @Environment(\.renderQuality) private var quality
     @Environment(\.contentBlockSpacing) private var blockSpacing
     @Environment(\.resolvedAccent) private var accent
@@ -99,16 +97,9 @@ public struct ScenarioEditorView: View {
             toolbar(l10n)
             Divider().opacity(0.4)
             // 플롯 타임라인 (2a) — 장면 카드 + 분기 레인. 리허설 중에는 숨긴다.
-            // '구조 보기'를 켜면 같은 데이터를 3D 궤도(하나의 획)로 본다.
             if !isRehearsing, !store.content.blocks.isEmpty {
-                if showPlotOrbit {
-                    PlotOrbitView(store: store) { targetID in
-                        jumpToScene(targetID)
-                    }
-                } else {
-                    PlotTimelineView(store: store, isReadOnly: isReadOnly) { targetID in
-                        jumpToScene(targetID)
-                    }
+                PlotTimelineView(store: store, isReadOnly: isReadOnly) { targetID in
+                    jumpToScene(targetID)
                 }
                 Divider().opacity(0.25)
             }
@@ -162,17 +153,6 @@ public struct ScenarioEditorView: View {
 
             if scenes.count >= 2 {
                 sceneMenu(l10n)
-            }
-            // 플롯 표현 전환 — 카드 타임라인 ↔ 3D 궤도(구조 보기).
-            // 장면을 나누지 않은 문서에서도 블록 흐름으로 궤도를 볼 수 있다.
-            if !store.content.blocks.isEmpty {
-                ToolbarIconButton(
-                    showPlotOrbit ? "list.bullet.rectangle" : "point.3.filled.connected.trianglepath.dotted",
-                    help: l10n.t(.plotOrbit),
-                    isActive: showPlotOrbit
-                ) {
-                    withAnimation(DesignTokens.Motion.gentle) { showPlotOrbit.toggle() }
-                }
             }
 
             Spacer()
