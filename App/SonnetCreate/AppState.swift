@@ -270,16 +270,6 @@ final class AppState {
     /// 첫 실행 온보딩 표시 여부 — 새 워크스페이스 첫 실행 1회 + 설정에서 재실행.
     var showOnboarding = false
 
-    /// 시동 스플래시의 나선 활자에 새길 문서 제목들 —
-    /// 문서가 충분할 때만(4개 이상) 쓰고, 그 전에는 기존 획순 연출만 보여준다.
-    var splashSpiralWords: [String] {
-        let titles = workspace.visibleDocuments
-            .sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
-            .prefix(12)
-            .map(\.envelope.title)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
-        return titles.count >= 4 ? Array(titles) : []
-    }
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
     /// 앱 활성 상태 — 비활성이면 장식 애니메이션(성운·도트 웨이브)을 정지해 절전한다

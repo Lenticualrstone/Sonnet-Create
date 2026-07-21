@@ -92,8 +92,7 @@ struct MainWindowView: View {
         // 시동 스플래시 (8a) — 잉크 스트로크 획순 드로우 → 워드마크 → 잉크 바 → 홈 인계
         .overlay {
             if showSplash {
-                // 최근 문서 제목이 나선 활자로 — 워크스페이스가 인트로가 된다 (문서 4개 이상일 때만)
-                SplashView(spiralWords: app.splashSpiralWords) {
+                SplashView {
                     showSplash = false
                     app.evaluateOnboarding()
                 }

@@ -234,11 +234,11 @@ private struct ProjectCard: View {
             )
             // 표지 — 이 프로젝트 문서 제목들로 짠 활자 나선 (아주 옅은 정적 장식)
             .background {
-                if members.count >= 3 {
+                if !members.isEmpty {
                     SpiralTypeField(
                         words: members.prefix(10).map(\.envelope.title),
                         speed: 0,
-                        maxOpacity: 0.14,
+                        maxOpacity: 0.3,
                         color: SonnetPalette.ink
                     )
                     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))

@@ -162,9 +162,12 @@ public struct ScenarioEditorView: View {
 
             if scenes.count >= 2 {
                 sceneMenu(l10n)
-                // 플롯 표현 전환 — 카드 타임라인 ↔ 3D 궤도(구조 보기)
+            }
+            // 플롯 표현 전환 — 카드 타임라인 ↔ 3D 궤도(구조 보기).
+            // 장면을 나누지 않은 문서에서도 블록 흐름으로 궤도를 볼 수 있다.
+            if !store.content.blocks.isEmpty {
                 ToolbarIconButton(
-                    showPlotOrbit ? "chart.line.uptrend.xyaxis" : "point.topleft.down.curvedto.point.bottomright.up",
+                    showPlotOrbit ? "list.bullet.rectangle" : "point.3.filled.connected.trianglepath.dotted",
                     help: l10n.t(.plotOrbit),
                     isActive: showPlotOrbit
                 ) {

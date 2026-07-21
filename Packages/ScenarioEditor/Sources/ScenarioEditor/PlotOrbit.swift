@@ -26,12 +26,48 @@ struct PlotOrbitView: View {
     /// 스크럽 위치 (0...1) — 획 위를 훑는 인장 점
     @State private var progress: Double = 1
 
-    private var scenes: [ScenarioStore.PlotScene] { store.plotScenes }
+    /// 궤도의 마디 하나 — 장면(구분선으로 나눈 구간)이 기본이지만,
+    /// 장면을 나누지 않은 문서에서는 대사/지침 블록이 마디가 된다.
+    struct OrbitNode: Identifiable {
+        let id: UUID
+        let title: String
+        /// 획의 높이를 정하는 무게 (장면=대사 수, 블록=글자 수)
+        let weight: Int
+        let branchCount: Int
+        let jumpTargetID: UUID
+    }
+
+    /// 장면이 2개 이상이면 장면 궤도, 아니면 블록 흐름을 궤도로 그린다.
+    private var nodes: [OrbitNode] {
+        let scenes = store.plotScenes
+        if scenes.count >= 2 {
+            return scenes.map {
+                OrbitNode(
+                    id: $0.id,
+                    title: $0.title,
+                    weight: $0.lineCount,
+                    branchCount: $0.branchIDs.count,
+                    jumpTargetID: $0.jumpTargetID
+                )
+            }
+        }
+        // 폴백 — 블록 하나가 마디. 구분선은 장면 제목으로 읽는다.
+        return store.visibleBlocks.filter { $0.kind != .divider || !$0.text.isEmpty }.map { block in
+            OrbitNode(
+                id: block.id,
+                title: block.text.isEmpty ? "…" : String(block.text.prefix(28)),
+                weight: max(block.text.count, 1),
+                branchCount: 0,
+                jumpTargetID: block.id
+            )
+        }
+    }
 
     /// 스크럽 위치에 해당하는 장면 인덱스
     private var focusedIndex: Int {
-        guard scenes.count > 1 else { return 0 }
-        return min(scenes.count - 1, max(0, Int((progress * Double(scenes.count - 1)).rounded())))
+        let nodes = nodes
+        guard nodes.count > 1 else { return 0 }
+        return min(nodes.count - 1, max(0, Int((progress * Double(nodes.count - 1)).rounded())))
     }
 
     var body: some View {
@@ -41,8 +77,9 @@ struct PlotOrbitView: View {
                 ZStack(alignment: .topLeading) {
                     canvas(size: geo.size)
                     // 사건 칩 — 지금 훑고 있는 장면만 (모두 띄우면 난잡해진다)
-                    if scenes.indices.contains(focusedIndex) {
-                        sceneChip(scenes[focusedIndex], size: geo.size, l10n: l10n)
+                    let nodes = nodes
+                    if nodes.indices.contains(focusedIndex) {
+                        sceneChip(nodes[focusedIndex], size: geo.size, l10n: l10n)
                     }
                 }
                 .contentShape(Rectangle())
@@ -58,9 +95,9 @@ struct PlotOrbitView: View {
         .onAppear {
             // 현재 보고 있는 장면이 있으면 그 위치로 스크럽을 맞춘다
             if let currentID = store.currentSceneID,
-               let index = scenes.firstIndex(where: { $0.id == currentID }),
-               scenes.count > 1 {
-                progress = Double(index) / Double(scenes.count - 1)
+               let index = nodes.firstIndex(where: { $0.id == currentID }),
+               nodes.count > 1 {
+                progress = Double(index) / Double(nodes.count - 1)
             }
         }
     }
@@ -68,11 +105,11 @@ struct PlotOrbitView: View {
     // MARK: 획 그리기
 
     /// 장면 i의 3D 좌표 — x는 시간축, y는 대사량(높이), z는 분기 깊이.
-    private func point(for index: Int, in scenes: [ScenarioStore.PlotScene]) -> SIMD3<Double> {
-        let count = max(scenes.count - 1, 1)
+    private func point(for index: Int, in nodes: [OrbitNode]) -> SIMD3<Double> {
+        let count = max(nodes.count - 1, 1)
         let t = Double(index) / Double(count)
-        let maxLines = max(scenes.map(\.lineCount).max() ?? 1, 1)
-        let height = Double(scenes[index].lineCount) / Double(maxLines)
+        let maxWeight = max(nodes.map(\.weight).max() ?? 1, 1)
+        let height = Double(nodes[index].weight) / Double(maxWeight)
         // 시간축을 가로지르며 완만하게 흔들리는 획 — 직선보다 '여정'처럼 읽힌다
         return SIMD3(
             (t - 0.5) * 2.0,
@@ -98,11 +135,11 @@ struct PlotOrbitView: View {
     }
 
     private func canvas(size: CGSize) -> some View {
-        let scenes = scenes
+        let nodes = nodes
         return Canvas { context, canvasSize in
-            guard scenes.count >= 2 else { return }
+            guard nodes.count >= 2 else { return }
             let inkColor = colorScheme == .dark ? SonnetPalette.inkMuted : SonnetPalette.ink
-            let projected = scenes.indices.map { project(point(for: $0, in: scenes), in: canvasSize) }
+            let projected = nodes.indices.map { project(point(for: $0, in: nodes), in: canvasSize) }
 
             // 본선 — 장면을 잇는 하나의 획 (곡선 보간)
             var path = Path()
@@ -128,15 +165,15 @@ struct PlotOrbitView: View {
             )
 
             // 분기 — 본선에서 갈라져 나가는 가는 획 (점선)
-            for (index, scene) in scenes.enumerated() where !scene.branchIDs.isEmpty {
+            for (index, node) in nodes.enumerated() where node.branchCount > 0 {
                 let origin = projected[index]
-                for (branchIndex, _) in scene.branchIDs.enumerated() {
+                for branchIndex in 0..<node.branchCount {
                     let spread = Double(branchIndex + 1) * 0.5
                     let target = project(
                         SIMD3(
-                            point(for: index, in: scenes).x + 0.22,
-                            point(for: index, in: scenes).y - 0.45 * spread,
-                            point(for: index, in: scenes).z + 0.4 * spread
+                            point(for: index, in: nodes).x + 0.22,
+                            point(for: index, in: nodes).y - 0.45 * spread,
+                            point(for: index, in: nodes).z + 0.4 * spread
                         ),
                         in: canvasSize
                     )
@@ -189,7 +226,7 @@ struct PlotOrbitView: View {
     // MARK: 사건 칩 · 스크럽
 
     /// 지금 훑고 있는 장면의 요약 칩 — 클릭하면 그 장면으로 점프.
-    private func sceneChip(_ scene: ScenarioStore.PlotScene, size: CGSize, l10n: Localizer) -> some View {
+    private func sceneChip(_ scene: OrbitNode, size: CGSize, l10n: Localizer) -> some View {
         Button {
             store.currentSceneID = scene.id
             onJump(scene.jumpTargetID)
@@ -202,11 +239,11 @@ struct PlotOrbitView: View {
                     .font(.caption.weight(.medium))
                     .foregroundStyle(SonnetPalette.ink)
                     .lineLimit(1)
-                Text(String(format: l10n.t(.linesCountFormat), scene.lineCount))
+                Text(String(format: l10n.t(.linesCountFormat), scene.weight))
                     .font(.caption2)
                     .foregroundStyle(SonnetPalette.inkMuted)
-                if !scene.branchIDs.isEmpty {
-                    Text("⑂\(scene.branchIDs.count)")
+                if scene.branchCount > 0 {
+                    Text("⑂\(scene.branchCount)")
                         .font(DSType.mono(size: 9.5, weight: .semibold))
                         .foregroundStyle(accent)
                 }
@@ -233,7 +270,7 @@ struct PlotOrbitView: View {
             Slider(value: $progress, in: 0...1)
                 .controlSize(.mini)
                 .tint(accent)
-            Text("\(focusedIndex + 1)/\(max(scenes.count, 1))")
+            Text("\(focusedIndex + 1)/\(max(nodes.count, 1))")
                 .font(DSType.mono(size: 10))
                 .foregroundStyle(SonnetPalette.inkMuted)
                 .frame(width: 42, alignment: .trailing)
