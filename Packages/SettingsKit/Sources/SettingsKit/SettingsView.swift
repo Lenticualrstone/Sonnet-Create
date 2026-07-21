@@ -50,19 +50,23 @@ private struct SettingsSidebarRow: View {
     let action: () -> Void
 
     @State private var hovering = false
-    @Environment(\.resolvedAccent) private var accent
 
     var body: some View {
+        // 4c — 선택은 인장 틴트 워시 + 딥 버밀리온 텍스트 (색과 배경 형태를 함께 사용)
         Button(action: action) {
             Label(title, systemImage: symbol)
-                .font(.callout)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .padding(.vertical, 7)
-                .padding(.horizontal, 9)
+                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? SonnetPalette.accentDeep : SonnetPalette.inkSoft)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 11)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(isSelected ? accent : (hovering ? Color.primary.opacity(0.06) : .clear))
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(
+                            isSelected
+                                ? SonnetPalette.accentTint
+                                : (hovering ? SonnetPalette.ink.opacity(0.05) : .clear)
+                        )
                 )
                 .contentShape(Rectangle())
         }
@@ -114,45 +118,85 @@ public struct SettingsRootView: View {
                             }
                         }
                     }
-                    .padding(8)
+                    .padding(10)
                 }
-                .frame(width: 176)
+                .frame(width: 196)
+                .background(SonnetPalette.surface.opacity(0.4))
 
                 Divider().opacity(0.4)
 
-                Group {
-                    switch category {
-                    case .general: generalTab(l10n)
-                    case .appearance: appearanceTab(l10n)
-                    case .text: textTab(l10n)
-                    case .scenario: scenarioTab(l10n)
-                    case .page: pageTab(l10n)
-                    case .mindmap: mindmapTab(l10n)
-                    case .archive: archiveTab(l10n)
-                    case .ai: aiTab(l10n)
-                    case .beta: betaTab(l10n)
+                // 우측 — 세리프 카테고리 제목 (4c) + 폼
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(l10n.t(category.key))
+                        .font(DSFonts.display(size: 21, weight: .bold))
+                        .foregroundStyle(SonnetPalette.ink)
+                        .padding(.horizontal, DesignTokens.Spacing.l)
+                        .padding(.top, DesignTokens.Spacing.l)
+                        .padding(.bottom, DesignTokens.Spacing.xs)
+
+                    Group {
+                        switch category {
+                        case .general: generalTab(l10n)
+                        case .appearance: appearanceTab(l10n)
+                        case .text: textTab(l10n)
+                        case .scenario: scenarioTab(l10n)
+                        case .page: pageTab(l10n)
+                        case .mindmap: mindmapTab(l10n)
+                        case .archive: archiveTab(l10n)
+                        case .ai: aiTab(l10n)
+                        case .beta: betaTab(l10n)
+                        }
                     }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
 
             Divider()
-            HStack {
+            // sticky footer (4c) — 변경 건수 + 되돌리기(회색 칩) + 저장(인장)
+            HStack(spacing: 10) {
                 if store.hasChanges {
-                    Text("•")
-                        .foregroundStyle(Color(hex: "#FF5B5B"))
+                    Text(String(format: l10n.t(.settingsChangesFormat), store.changeCount))
+                        .font(.caption)
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .transition(.opacity)
                 }
                 Spacer()
-                Button(l10n.t(.cancel)) { store.revert() }
-                    .disabled(!store.hasChanges)
-                Button(l10n.t(.save)) { store.save() }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!store.hasChanges)
-                    .keyboardShortcut("s", modifiers: .command)
+                Button { store.revert() } label: {
+                    Text(l10n.t(.revertChanges))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(SonnetPalette.inkSoft)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(SonnetPalette.ink.opacity(0.06))
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!store.hasChanges)
+                .opacity(store.hasChanges ? 1 : 0.45)
+
+                Button { store.save() } label: {
+                    Text(l10n.t(.save))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .background(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .fill(SonnetPalette.accent)
+                        )
+                }
+                .buttonStyle(.plain)
+                .disabled(!store.hasChanges)
+                .opacity(store.hasChanges ? 1 : 0.45)
+                .keyboardShortcut("s", modifiers: .command)
             }
-            .padding(DesignTokens.Spacing.m)
+            .padding(.horizontal, DesignTokens.Spacing.l)
+            .padding(.vertical, DesignTokens.Spacing.m)
+            .animation(DesignTokens.Motion.snappy, value: store.hasChanges)
         }
-        .frame(width: 700, height: 520)
+        .frame(width: 860, height: 620)
         .onAppear { store.refreshAPIKeyDraft() }
     }
 
@@ -334,34 +378,34 @@ public struct SettingsRootView: View {
 
     private func appearanceTab(_ l10n: Localizer) -> some View {
         Form {
+            // 테마 선택 — 실제 캔버스/인장 색을 보여주는 미리보기 타일 (4c: 현재 선택을 보여주는 실제 미리보기)
             LabeledContent(l10n.t(.themeMode)) {
-                DSSegmentedPicker(selection: $store.draft.themeMode, options: [
-                    (ThemeMode.system, l10n.t(.themeSystem)),
-                    (ThemeMode.light, l10n.t(.themeLight)),
-                    (ThemeMode.dark, l10n.t(.themeDark)),
-                ])
+                HStack(spacing: 12) {
+                    themeTile(.system, style: .lightDark, label: l10n.t(.themeSystem))
+                    themeTile(
+                        .light,
+                        style: .split(main: Color(hex: "#F6F4EF"), accent: Color(hex: "#B23A21")),
+                        label: l10n.t(.themeLight)
+                    )
+                    themeTile(
+                        .dark,
+                        style: .split(main: Color(hex: "#12100D"), accent: Color(hex: "#E8695A")),
+                        label: l10n.t(.themeDark)
+                    )
+                }
             }
 
-            // AI 스피어 스타일 — 라이브 프리뷰를 보며 고른다 (draft 즉시 반영, 저장 시 앱 전역 적용)
+            // AI 성운 스피어 — 라이브 프리뷰를 보며 밀도를 고른다 (draft 즉시 반영, 저장 시 앱 전역 적용).
+            // 색 램프는 컨텍스트(라이트/다크·생성 중)가 자동 결정하므로 스타일 선택은 없다.
             Section(l10n.t(.aiSphereStyle)) {
                 VStack(spacing: DesignTokens.Spacing.m) {
-                    AISphere(
-                        size: 76,
-                        style: AISphereStyle(rawValue: store.draft.aiSphereStyleRaw) ?? .particle
-                    )
-                    .environment(\.aiSphereDensity, AISphereDensity(rawValue: store.draft.aiSphereDensityRaw) ?? .normal)
-                    DSSegmentedPicker(
-                        selection: $store.draft.aiSphereStyleRaw,
-                        options: AISphereStyle.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
-                    )
-                    // 밀도는 파티클 스타일에서만 의미 있다
-                    if store.draft.aiSphereStyleRaw == AISphereStyle.particle.rawValue {
-                        LabeledContent(l10n.t(.sphereDensity)) {
-                            DSSegmentedPicker(
-                                selection: $store.draft.aiSphereDensityRaw,
-                                options: AISphereDensity.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
-                            )
-                        }
+                    AISphere(size: 76)
+                        .environment(\.aiSphereDensity, AISphereDensity(rawValue: store.draft.aiSphereDensityRaw) ?? .normal)
+                    LabeledContent(l10n.t(.sphereDensity)) {
+                        DSSegmentedPicker(
+                            selection: $store.draft.aiSphereDensityRaw,
+                            options: AISphereDensity.allCases.map { ($0.rawValue, l10n.t($0.labelKey)) }
+                        )
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -374,11 +418,29 @@ public struct SettingsRootView: View {
                 )
             }
 
-            LabeledContent(l10n.t(.tabStyle)) {
-                DSSegmentedPicker(selection: $store.draft.tabStyleRaw, options: [
-                    ("chrome", l10n.t(.tabStyleChrome)),
-                    ("capsule", l10n.t(.tabStyleCapsule)),
-                ])
+            // LIQUID GLASS — 적용 모드(포인트/풀)와 강도, 저사양 자동 평면 (4c)
+            Section("LIQUID GLASS") {
+                LabeledContent(l10n.t(.glassMode)) {
+                    DSSegmentedPicker(selection: $store.draft.glassModeRaw, options: [
+                        ("point", l10n.t(.glassModePoint)),
+                        ("full", l10n.t(.glassModeFull)),
+                    ])
+                }
+                // 유리 강도 — 4c 눈금-렌즈 슬라이더 (렌즈 노브가 눈금 위를 미끄러진다)
+                LabeledContent(l10n.t(.glassIntensityLabel)) {
+                    LensTickSlider(value: $store.draft.glassIntensity, range: 0.2...1.0, step: 0.02)
+                }
+                Toggle(l10n.t(.disableGlass), isOn: $store.draft.disableLiquidGlass)
+                Text(l10n.t(.qualityLow) + " → " + l10n.t(.disableGlass))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(l10n.t(.paperGrain), isOn: $store.draft.paperGrainEnabled)
+                Text(l10n.t(.paperGrainCaption))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             LabeledContent(l10n.t(.qualityTier)) {
@@ -388,8 +450,43 @@ public struct SettingsRootView: View {
                     (RenderQuality.high, l10n.t(.qualityHigh)),
                 ])
             }
+
+            // 접근성 (6단계) — 시스템 손쉬운 사용 설정은 자동 반영되고, 여기서는 앱 강제 켬
+            Section(l10n.t(.accessibilitySection)) {
+                Toggle(l10n.t(.reduceMotionLabel), isOn: $store.draft.reduceMotionEnabled)
+                Text(l10n.t(.reduceMotionCaption))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
+    }
+
+    /// 테마 미리보기 타일 — 클릭으로 선택, 선택 상태는 인장 보더.
+    private func themeTile(_ mode: ThemeMode, style: ThemeSwatchStyle, label: String) -> some View {
+        let isSelected = store.draft.themeMode == mode
+        return Button {
+            store.draft.themeMode = mode
+        } label: {
+            VStack(spacing: 5) {
+                ThemeColorTile(style: style)
+                    .frame(width: 46, height: 32)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(
+                                isSelected ? SonnetPalette.accent : SonnetPalette.ink.opacity(0.12),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
+                Text(label)
+                    .font(.caption2.weight(isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? SonnetPalette.accentDeep : .secondary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     // MARK: 텍스트 — 전 에디터 공통 글꼴/간격
@@ -675,7 +772,7 @@ public struct TouchBarPreviewView: View {
         Item(key: .home, symbol: "house"),
         Item(key: .save, symbol: "square.and.arrow.down"),
         Item(key: .newPage, symbol: "doc.badge.plus"),
-        Item(key: .aiAgent, symbol: "sparkles"),
+        Item(key: .sonnetAI, symbol: "sparkles"),
         Item(key: .archive, symbol: "archivebox"),
     ]
 
@@ -712,6 +809,79 @@ public struct TouchBarPreviewView: View {
         .frame(height: 34)
         .background(RoundedRectangle(cornerRadius: 8, style: .continuous).fill(.black))
         .environment(\.colorScheme, .dark)
+    }
+}
+
+/// 4c 눈금-렌즈 슬라이더 — 채워진 눈금은 인장(버밀리온), 글래스 렌즈 노브가 그 위를
+/// 미끄러진다. 값 텍스트는 노브 밖 우측 고정이라 렌즈에 가려 읽기 어려운 일이 없다.
+private struct LensTickSlider: View {
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
+
+    @Environment(\.resolvedAccent) private var accent
+
+    private var fraction: Double {
+        (value - range.lowerBound) / (range.upperBound - range.lowerBound)
+    }
+
+    private func setValue(fromX x: CGFloat, width: CGFloat) {
+        let usable = max(width - 26, 1)
+        let f = min(1, max(0, (x - 13) / usable))
+        let raw = range.lowerBound + f * (range.upperBound - range.lowerBound)
+        let stepped = (raw / step).rounded() * step
+        value = min(range.upperBound, max(range.lowerBound, stepped))
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            GeometryReader { geo in
+                let width = geo.size.width
+                ZStack(alignment: .leading) {
+                    HStack(spacing: 0) {
+                        ForEach(0..<24, id: \.self) { index in
+                            let tickFraction = Double(index) / 23.0
+                            Capsule()
+                                .fill(tickFraction <= fraction ? accent : SonnetPalette.ink.opacity(0.15))
+                                .frame(width: 2.5, height: index.isMultiple(of: 3) ? 14 : 10)
+                            if index < 23 { Spacer(minLength: 0) }
+                        }
+                    }
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Circle().strokeBorder(SonnetPalette.glassRim, lineWidth: 1))
+                        .overlay(Capsule().fill(accent).frame(width: 3, height: 14))
+                        .frame(width: 26, height: 26)
+                        .shadow(color: SonnetPalette.ink.opacity(0.2), radius: 4, y: 2)
+                        .offset(x: fraction * (width - 26))
+                }
+                .frame(height: 30)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { gesture in
+                            setValue(fromX: gesture.location.x, width: width)
+                        }
+                )
+            }
+            .frame(width: 200, height: 30)
+
+            Text("\(Int((value * 100).rounded()))%")
+                .font(DSType.mono(size: 12, weight: .semibold))
+                .foregroundStyle(accent)
+                .frame(width: 42, alignment: .trailing)
+        }
+        // 커스텀 슬라이더 — VoiceOver 값/증감 액션 제공 (6단계)
+        .accessibilityElement()
+        .accessibilityLabel(Localizer.shared.t(.glassIntensityLabel))
+        .accessibilityValue("\(Int((value * 100).rounded()))%")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: value = min(range.upperBound, value + step)
+            case .decrement: value = max(range.lowerBound, value - step)
+            @unknown default: break
+            }
+        }
     }
 }
 

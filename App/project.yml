@@ -8,8 +8,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "6.0"
-    MARKETING_VERSION: "1.3.0"
-    CURRENT_PROJECT_VERSION: "7"
+    MARKETING_VERSION: "2.0.2"
+    CURRENT_PROJECT_VERSION: "9"
 
 packages:
   AppCore:
@@ -112,6 +112,20 @@ targets:
       - package: SecurityKit
       - target: QuickLookPreview
 
+  SonnetCreateUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - path: SonnetCreateUITests
+    dependencies:
+      - target: SonnetCreate
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.seolhwarim.sonnetcreate.uitests
+        TEST_TARGET_NAME: SonnetCreate
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+
   QuickLookPreview:
     type: app-extension
     platform: macOS
@@ -151,5 +165,9 @@ schemes:
         SonnetCreate: all
     run:
       config: Debug
+    test:
+      config: Debug
+      targets:
+        - SonnetCreateUITests
     archive:
       config: Release

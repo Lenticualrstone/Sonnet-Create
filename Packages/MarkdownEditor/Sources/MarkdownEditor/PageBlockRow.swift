@@ -172,6 +172,8 @@ struct PageBlockRow: View {
             ImageBlockView(store: store, block: block)
         case .table:
             TableBlockView(store: store, block: block)
+        case .embed:
+            EmbedBlockView(store: store, block: block)
         case .divider:
             Rectangle()
                 .fill(.separator)
@@ -339,6 +341,7 @@ struct SlashCommandMenu: View {
         Item(kind: .callout, key: .blockCallout, symbol: "lightbulb"),
         Item(kind: .image, key: .blockImage, symbol: "photo"),
         Item(kind: .table, key: .blockTable, symbol: "tablecells"),
+        Item(kind: .embed, key: .embedBlock, symbol: "rectangle.on.rectangle"),
     ]
 
     @MainActor

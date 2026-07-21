@@ -75,6 +75,9 @@ enum PageExport {
                 }
                 table += "</tbody></table>"
                 body.append(table)
+            case .embed:
+                closeList()
+                body.append("<div class=\"callout\">📄 문서 임베드</div>")
             }
         }
         closeList()
@@ -316,6 +319,10 @@ private struct ExportBlockView: View {
                     }
                 }
             }
+        case .embed:
+            Text("📄 문서 임베드")
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
         }
     }
 }

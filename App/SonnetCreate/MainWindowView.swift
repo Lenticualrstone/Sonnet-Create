@@ -8,69 +8,99 @@ import RenderingKit
 import ScenarioEditor
 import SwiftUI
 
-/// 메인 윈도우 — Wavy Dot 배경 + 사이드바 + 탭 스트립 + 콘텐츠.
+/// 문서 유형 → 디자인 시스템 파일 타입 매핑 (탭 칩·카드·배지 공용).
+extension AppState {
+    func fileType(for tab: OpenTab) -> DSFileType? {
+        guard case .document(let docID) = tab.content else { return nil }
+        let envelope = sessions[docID]?.document.envelope ?? workspace.item(id: docID)?.envelope
+        guard let envelope else { return nil }
+        if envelope.isCharacterPage { return .character }
+        switch envelope.kind {
+        case .scenario: return .scenario
+        case .mindmap: return .mindmap
+        case .page: return .page
+        }
+    }
+}
+
+/// 메인 윈도우 — 인장&원고 v2.0: 52px 통합 타이틀바(11a) + 좌측 아이콘 레일 + 콘텐츠.
 struct MainWindowView: View {
     @Environment(AppState.self) private var app
     @Environment(\.renderQuality) private var quality
     @Environment(\.colorScheme) private var colorScheme
-    @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var showCommandPalette = false
+    @Environment(\.motionReduced) private var motionReduced
     /// 프로젝트 파일 인스펙터 폭 — 드래그로 조절, 재시작 후에도 유지
     @AppStorage("project-navigator-width") private var navigatorWidth = 232.0
     @State private var navigatorDragBaseWidth: Double?
+    /// 시동 스플래시 (8a) — 창 최초 표시 시 한 번만. UI 테스트는 즉시 홈으로.
+    @State private var showSplash = !AppState.isUITest
 
     var body: some View {
-        // 헤더는 사이드바/콘텐츠 그 어느 쪽에도 귀속되지 않는 프로그램 전체의 유일한
-        // 상단 크롬이다 — NavigationSplitView 바깥에서 전체 폭을 한 번만 차지하고,
-        // 그 아래에 사이드바와 콘텐츠가 나란히 존재한다. 안전영역 무시(ignoresSafeArea)도
-        // 이 트리에서 단 한 곳(맨 아래 .modifier)에서만 일어나— 예전에 사이드바 컬럼과
-        // 콘텐츠 컬럼이 각자 따로 안전영역을 무시하다 전체화면에서 어긋나며 생기던
-        // "흰 박스" 이음매 버그가 구조적으로 발생할 수 없다.
+        @Bindable var app = app
+        // 11a 통합 타이틀바: 신호등·로고·탭·상태가 하나의 52px 헤더에 수납되고,
+        // 레일은 헤더 아래에서 시작한다 (브라우저 문법). 기준선이 물리적으로 1개라
+        // 상단이 어긋날 여지가 없다.
         VStack(spacing: 0) {
-            ChromeTabBar(columnVisibility: $columnVisibility)
+            UnifiedTitlebar()
 
-            NavigationSplitView(columnVisibility: $columnVisibility) {
-                SidebarView()
-                    // min을 260으로 올려 홈/Sonnet AI/수신함 3개 탭의 아이콘+텍스트가
-                    // 줄바꿈되지 않고 한 줄에 들어갈 최소 폭을 항상 보장한다.
-                    .navigationSplitViewColumnWidth(min: 260, ideal: 264, max: 340)
-                    // 사이드바 상단의 시스템 툴바(백색 박스 원인) 제거
-                    .toolbar(removing: .sidebarToggle)
-                    .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
-            } detail: {
+            HStack(spacing: 0) {
+                RailView()
+                Rectangle()
+                    .fill(SonnetPalette.ink.opacity(0.08))
+                    .frame(width: 1)
                 ZStack {
-                    // 브랜드 테마(Sonnet/Pilgrimage): 테마별 캔버스가 모든 레이어의 바닥
-                    if app.settings.applied.interfaceTheme.isBranded {
-                        app.settings.applied.interfaceTheme.canvasColor.ignoresSafeArea()
+                    SonnetPalette.canvas.ignoresSafeArea()
+                    if app.settings.applied.paperGrainEnabled {
+                        GrainOverlay(color: SonnetPalette.ink, opacity: 0.04)
+                            .ignoresSafeArea()
                     }
-                    background
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                // 문서를 벗어나지 않고 에이전트와 대화하는 플로팅 패널 (⇧⌘A / 헤더 ✨)
+                // 문서를 벗어나지 않고 에이전트와 대화하는 플로팅 패널 (⇧⌘A / 레일 ✨).
+                // ⌘K가 열려 있는 동안은 잠시 내려가고, 닫히면 이전 상태로 복원된다 (3단계 3).
                 .overlay(alignment: .bottomTrailing) {
-                    if app.showFloatingChat {
+                    if app.showFloatingChat, !app.showCommandPalette {
                         FloatingChatPanel()
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .transition(.scale(scale: 0.94, anchor: .bottomTrailing).combined(with: .opacity))
                     }
                 }
-                .animation(DesignTokens.Motion.arrival, value: app.showFloatingChat)
-                .toolbarBackgroundVisibility(.hidden, for: .windowToolbar)
+                .animation(
+                    app.showFloatingChat ? DesignTokens.Motion.glassPop : DesignTokens.Motion.glassPopOut,
+                    value: app.showFloatingChat
+                )
+                .animation(DesignTokens.Motion.glassPopOut, value: app.showCommandPalette)
             }
         }
+        .background(SonnetPalette.canvas)
         // 윈도우 모드에서만 헤더를 타이틀 라인(신호등 뒤)까지 끌어올린다.
         // 전체화면에서는 그대로 두어야 한다 — 무조건 ignoresSafeArea하면
         // 전체화면의 (더 큰) 상단 안전영역만큼 헤더가 화면 밖으로 밀려나 사라진다.
         .modifier(TopChromeExtension(active: !app.isFullscreen))
         // ⌘K 커맨드 팔레트 — 어디서든 문서 점프/빠른 명령
         .overlay {
-            if showCommandPalette {
-                CommandPaletteView(isPresented: $showCommandPalette)
+            if app.showCommandPalette {
+                CommandPaletteView(isPresented: $app.showCommandPalette)
+            }
+        }
+        // 첫 실행 온보딩 (5단계) — 스플래시가 끝난 뒤 새 워크스페이스에서 1회
+        .overlay {
+            if app.showOnboarding, !showSplash {
+                OnboardingView()
+            }
+        }
+        // 시동 스플래시 (8a) — 잉크 스트로크 획순 드로우 → 워드마크 → 잉크 바 → 홈 인계
+        .overlay {
+            if showSplash {
+                SplashView {
+                    showSplash = false
+                    app.evaluateOnboarding()
+                }
             }
         }
         .background {
             Button("") {
-                withAnimation(DesignTokens.Motion.snappy) { showCommandPalette.toggle() }
+                withAnimation(DesignTokens.Motion.glassPop) { app.showCommandPalette.toggle() }
             }
             .keyboardShortcut("k", modifiers: .command)
             .buttonStyle(.plain)
@@ -88,27 +118,51 @@ struct MainWindowView: View {
         // 크롬(버튼/탭/툴바)의 안내 텍스트가 커서로 선택되는 것을 방지.
         // 본문 텍스트 선택이 필요한 곳(시나리오 블록 등)은 개별적으로 다시 활성화한다.
         .textSelection(.disabled)
+        // UI 테스트는 스플래시를 건너뛰므로 온보딩 평가를 여기서 대신 수행한다
+        .onAppear {
+            if AppState.isUITest { app.evaluateOnboarding() }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didEnterFullScreenNotification)) { _ in
-            withAnimation(DesignTokens.Motion.gentle) { app.isFullscreen = true }
+            withAnimation(DesignTokens.Motion.rise) { app.isFullscreen = true }
         }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didExitFullScreenNotification)) { _ in
-            withAnimation(DesignTokens.Motion.gentle) { app.isFullscreen = false }
+            withAnimation(DesignTokens.Motion.rise) { app.isFullscreen = false }
         }
-        // 휴지통 이동 확인
+        // 새 프로젝트 — 이름 입력 프롬프트 (모든 생성 진입점 공용)
+        .sheet(isPresented: Binding(
+            get: { app.showNewProjectPrompt },
+            set: { app.showNewProjectPrompt = $0 }
+        )) {
+            NewProjectPrompt()
+                .environment(app)
+        }
+        // 휴지통 이동 확인 (단건/다건 공용) — 선택 수·대표 제목 표시, 복구 가능함을 명시
         .confirmationDialog(
             Localizer.shared.t(.moveToTrash),
             isPresented: Binding(
-                get: { app.pendingTrashItem != nil },
-                set: { if !$0 { app.pendingTrashItem = nil } }
+                get: { !app.pendingTrashItems.isEmpty },
+                set: { if !$0 { app.pendingTrashItems = [] } }
             ),
-            presenting: app.pendingTrashItem
-        ) { item in
-            Button("\(Localizer.shared.t(.moveToTrash)): \(item.envelope.title)", role: .destructive) {
+            presenting: app.pendingTrashItems.isEmpty ? nil : app.pendingTrashItems
+        ) { items in
+            Button(
+                items.count == 1
+                    ? "\(Localizer.shared.t(.moveToTrash)): \(items[0].envelope.title)"
+                    : "\(Localizer.shared.t(.moveToTrash)) (\(items.count))",
+                role: .destructive
+            ) {
                 app.confirmPendingTrash()
             }
             Button(Localizer.shared.t(.cancel), role: .cancel) {}
-        } message: { _ in
-            Text(Localizer.shared.t(.trashConfirmMessage))
+        } message: { items in
+            if items.count == 1 {
+                Text(Localizer.shared.t(.trashConfirmMessage))
+            } else {
+                Text(String(
+                    format: Localizer.shared.t(.trashConfirmMessagePlural),
+                    items[0].envelope.title, items.count - 1
+                ))
+            }
         }
         // 영구 삭제 확인 (단건/다건 공용, 되돌릴 수 없음)
         .confirmationDialog(
@@ -140,12 +194,16 @@ struct MainWindowView: View {
             Button(Localizer.shared.t(.retrySave)) {
                 app.pendingSaveFailureTab = nil
                 app.closeTab(tab) // flush를 다시 시도하고, 실패하면 다이얼로그가 재등장
+                app.advanceSaveFailureQueue()
             }
             Button(Localizer.shared.t(.closeWithoutSaving), role: .destructive) {
                 app.pendingSaveFailureTab = nil
                 app.forceCloseTab(tab)
+                app.advanceSaveFailureQueue()
             }
-            Button(Localizer.shared.t(.cancel), role: .cancel) {}
+            Button(Localizer.shared.t(.cancel), role: .cancel) {
+                app.cancelSaveFailureQueue()
+            }
         } message: { tab in
             let detail = app.session(for: tab)?.lastSaveError
             Text(detail.map { "\(Localizer.shared.t(.saveFailedCloseMessage))\n\n\($0)" }
@@ -192,57 +250,23 @@ struct MainWindowView: View {
             )
     }
 
-    /// 시그니처 배경 — 설정에서 켠 경우에만 (기본 꺼짐).
-    @ViewBuilder
-    private var background: some View {
-        if app.settings.applied.backgroundEffectEnabled {
-            wavyField
-        }
-    }
-
-    private var wavyField: some View {
-        let s = app.settings.applied
-        return WavyDotFieldView(
-            configuration: WavyDotFieldConfiguration(
-                speed: s.backgroundSpeed,
-                density: s.backgroundDensity,
-                amplitude: 1.0,
-                vignette: 0.75,
-                blurRadius: app.isHomeSelected ? 0 : s.backgroundBlurOthers,
-                dotScale: s.backgroundDotSize,
-                pitch: s.backgroundPitch
-            ),
-            // 다크에서는 더 밝게, 라이트에서는 절제되게 — 시인성/대비 튜닝
-            tint: dotTint,
-            quality: quality
-        )
-        .opacity(app.isHomeSelected ? 1 : 0.4)
-        .ignoresSafeArea()
-        .animation(DesignTokens.Motion.gentle, value: app.isHomeSelected)
-    }
-
-    private var dotTint: Color {
-        let s = app.settings.applied
-        if s.backgroundUseAccent {
-            return app.resolvedAccent.opacity(colorScheme == .dark ? 0.62 : 0.5)
-        }
-        if s.interfaceTheme.isBranded {
-            return SonnetPalette.dot.opacity(colorScheme == .dark ? 0.5 : 0.4)
-        }
-        return Color.primary.opacity(colorScheme == .dark ? 0.52 : 0.36)
-    }
-
-    /// 탭 전환 시 부드러운 크로스페이드 + 미세한 상승 전환.
+    /// 탭 전환 — 조용한 크로스페이드로 통일 (사용자 확정: 디더/rise의 시차 등장이
+    /// 난잡해 180ms ease-out 페이드 + 미세 스케일로 교체. 원고를 넘기는 감각).
     @ViewBuilder
     private var content: some View {
         ZStack {
             if let tab = app.selectedTab {
                 tabContent(tab)
                     .id(tab.id)
-                    .transition(.opacity.combined(with: .offset(y: 8)))
+                    .transition(.asymmetric(
+                        insertion: motionReduced
+                            ? .opacity
+                            : .opacity.combined(with: .scale(scale: 0.995)),
+                        removal: .opacity
+                    ))
             }
         }
-        .animation(DesignTokens.Motion.gentle, value: app.selectedTabID)
+        .animation(.easeOut(duration: motionReduced ? 0.12 : 0.18), value: app.selectedTabID)
     }
 
     @ViewBuilder
@@ -250,6 +274,8 @@ struct MainWindowView: View {
         switch tab.content {
         case .home:
             HomeView()
+        case .projects:
+            ProjectsView()
         case .aiChat:
             AIChatView()
         case .profile:
@@ -277,13 +303,15 @@ struct MainWindowView: View {
                 },
                 onCreate: { kind, role in
                     app.createAndOpen(kind: kind, pageRole: role, in: app.creationTargetProject)
-                }
+                },
+                requestNewProject: { app.promptNewProject() },
+                requestDeleteProject: { app.requestDeleteProject($0) }
             )
         case .document(let docID):
             if let session = app.sessions[docID] {
                 HStack(spacing: 0) {
                     DocumentHostView(session: session)
-                    // 프로젝트 파일 인스펙터 — 프로젝트 소속 문서에서만. 사이드바가 프로젝트
+                    // 프로젝트 파일 인스펙터 — 프로젝트 소속 문서에서만. 레일이 프로젝트
                     // 내부를 펼치지 않는 대신 이웃 파일 탐색/생성을 여기서 담당한다.
                     if app.showProjectNavigator,
                        let project = app.workspace.project(id: session.document.envelope.projectID) {
@@ -307,9 +335,9 @@ struct MainWindowView: View {
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
-                .animation(DesignTokens.Motion.gentle, value: app.showReferencePanel)
-                .animation(DesignTokens.Motion.gentle, value: app.showSnapshotPanel)
-                .animation(DesignTokens.Motion.gentle, value: app.showProjectNavigator)
+                .animation(DesignTokens.Motion.rise, value: app.showReferencePanel)
+                .animation(DesignTokens.Motion.rise, value: app.showSnapshotPanel)
+                .animation(DesignTokens.Motion.rise, value: app.showProjectNavigator)
             }
         }
     }
@@ -329,68 +357,58 @@ private struct TopChromeExtension: ViewModifier {
     }
 }
 
-// MARK: - Chrome-tabs 스타일 탭바
-// 참고: github.com/adamschwartz/chrome-tabs — 좌측 정렬 유동 폭 탭,
-// 활성 탭은 콘텐츠 캔버스와 병합, 비활성 탭 사이 세로 구분선.
+// MARK: - 11a 통합 타이틀바
+// 신호등 · 잉크 스트로크 로고 · 문서 탭 · 열린 탭 메뉴 · 저장 상태를 하나의
+// 52px 헤더에 수납. 헤더는 Liquid Glass로 캔버스 위에 떠 있다.
 
-struct ChromeTabBar: View {
+struct UnifiedTitlebar: View {
     @Environment(AppState.self) private var app
-    @Environment(\.interfaceTheme) private var theme
     @Environment(\.resolvedAccent) private var accent
-    @Binding var columnVisibility: NavigationSplitViewVisibility
+    @Environment(\.liquidGlassDisabled) private var glassDisabled
 
     @State private var newDocMenuHover = false
     @State private var showUpdateMenu = false
-    /// 활성 탭 언더라인이 탭 사이를 미끄러지게 하는 공유 네임스페이스
-    @Namespace private var tabUnderline
+    @Environment(\.glassIntensity) private var glassIntensity
+    /// 헤더가 좁아 패널 토글을 overflow 메뉴로 접은 상태 — 경계값 근처에서
+    /// 리사이즈할 때 깜빡이지 않도록 ±20pt 히스테리시스 밴드를 둔다 (3단계 1)
+    @State private var toolsCollapsed = false
 
-    private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
+    /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 윈도우 모드에서는
+    /// 항상 좌측에 신호등 자리를 남겨야 한다.
+    private var needsTrafficLightInset: Bool { !app.isFullscreen }
     /// 현재 선택된 문서가 프로젝트 소속인지 — 프로젝트 파일 인스펙터 토글 노출 조건.
     private var selectedDocumentHasProject: Bool {
         guard let tab = app.selectedTab, let session = app.session(for: tab) else { return false }
         return app.workspace.project(id: session.document.envelope.projectID) != nil
     }
 
-    /// 헤더가 항상 창 최상단 전체 폭을 차지하므로, 사이드바 펼침/접힘과 무관하게
-    /// 윈도우 모드에서는 항상 좌측에 신호등 자리를 남겨야 한다.
-    private var needsTrafficLightInset: Bool { !app.isFullscreen }
-    /// 브랜드 마크 이미지셋 — v1.3 테마 일원화로 단일 세트만 쓴다.
-    private var brandMarkImageName: String { "BrandMark" }
-
     var body: some View {
         let l10n = Localizer.shared
-        HStack(spacing: isChrome ? 0 : 6) {
-            // 브랜드 앵커 — 프로젝트의 실제 앱 아이콘(깃털 로고) 아트워크를 그대로 축소해
-            // 쓴다. 예전엔 존재하지 않는 SF Symbol "feather"를 참조해 빈 화면으로
-            // 렌더링됐다. AppIcon.appiconset은 앱 번들 아이콘 전용 슬롯이라 일반 Image(_:)/
-            // NSApp.applicationIconImage로는 안정적으로 불러와지지 않아, 같은 아트워크를
-            // 복사한 별도의 BrandMark 이미지셋(테마별 색상 바리에이션 포함)을 참조한다.
-            // 헤더가 창 전체 폭을 차지하므로 항상 보이되, 윈도우 모드에서는 신호등 자리만큼
-            // 왼쪽 여백을 더 준다.
-            Image(brandMarkImageName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 18, height: 18)
-                .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-                .padding(.leading, needsTrafficLightInset ? 76 : 12)
-                .padding(.trailing, 4)
-                // 신호등 옆 브랜드 구역은 타이틀바처럼 창을 끌 수 있다
-                .background(windowDragArea)
-
-            // 사이드바 토글 (시스템 툴바 제거에 따른 대체)
-            ToolbarIconButton(
-                "sidebar.left",
-                help: l10n.t(.workspace),
-                isActive: columnVisibility != .detailOnly
-            ) {
-                withAnimation(DesignTokens.Motion.gentle) {
-                    columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
-                }
+        let isHome = app.selectedTab?.content == .home
+        HStack(spacing: 8) {
+            // 잉크 스트로크 로고 = 홈 버튼 — 홈 탭 칩을 상시 유지하는 대신 로고로 홈에 간다 (공간 절약).
+            // 홈에 있을 때는 인장 틴트 배경으로 활성 표시.
+            Button {
+                app.selectOrOpenHome()
+            } label: {
+                InkStrokeMark(size: 20, color: accent)
+                    .frame(width: 30, height: 30)
+                    .background(
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(isHome ? SonnetPalette.accentTint : .clear)
+                    )
+                    .contentShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
             }
-            .padding(.leading, 6)
+            .buttonStyle(.plain)
+            .help(l10n.t(.home))
+            .accessibilityLabel(l10n.t(.home))
+            .padding(.leading, needsTrafficLightInset ? 76 : 16)
 
-            // 뒤로/앞으로 탐색 — 편집 되돌리기(⌘Z)와 무관, 탐색 중인 화면(문서/아카이브 카테고리·
-            // 프로젝트 필터)의 이동 기록을 오간다.
+            Rectangle()
+                .fill(SonnetPalette.ink.opacity(0.1))
+                .frame(width: 1, height: 20)
+
+            // 뒤로/앞으로 탐색 — 편집 되돌리기(⌘Z)와 무관, 탐색 중인 화면의 이동 기록.
             HStack(spacing: 0) {
                 ToolbarIconButton("chevron.left", help: l10n.t(.navigateBack)) {
                     app.goBack()
@@ -407,23 +425,22 @@ struct ChromeTabBar: View {
 
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: isChrome ? 0 : 4) {
-                        ForEach(Array(app.tabs.enumerated()), id: \.element.id) { index, tab in
-                            TabChip(tab: tab, isFirst: index == 0, underlineNamespace: tabUnderline)
+                    HStack(spacing: 4) {
+                        // 홈은 로고 버튼이 담당하므로 탭 스트립에는 칩을 그리지 않는다
+                        ForEach(app.tabs.filter { $0.content != .home }) { tab in
+                            TabChip(tab: tab)
                                 .id(tab.id)
                         }
                     }
-                    .padding(.leading, isChrome ? 6 : 4)
-                    .padding(.top, isChrome ? 5 : 3)
+                    .padding(.leading, 2)
                     // 탭 스트립에서는 시스템 타이틀바 창 끌기를 차단 — 칩 드래그(순서 변경)와 경합 방지
                     .background(BlockWindowDrag())
                 }
-                // 칩 상단(활성 언더라인)이 스크롤 뷰 경계에 잘리지 않게 한다
                 .scrollClipDisabled()
                 // 탭이 많아 가려질 때 선택 탭을 항상 시야로 데려온다
                 .onChange(of: app.selectedTabID) { _, selected in
                     if let selected {
-                        withAnimation(DesignTokens.Motion.gentle) {
+                        withAnimation(DesignTokens.Motion.rise) {
                             proxy.scrollTo(selected, anchor: .trailing)
                         }
                     }
@@ -431,7 +448,7 @@ struct ChromeTabBar: View {
             }
 
             // 새 문서 종류 선택 메뉴 — 프로젝트 아카이브/프로젝트 문서 탭에서는
-            // 그 프로젝트 안에 생성한다 (헤더에서 만든 문서가 무소속으로 떨어지던 문제 수정).
+            // 그 프로젝트 안에 생성한다.
             Menu {
                 let target = app.creationTargetProject
                 if let target {
@@ -443,78 +460,155 @@ struct ChromeTabBar: View {
                 }
                 Divider()
                 Button(l10n.t(.newProject), systemImage: "folder.badge.plus") {
-                    _ = try? app.workspace.createProject(name: l10n.t(.newProject))
+                    app.promptNewProject()
                 }
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(newDocMenuHover ? accent : .secondary)
+                    .foregroundStyle(newDocMenuHover ? SonnetPalette.ink : SonnetPalette.inkMuted)
                     .frame(width: 30, height: 30)
                     .background(
-                        RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                            .fill(newDocMenuHover ? accent.opacity(0.1) : .clear)
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(newDocMenuHover ? SonnetPalette.ink.opacity(0.07) : .clear)
                     )
                     .contentShape(Rectangle())
             }
             .menuStyle(.borderlessButton)
             .menuIndicator(.hidden)
             .fixedSize()
-            // 어디에 만들어지는지 누르기 전에 알 수 있게 — 대상 프로젝트를 툴팁에 표시
             .help(
                 app.creationTargetProject.map { "\(l10n.t(.newDocument)) → \($0.manifest.name)" }
                     ?? l10n.t(.newDocument)
             )
             .onHover { newDocMenuHover = $0 }
-            .animation(DesignTokens.Motion.snappy, value: newDocMenuHover)
+            .animation(DesignTokens.Motion.glassPop, value: newDocMenuHover)
 
             // 남는 가운데 여백 — 컨트롤이 없으므로 창 드래그 영역으로 쓴다.
-            // (Color 기반 뷰는 탭 스크롤뷰와 폭을 반분해 + 버튼이 가운데로 밀린다 —
-            //  레이아웃은 Spacer가 담당하고 드래그 히트 영역만 overlay로 얹는다)
             Spacer(minLength: 0)
                 .overlay(windowDragArea)
 
-            // 우측 액션 (기존 툴바에서 이전)
+            // 문서 컨텍스트 패널 토글 (프로젝트 파일/참조/스냅샷).
+            // 좁은 창(<1120pt)에서는 하나의 overflow 메뉴로 접는다 — 활성 탭·저장 상태가 우선 (3단계 1).
             if case .document = app.selectedTab?.content {
-                if selectedDocumentHasProject {
-                    ToolbarIconButton("folder", help: l10n.t(.projectFiles), isActive: app.showProjectNavigator) {
-                        app.showProjectNavigator.toggle()
+                if !toolsCollapsed {
+                    if selectedDocumentHasProject {
+                        ToolbarIconButton("folder", help: l10n.t(.projectFiles), isActive: app.showProjectNavigator) {
+                            app.showProjectNavigator.toggle()
+                        }
                     }
-                }
-                ToolbarIconButton("link", help: l10n.t(.references), isActive: app.showReferencePanel) {
-                    app.showReferencePanel.toggle()
-                }
-                ToolbarIconButton(
-                    "clock.arrow.circlepath",
-                    help: Localizer.shared.t(.snapshots),
-                    isActive: app.showSnapshotPanel
-                ) {
-                    app.showSnapshotPanel.toggle()
+                    ToolbarIconButton("link", help: l10n.t(.references), isActive: app.showReferencePanel) {
+                        app.showReferencePanel.toggle()
+                    }
+                    ToolbarIconButton(
+                        "clock.arrow.circlepath",
+                        help: l10n.t(.snapshots),
+                        isActive: app.showSnapshotPanel
+                    ) {
+                        app.showSnapshotPanel.toggle()
+                    }
+                } else {
+                    panelOverflowMenu(l10n)
                 }
             }
             // 새 릴리스가 발견되면 나타나는 업데이트 인디케이터 — 클릭 시 퀵메뉴
             if let update = app.availableUpdate {
                 updateIndicator(update, l10n)
             }
-            ToolbarIconButton("archivebox", help: l10n.t(.archive)) {
-                app.openArchiveTab()
+
+            // '열린 탭 N ▾' — 넘침 대비 전체 탭 메뉴 (5b). 홈은 로고 담당이라 제외.
+            if app.tabs.contains(where: { $0.content != .home }) {
+                openTabsMenu(l10n)
             }
-            // 문서 작업 중엔 화면을 뺏지 않고 플로팅 패널로, 그 외에는 채팅 탭으로.
-            ToolbarIconButton(
-                "sparkles",
-                help: l10n.t(.aiAgent) + " (⇧⌘A)",
-                isActive: app.showFloatingChat
-            ) {
-                app.toggleAgentSurface()
+
+            // 저장 상태 배지 — 문서 탭에서만
+            if let tab = app.selectedTab, let session = app.session(for: tab) {
+                SaveStatusBadge(
+                    state: session.saveState,
+                    label: l10n.t(session.saveState.labelKey)
+                ) {
+                    session.save(manual: true)
+                }
+                .environment(\.saveErrorDetail, session.lastSaveError)
             }
-            .padding(.trailing, 8)
         }
-        .frame(height: 38)
-        .background(barBackground)
+        .padding(.trailing, 16)
+        .frame(height: 52)
+        .background(titlebarBackground)
         .overlay(alignment: .bottom) {
-            if isChrome {
-                Divider().opacity(0.35)
-            }
+            Rectangle()
+                .fill(SonnetPalette.ink.opacity(0.08))
+                .frame(height: 1)
         }
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            if width < 1100 { toolsCollapsed = true } else if width > 1140 { toolsCollapsed = false }
+        }
+    }
+
+    /// 좁은 창용 패널 overflow 메뉴 — 프로젝트 파일/참조/스냅샷 토글을 한 버튼에 수납.
+    private func panelOverflowMenu(_ l10n: Localizer) -> some View {
+        Menu {
+            if selectedDocumentHasProject {
+                Toggle(l10n.t(.projectFiles), isOn: Binding(
+                    get: { app.showProjectNavigator },
+                    set: { app.showProjectNavigator = $0 }
+                ))
+            }
+            Toggle(l10n.t(.references), isOn: Binding(
+                get: { app.showReferencePanel },
+                set: { app.showReferencePanel = $0 }
+            ))
+            Toggle(l10n.t(.snapshots), isOn: Binding(
+                get: { app.showSnapshotPanel },
+                set: { app.showSnapshotPanel = $0 }
+            ))
+        } label: {
+            Image(systemName: "sidebar.trailing")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(
+                    app.showProjectNavigator || app.showReferencePanel || app.showSnapshotPanel
+                        ? accent : SonnetPalette.inkMuted
+                )
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(l10n.t(.projectFiles) + " · " + l10n.t(.references) + " · " + l10n.t(.snapshots))
+    }
+
+    /// '열린 탭 N ▾' 칩 — 클릭 시 전체 탭 목록 메뉴 (⌘1~9 병기).
+    private func openTabsMenu(_ l10n: Localizer) -> some View {
+        let openTabs = app.tabs.filter { $0.content != .home }
+        return Menu {
+            ForEach(Array(openTabs.enumerated()), id: \.element.id) { index, tab in
+                Button {
+                    app.selectExistingTab(tab)
+                } label: {
+                    if index < 9 {
+                        Text("\(app.tabTitle(for: tab))  ⌘\(index + 1)")
+                    } else {
+                        Text(app.tabTitle(for: tab))
+                    }
+                }
+            }
+        } label: {
+            Text("\(l10n.t(.openTabs)) \(openTabs.count) ▾")
+                .font(DSFonts.font(size: 11.5, weight: .medium, family: .pretendard))
+                .foregroundStyle(SonnetPalette.inkSoft)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        .fill(SonnetPalette.ink.opacity(0.05))
+                )
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
     }
 
     /// 업데이트 가능 인디케이터 — 액센트 점 배지가 붙은 다운로드 아이콘.
@@ -540,9 +634,7 @@ struct ChromeTabBar: View {
         }
     }
 
-    /// 창 이동 전용 드래그 영역 — 예전엔 탭바 전체 배경에 WindowDragGesture를 깔아서
-    /// 탭 칩을 드래그해 순서를 바꾸려 하면 창 전체가 따라 움직였다. 이제 창 드래그는
-    /// 컨트롤이 없는 빈 영역(브랜드 마크 주변, 우측 여백)에서만 동작한다.
+    /// 창 이동 전용 드래그 영역 — 컨트롤이 없는 빈 영역에서만 동작.
     private var windowDragArea: some View {
         Color.clear
             .contentShape(Rectangle())
@@ -566,38 +658,36 @@ struct ChromeTabBar: View {
         }
     }
 
+    /// 헤더 배경 — Liquid Glass (끔/저사양이면 평면 시트 톤).
+    /// 워시 불투명도는 설정의 유리 강도를 따른다 — 강도가 낮을수록 뒤 캔버스가 더 비친다.
     @ViewBuilder
-    private var barBackground: some View {
-        // 헤더가 NavigationSplitView 바깥의 독립된 최상위 뷰라 뒤에 깔린 캔버스가
-        // 없다 — 탭 스타일과 무관하게 항상 불투명한 테마 베이스로 채워야 신호등
-        // 뒤 코너에 창의 기본 배경색(흰 박스)이 비쳐 보이지 않는다.
+    private var titlebarBackground: some View {
         ZStack {
-            Rectangle()
-                .fill(theme.isBranded ? AnyShapeStyle(theme.canvasColor) : AnyShapeStyle(Color(nsColor: .windowBackgroundColor)))
-            if isChrome {
-                // 탭바는 콘텐츠보다 가라앉은 톤 — 활성 탭이 캔버스색으로 떠오른다
-                theme.isBranded ? SonnetPalette.sunken : Color.primary.opacity(0.06)
+            if glassDisabled {
+                SonnetPalette.surface
+            } else {
+                Rectangle().fill(.ultraThinMaterial)
+                SonnetPalette.surface.opacity(0.15 + 0.65 * glassIntensity)
             }
         }
         .ignoresSafeArea(edges: .top)
     }
 }
 
+// MARK: - 문서 탭 칩 (5b)
+// 활성: Sheet 백지 카드 + 그림자 / 비활성: 투명, 호버 잉크 워시.
+// 미저장 점 → 호버 시 ✕ · 드래그 재정렬 · ⌘1~9 · 더블클릭 이름 변경.
+
 struct TabChip: View {
     @Environment(AppState.self) private var app
-    @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
     let tab: OpenTab
-    var isFirst: Bool = false
-    /// 활성 언더라인 슬라이드용 (ChromeTabBar가 공유)
-    var underlineNamespace: Namespace.ID
 
     @State private var hovering = false
     @State private var renaming = false
     @State private var draftTitle = ""
 
     private var isSelected: Bool { app.selectedTabID == tab.id }
-    private var isChrome: Bool { app.settings.applied.tabStyleRaw == "chrome" }
 
     /// 문서 탭이면 해당 세션 (이름 변경 대상)
     private var documentSession: DocumentSession? {
@@ -613,62 +703,57 @@ struct TabChip: View {
     }
 
     var body: some View {
-        HStack(spacing: 0) {
-            // 비활성 탭 사이 세로 구분선 (chrome-tabs 시그니처)
-            if isChrome, !isFirst {
-                Rectangle()
-                    .fill(Color.primary.opacity(isSelected || hovering ? 0 : 0.18))
-                    .frame(width: 1, height: 16)
-            }
+        HStack(spacing: 8) {
+            tabIcon
+            Text(app.tabTitle(for: tab))
+                .font(DSFonts.font(size: 12.5, weight: isSelected ? .semibold : .medium, family: .pretendard))
+                .foregroundStyle(isSelected ? SonnetPalette.ink : SonnetPalette.inkSoft)
+                .lineLimit(1)
+                .truncationMode(.tail)
 
-            HStack(spacing: 6) {
-                Image(systemName: app.tabSymbol(for: tab))
-                    .font(.caption)
-                    .foregroundStyle(isSelected ? accent : Color.secondary)
-                Text(app.tabTitle(for: tab))
-                    .font(.callout)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                // 미저장 표시 — 브라우저 관례처럼 호버 전에는 점, 호버하면 닫기 버튼.
-                // 홈 탭은 닫아도 곧바로 재생성되므로 X를 아예 숨긴다 (⌘W/우클릭은 유지).
-                if tab.content != .home {
-                    ZStack {
-                        if hasUnsavedChanges, !hovering {
-                            Circle()
-                                .fill(accent.opacity(0.85))
-                                .frame(width: 7, height: 7)
-                                .transition(.opacity.combined(with: .scale(scale: 0.5)))
-                        }
-                        Button {
-                            app.closeTab(tab)
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 8, weight: .bold))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 17, height: 17)
-                                .background(
-                                    Circle().fill(Color.primary.opacity(hovering ? 0.09 : 0))
-                                )
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .opacity(hovering ? 1 : (isSelected && !hasUnsavedChanges ? 1 : 0))
+            // 미저장 표시 — 브라우저 관례처럼 호버 전에는 점, 호버하면 닫기 버튼.
+            // 홈 탭은 닫아도 곧바로 재생성되므로 X를 아예 숨긴다 (⌘W/우클릭은 유지).
+            if tab.content != .home {
+                ZStack {
+                    if hasUnsavedChanges, !hovering {
+                        // 미저장 점은 Dirty/Warning 골드 — 버밀리온과 의미 분리 (2단계)
+                        Circle()
+                            .fill(SonnetPalette.warning)
+                            .frame(width: 7, height: 7)
+                            .transition(.opacity.combined(with: .scale(scale: 0.5)))
                     }
-                    .frame(width: 17, height: 17)
+                    Button {
+                        app.closeTab(tab)
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundStyle(SonnetPalette.inkMuted)
+                            .frame(width: 16, height: 16)
+                            .background(
+                                Circle().fill(SonnetPalette.ink.opacity(hovering ? 0.08 : 0))
+                            )
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(hovering ? 1 : 0)
+                    .help(Localizer.shared.t(.close) + " (⌘W)")
+                    .accessibilityLabel(Localizer.shared.t(.close))
                 }
+                .frame(width: 16, height: 16)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, isChrome ? 7 : 5)
-            .frame(minWidth: isChrome ? 130 : nil, maxWidth: isChrome ? 210 : 190)
-            .modifier(TabChipStyle(
-                chrome: isChrome,
-                isSelected: isSelected,
-                hovering: hovering,
-                quality: quality,
-                underlineNamespace: underlineNamespace
-            ))
+        }
+        .padding(.horizontal, 13)
+        .padding(.vertical, 6)
+        .frame(maxWidth: 210)
+        .background {
+            if isSelected {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(SonnetPalette.surface)
+                    .shadow(color: SonnetPalette.ink.opacity(0.12), radius: 4, y: 2)
+            } else if hovering {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(SonnetPalette.ink.opacity(0.06))
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture(count: 2) { beginRename() }
@@ -683,17 +768,47 @@ struct TabChip: View {
         .contextMenu {
             let l10n = Localizer.shared
             if let session = documentSession {
+                // 읽기 전용 문서는 이름 변경 금지 (지시서 1단계 4)
                 Button(l10n.t(.rename)) { beginRename() }
                     .disabled(session.isReadOnly)
                 Divider()
+                // 우측 패널 토글 — 프로젝트 파일 인스펙터는 프로젝트 소속 문서에서만
+                if app.workspace.project(id: session.document.envelope.projectID) != nil {
+                    Toggle(l10n.t(.projectFiles), isOn: Binding(
+                        get: { app.showProjectNavigator },
+                        set: { app.showProjectNavigator = $0 }
+                    ))
+                }
+                Toggle(l10n.t(.references), isOn: Binding(
+                    get: { app.showReferencePanel },
+                    set: { app.showReferencePanel = $0 }
+                ))
+                Divider()
             }
             Button(l10n.t(.close)) { app.closeTab(tab) }
+            // 닫기 계열은 탭별로 기존 닫기 확인 흐름(저장 실패 다이얼로그)을 재사용한다
+            Button(l10n.t(.closeOtherTabs)) { app.closeOtherTabs(than: tab) }
+                .disabled(app.tabs.count <= 1)
+            Button(l10n.t(.closeTabsToRight)) { app.closeTabsToTheRight(of: tab) }
+                .disabled(app.tabs.last?.id == tab.id)
         }
         .popover(isPresented: $renaming, arrowEdge: .bottom) {
             renamePopover
         }
-        .animation(DesignTokens.Motion.snappy, value: hovering)
-        .animation(DesignTokens.Motion.snappy, value: isSelected)
+        .animation(DesignTokens.Motion.glassPop, value: hovering)
+        .animation(DesignTokens.Motion.glassPop, value: isSelected)
+    }
+
+    /// 탭 아이콘 — 문서는 유형 글리프(유형색), 시스템 탭은 SF 심볼.
+    @ViewBuilder
+    private var tabIcon: some View {
+        if let type = app.fileType(for: tab) {
+            FileTypeIcon(type, size: 14)
+        } else {
+            Image(systemName: app.tabSymbol(for: tab))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(isSelected ? accent : SonnetPalette.inkMuted)
+        }
     }
 
     private func beginRename() {
@@ -739,7 +854,7 @@ private struct TabReorderDropDelegate: DropDelegate {
                   let from = app.tabs.firstIndex(where: { $0.id == draggingID }),
                   let to = app.tabs.firstIndex(where: { $0.id == target.id })
             else { return }
-            withAnimation(DesignTokens.Motion.snappy) {
+            withAnimation(DesignTokens.Motion.glassPop) {
                 app.tabs.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
             }
         }
@@ -752,61 +867,6 @@ private struct TabReorderDropDelegate: DropDelegate {
     func performDrop(info: DropInfo) -> Bool {
         MainActor.assumeIsolated { app.draggingTabID = nil }
         return true
-    }
-}
-
-/// 탭 모양 — 캡슐(기본) 또는 Chrome식 사각.
-struct TabChipStyle: ViewModifier {
-    let chrome: Bool
-    let isSelected: Bool
-    let hovering: Bool
-    let quality: RenderQuality
-    let underlineNamespace: Namespace.ID
-
-    @Environment(\.interfaceTheme) private var theme
-    @Environment(\.resolvedAccent) private var accent
-
-    func body(content: Content) -> some View {
-        if chrome {
-            // 활성 탭이 아래 콘텐츠 캔버스로 흘러들어가는 chrome-tabs 룩
-            content
-                .background(
-                    UnevenRoundedRectangle(
-                        topLeadingRadius: 9, bottomLeadingRadius: 0,
-                        bottomTrailingRadius: 0, topTrailingRadius: 9,
-                        style: .continuous
-                    )
-                    .fill(chromeFill)
-                )
-                // "지금 여기" 정체성 — 활성 탭 상단 강조색 언더라인이 탭 사이를 미끄러진다
-                .overlay(alignment: .top) {
-                    if isSelected {
-                        RoundedRectangle(cornerRadius: 1, style: .continuous)
-                            .fill(accent)
-                            .frame(height: 2)
-                            .padding(.horizontal, 8)
-                            .matchedGeometryEffect(id: "activeTabUnderline", in: underlineNamespace)
-                    }
-                }
-                .opacity(isSelected ? 1 : 0.85)
-        } else {
-            content
-                .glassCapsule(
-                    tint: isSelected ? accent : nil,
-                    interactive: true,
-                    quality: quality
-                )
-                .opacity(isSelected ? 1 : 0.75)
-        }
-    }
-
-    private var chromeFill: Color {
-        // 활성 탭 = 콘텐츠 캔버스색 → 병합되어 보임
-        let active = theme.isBranded ? theme.canvasColor : Color(nsColor: .windowBackgroundColor)
-        let hover = theme.isBranded ? SonnetPalette.surface.opacity(0.5) : Color.primary.opacity(0.05)
-        if isSelected { return active }
-        if hovering { return hover }
-        return .clear
     }
 }
 
@@ -832,7 +892,9 @@ struct DocumentHostView: View {
                 saveState: session.saveState,
                 onManualSave: { session.save(manual: true) },
                 onOpenCharacterPage: { app.openDocument(id: $0) },
-                onCreateCharacterPage: { app.createCharacterPage(for: $0, linkedTo: session) },
+                onCreateCharacterPage: { member, activate in
+                    app.createCharacterPage(for: member, linkedTo: session, activate: activate)
+                },
                 // 우측은 프로젝트 파일 인스펙터 자리 — 캐릭터 인스펙터는 항상 좌측 고정
                 inspectorOnRight: false
             )
@@ -862,39 +924,37 @@ struct DocumentHostView: View {
 // MARK: - 플로팅 에이전트 패널
 
 /// 문서를 벗어나지 않고 에이전트와 대화하는 플로팅 패널 — AIChatView(compact)를
-/// 카드로 감싼다. 헤더의 작업 문서 칩이 "이 문서"가 무엇인지 보여준다.
+/// 글래스 카드로 감싼다 (1b: 우하단 AI 패널, glass pop 280ms 진입).
 struct FloatingChatPanel: View {
     @Environment(AppState.self) private var app
-    @Environment(\.interfaceTheme) private var theme
 
     var body: some View {
         AIChatView(compact: true)
             .frame(width: 400, height: 520)
             .background(
-                // 뒤의 에디터가 비쳐 글이 겹쳐 보이지 않도록 불투명 캔버스
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous)
-                    .fill(theme.canvasColor)
-                    .shadow(color: .black.opacity(0.22), radius: 24, y: 10)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(SonnetPalette.canvas)
+                    .shadow(color: SonnetPalette.ink.opacity(0.22), radius: 25, y: 9)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous)
-                    .strokeBorder(SonnetPalette.ink.opacity(0.12), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(SonnetPalette.ink.opacity(0.1), lineWidth: 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.large, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             .overlay(alignment: .topTrailing) {
                 Button {
                     app.showFloatingChat = false
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 16))
-                        .foregroundStyle(.secondary)
-                        .background(Circle().fill(theme.canvasColor))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .background(Circle().fill(SonnetPalette.canvas))
                 }
                 .buttonStyle(PressBounceButtonStyle())
                 .help(Localizer.shared.t(.close) + " (⇧⌘A)")
                 .offset(x: 7, y: -7)
             }
-            .padding(.trailing, DesignTokens.Spacing.m)
-            .padding(.bottom, DesignTokens.Spacing.m)
+            .padding(.trailing, DesignTokens.Spacing.l)
+            .padding(.bottom, DesignTokens.Spacing.l)
     }
 }

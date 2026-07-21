@@ -28,6 +28,7 @@ public enum L10nKey: String, Sendable {
     case cancel, save, done, delete, rename, duplicate, close, open, choose, apply
     case hide, unhide, moveToTrash, restore, hiddenItems, trashItems
     case settings, settingsGeneral, settingsTheme, settingsText, settingsBeta
+    case settingsChangesFormat, revertChanges
     case language, themeMode, themeSystem, themeLight, themeDark
     case accentColor, accentCustom, qualityTier, qualityLow, qualityStandard, qualityHigh
     case backgroundEffect, effectSpeed, effectDensity, effectBlur
@@ -56,14 +57,33 @@ public enum L10nKey: String, Sendable {
     case interfaceStyle, themeSonnet, themePilgrimage, fontLabel, fontPretendard, fontSystem, fontSerif, fontMono, disableGlass
     case blockSpacing
     case uiScale, tabStyle, tabStyleCapsule, tabStyleChrome, inspectorPosition, positionLeft, positionRight
-    case importAny, aiAgent, sonnetAI, askAnything, openAsTab, clearChat
+    case importAny, sonnetAI, askAnything, openAsTab, clearChat
+    case openTabs, quickStart, continueWriting, todayWriting, streakDaysFormat, dailyGoalChars, greetingFollowup
+    case closeOtherTabs, closeTabsToRight, paletteHints
+    case emptyAddFirstScene, emptyConnectCharacter
+    case aiExampleTighten, aiExampleVoice, aiExampleSummarize, aiConfirmTitle
+    case accessibilitySection, reduceMotionLabel, reduceMotionCaption
+    case voiceAuto, restoreSnapshotDiffFormat
+    case brokenCharacterLink, unlinkCharacterPage, projectCharacters
+    case newProjectNamePrompt, createAction, projectsEmptyHint, projectDocCountFormat
+    case relationsEmptyHint, galleryEmptyHint, voiceEmptyHint
+    case onboardingWelcomeTitle, onboardingWelcomeBody, onboardingStorageCaption
+    case onboardingTypesTitle, typeDescScenario, typeDescMindmap, typeDescPage, typeDescCharacter
+    case onboardingStartTitle, onboardingGuideOption, onboardingGuideCaption
+    case onboardingFirstProjectOption, onboardingFirstProjectCaption
+    case onboardingSoloOption, onboardingSoloCaption
+    case onboardingSkip, onboardingNext, onboardingBack, onboardingReplay
+    case sceneBlock, composerPlaceholderScene, plotLabel, plotDragHint, promoteToMindmap, embedBlock, embedOpenOriginal, embedMissing
+    case categorySection
+    case archiveAll, autoBackupDone, backupTimelineShort, aiDraft, aiDraftSubtitle
+    case glassMode, glassModePoint, glassModeFull, glassIntensityLabel, paperGrain, paperGrainCaption
     case touchBarSupport, touchBarFunctions
     case profileTab, notesTab, relationsTab, galleryTab, voiceTab
     case addField, fieldName, fieldValue, addRelation, relationLabel
     case addImage, phaseTag, captionLabel
     case voiceTone, voiceTaboo, voiceSamples, addVoiceCard, addSample
     case appearances, linesCountFormat, editProfileImage
-    case readOnlyMode, readOnlyOn, readOnlyOff
+    case readOnlyMode, readOnlyOn, readOnlyOff, readOnlyCanvasHint
     case rehearsal, rehearsalPause, rehearsalResume, rehearsalStop, rehearsalSpeed
     case quickOpen, quickOpenPlaceholder, noMatches, actionsSection, documentsSection
     case focusMode, focusModeHint, typewriterMode, typewriterModeHint, mindmapAutoInspector
@@ -73,7 +93,7 @@ public enum L10nKey: String, Sendable {
     case writingGoal, charsUnit, goalReached, streakDays
     case rehearsalVoice
     case settingsAppearance, settingsEditor
-    case deleteProject, trashConfirmMessage, projectDeleteMessage
+    case deleteProject, trashConfirmMessage, trashConfirmMessagePlural, projectDeleteMessage
     case profilePage, contributions, activityEmpty
     case spacingCompact, spacingMedium, spacingWide
     case inbox, eventImported, eventExported, eventBackedUp, eventRestored, eventProjectDeleted
@@ -81,7 +101,8 @@ public enum L10nKey: String, Sendable {
     case aboutMe, recentlyDeleted, choosePhoto, removePhoto, viewProfile
     case authRequiredHidden, authRequiredTrash, authReason, unlocked
     case profile, workspace, documents, untitled, editContent
-    case addNode, nodeText, nodePage, nodeImage, nodeFile, edgeCaption, zoomReset
+    case addNode, nodeText, nodePage, nodeImage, nodeFile, edgeCaption, zoomReset, zoomFit
+    case calloutScenarioModes, calloutMindmapLink, calloutPageEmbed
     case blockParagraph, blockHeading1, blockHeading2, blockHeading3
     case blockBulleted, blockNumbered, blockTask, blockToggle, blockQuote, blockCode, blockDivider, blockCallout
     case slashHint, exportMarkdown, importMarkdown
@@ -119,8 +140,8 @@ public enum L10nKey: String, Sendable {
     // v1.3 가이드 프로젝트 (언어별 튜토리얼, GitHub 릴리스 자산에서 다운로드)
     case guideProject, createGuideProject, guideProjectHint, guideProjectCreating
     case guideProjectCreated, guideProjectFailed, guideProjectUnavailable
-    // AI 스피어 스타일
-    case aiSphereStyle, sphereStyleGlass, sphereStyleHolographic, sphereStyleInk, sphereStylePlasma, sphereStyleParticle
+    // AI 성운 스피어
+    case aiSphereStyle
     // 시간대 인사말 (홈 히어로) — %@ 자리에 작가 이름(있으면)
     case greetingMorning, greetingAfternoon, greetingEvening, greetingNight
     case greetingMorningNamed, greetingAfternoonNamed, greetingEveningNamed, greetingNightNamed
@@ -180,6 +201,12 @@ public final class Localizer {
         .settingsTheme: [.korean: "테마", .japanese: "テーマ", .english: "Theme"],
         .settingsText: [.korean: "텍스트", .japanese: "テキスト", .english: "Text"],
         .settingsBeta: [.korean: "베타", .japanese: "ベータ", .english: "Beta"],
+        .settingsChangesFormat: [
+            .korean: "변경 %d건 — 저장해야 반영됩니다",
+            .japanese: "変更 %d件 — 保存で反映されます",
+            .english: "%d change(s) — save to apply",
+        ],
+        .revertChanges: [.korean: "되돌리기", .japanese: "元に戻す", .english: "Revert"],
         .language: [.korean: "언어", .japanese: "言語", .english: "Language"],
         .themeMode: [.korean: "화면 모드", .japanese: "外観モード", .english: "Appearance"],
         .themeSystem: [.korean: "시스템", .japanese: "システム", .english: "System"],
@@ -272,6 +299,11 @@ public final class Localizer {
         .inspector: [.korean: "인스펙터", .japanese: "インスペクタ", .english: "Inspector"],
         .aiCompose: [.korean: "AI 자동 작성", .japanese: "AI自動作成", .english: "AI Compose"],
         .readOnlyMode: [.korean: "읽기 전용", .japanese: "読み取り専用", .english: "Read-only"],
+        .readOnlyCanvasHint: [
+            .korean: "읽기 전용 — 편집하려면 잠금을 해제하세요",
+            .japanese: "読み取り専用 — 編集するにはロックを解除してください",
+            .english: "Read-only — unlock to edit",
+        ],
         .readOnlyOn: [.korean: "읽기 전용 켜기", .japanese: "読み取り専用をオン", .english: "Lock Editing"],
         .readOnlyOff: [.korean: "읽기 전용 끄기", .japanese: "読み取り専用をオフ", .english: "Unlock Editing"],
         .rehearsal: [.korean: "리허설", .japanese: "リハーサル", .english: "Rehearsal"],
@@ -374,7 +406,188 @@ public final class Localizer {
         .positionLeft: [.korean: "왼쪽", .japanese: "左", .english: "Left"],
         .positionRight: [.korean: "오른쪽", .japanese: "右", .english: "Right"],
         .importAny: [.korean: "프로젝트/파일 불러오기", .japanese: "プロジェクト/ファイルを読み込む", .english: "Import Project/File"],
-        .aiAgent: [.korean: "AI 에이전트", .japanese: "AIエージェント", .english: "AI Agent"],
+        .openTabs: [.korean: "열린 탭", .japanese: "開いているタブ", .english: "Open Tabs"],
+        .closeOtherTabs: [.korean: "다른 탭 모두 닫기", .japanese: "他のタブをすべて閉じる", .english: "Close Other Tabs"],
+        .paletteHints: [
+            .korean: "↑↓ 이동 · ⏎ 열기 · ⎋ 닫기",
+            .japanese: "↑↓ 移動 · ⏎ 開く · ⎋ 閉じる",
+            .english: "↑↓ Navigate · ⏎ Open · ⎋ Close",
+        ],
+        .emptyAddFirstScene: [.korean: "첫 장면 추가", .japanese: "最初のシーンを追加", .english: "Add First Scene"],
+        .emptyConnectCharacter: [.korean: "캐릭터 연결", .japanese: "キャラクターをつなぐ", .english: "Connect a Character"],
+        .aiExampleTighten: [
+            .korean: "이 장면의 대사를 더 팽팽하게 다듬어줘",
+            .japanese: "このシーンのセリフをもっと張り詰めた感じに",
+            .english: "Tighten the dialogue in this scene",
+        ],
+        .aiExampleVoice: [
+            .korean: "주인공 말투로 다음 대사를 3개 제안해줘",
+            .japanese: "主人公の口調で次のセリフを3つ提案して",
+            .english: "Suggest 3 next lines in the protagonist's voice",
+        ],
+        .aiExampleSummarize: [
+            .korean: "이 문서를 요약해 플롯 메모 페이지로 만들어줘",
+            .japanese: "この文書を要約してプロットメモのページに",
+            .english: "Summarize this document into a plot-note page",
+        ],
+        .aiConfirmTitle: [
+            .korean: "Sonnet AI가 이 작업을 하려고 합니다",
+            .japanese: "Sonnet AIがこの操作を実行しようとしています",
+            .english: "Sonnet AI wants to perform this action",
+        ],
+        .accessibilitySection: [.korean: "접근성", .japanese: "アクセシビリティ", .english: "Accessibility"],
+        .voiceAuto: [.korean: "자동 배정", .japanese: "自動割り当て", .english: "Automatic"],
+        .brokenCharacterLink: [
+            .korean: "연결된 캐릭터 문서를 찾을 수 없습니다",
+            .japanese: "リンクされたキャラクター文書が見つかりません",
+            .english: "Linked character document not found",
+        ],
+        .unlinkCharacterPage: [.korean: "연결 해제", .japanese: "リンクを解除", .english: "Unlink"],
+        .projectCharacters: [.korean: "프로젝트 캐릭터", .japanese: "プロジェクトのキャラクター", .english: "Project Characters"],
+        .restoreSnapshotDiffFormat: [
+            .korean: "현재 상태와 %d곳이 다릅니다. 복원해도 새 스냅샷으로 언제든 돌아올 수 있습니다.",
+            .japanese: "現在の状態と%d箇所異なります。復元しても新しいスナップショットでいつでも戻れます。",
+            .english: "%d place(s) differ from the current state. You can always come back via a new snapshot.",
+        ],
+        .newProjectNamePrompt: [.korean: "프로젝트 이름", .japanese: "プロジェクト名", .english: "Project name"],
+        .createAction: [.korean: "만들기", .japanese: "作成", .english: "Create"],
+        .projectsEmptyHint: [
+            .korean: "프로젝트는 세계관과 캐릭터를 함께 담는 폴더예요. 시나리오·마인드맵·페이지가 그 안에서 서로 연결됩니다.",
+            .japanese: "プロジェクトは世界観とキャラクターをまとめるフォルダです。シナリオ・マインドマップ・ページがその中で相互にリンクします。",
+            .english: "A project is a folder that holds a world and its characters. Scenarios, mind maps, and pages all link together inside it.",
+        ],
+        .projectDocCountFormat: [.korean: "문서 %d개", .japanese: "ドキュメント%d件", .english: "%d documents"],
+        .relationsEmptyHint: [
+            .korean: "관계를 추가하면 방사형 관계도가 자동으로 그려집니다. 관계가 쌓이면 마인드맵으로 승격해 큰 그림을 편집할 수 있어요.",
+            .japanese: "関係を追加すると放射状の関係図が自動で描かれます。関係が増えたらマインドマップに昇格して全体像を編集できます。",
+            .english: "Add relations to draw an automatic radial map. Once they grow, promote them to a mind map to edit the big picture.",
+        ],
+        .galleryEmptyHint: [
+            .korean: "아래 ‘이미지 추가’로 이 캐릭터의 이미지를 모아 보세요 — PNG·JPG·HEIC·WebP 등 이미지 형식을 지원합니다.",
+            .japanese: "下の「画像を追加」でこのキャラクターの画像を集めましょう — PNG・JPG・HEIC・WebPなどに対応しています。",
+            .english: "Use “Add Image” below to collect images of this character — PNG, JPG, HEIC, WebP and more are supported.",
+        ],
+        .voiceEmptyHint: [
+            .korean: "보이스 카드는 AI가 이 캐릭터의 대사를 쓸 때 말투 기준이 됩니다 — 예시 대사가 있을수록 자동작성 품질이 올라갑니다.",
+            .japanese: "ボイスカードはAIがこのキャラクターのセリフを書くときの口調の基準になります — 例文が多いほど自動生成の品質が上がります。",
+            .english: "Voice cards anchor this character's tone when the AI writes dialogue — the more sample lines, the better the drafts.",
+        ],
+        .onboardingWelcomeTitle: [
+            .korean: "Sonnet Create에 오신 것을 환영합니다",
+            .japanese: "Sonnet Createへようこそ",
+            .english: "Welcome to Sonnet Create",
+        ],
+        .onboardingWelcomeBody: [
+            .korean: "이야기의 모든 조각 — 시나리오, 마인드맵, 페이지, 캐릭터 — 를 하나의 워크스페이스에서 씁니다. 세 걸음이면 준비가 끝나요.",
+            .japanese: "物語のすべてのピース — シナリオ、マインドマップ、ページ、キャラクター — をひとつのワークスペースで書きます。3ステップで準備完了です。",
+            .english: "Write every piece of your story — scenarios, mind maps, pages, characters — in one workspace. Three quick steps and you're set.",
+        ],
+        .onboardingStorageCaption: [
+            .korean: "문서는 이 폴더에 저장됩니다. 설정 > 기본에서 언제든 바꿀 수 있어요.",
+            .japanese: "ドキュメントはこのフォルダに保存されます。設定 > 一般でいつでも変更できます。",
+            .english: "Documents are stored in this folder. You can change it anytime in Settings > General.",
+        ],
+        .onboardingTypesTitle: [
+            .korean: "네 가지 문서",
+            .japanese: "4つのドキュメント",
+            .english: "Four Kinds of Documents",
+        ],
+        .typeDescScenario: [
+            .korean: "대사·지침 블록과 분기로 쓰는 채팅형 대본 (.scen)",
+            .japanese: "セリフ・指示ブロックと分岐で書くチャット型脚本 (.scen)",
+            .english: "Chat-style script with dialogue, directions and branches (.scen)",
+        ],
+        .typeDescMindmap: [
+            .korean: "무한 캔버스에 노드를 잇는 세계관 지도 (.scno)",
+            .japanese: "無限キャンバスにノードをつなぐ世界観マップ (.scno)",
+            .english: "World map of linked nodes on an infinite canvas (.scno)",
+        ],
+        .typeDescPage: [
+            .korean: "블록 편집과 / 커맨드로 쓰는 자유 노트 (.scpa)",
+            .japanese: "ブロック編集と / コマンドで書く自由ノート (.scpa)",
+            .english: "Free-form notes with block editing and / commands (.scpa)",
+        ],
+        .typeDescCharacter: [
+            .korean: "프로필·관계·보이스로 완성하는 인물 서류",
+            .japanese: "プロフィール・関係・ボイスで仕上げる人物ファイル",
+            .english: "Character dossier with profile, relations and voice",
+        ],
+        .onboardingStartTitle: [
+            .korean: "어떻게 시작할까요?",
+            .japanese: "どう始めますか？",
+            .english: "How would you like to start?",
+        ],
+        .onboardingGuideOption: [
+            .korean: "가이드 프로젝트로 배우기",
+            .japanese: "ガイドプロジェクトで学ぶ",
+            .english: "Learn with the Guide Project",
+        ],
+        .onboardingGuideCaption: [
+            .korean: "예제 문서가 담긴 튜토리얼 프로젝트를 내려받아요",
+            .japanese: "サンプル入りのチュートリアルプロジェクトをダウンロードします",
+            .english: "Download a tutorial project with example documents",
+        ],
+        .onboardingFirstProjectOption: [
+            .korean: "빈 프로젝트 만들기",
+            .japanese: "空のプロジェクトを作る",
+            .english: "Create an Empty Project",
+        ],
+        .onboardingFirstProjectCaption: [
+            .korean: "프로젝트 폴더를 만들고 직접 시작해요",
+            .japanese: "プロジェクトフォルダを作ってゼロから始めます",
+            .english: "Make a project folder and start from scratch",
+        ],
+        .onboardingSoloOption: [
+            .korean: "독립 문서로 시작",
+            .japanese: "単独ドキュメントで始める",
+            .english: "Start with a Standalone Document",
+        ],
+        .onboardingSoloCaption: [
+            .korean: "홈의 빠른 시작에서 바로 문서를 만들어요",
+            .japanese: "ホームのクイックスタートからすぐ作成できます",
+            .english: "Create documents right away from Quick Start on Home",
+        ],
+        .onboardingSkip: [.korean: "건너뛰기", .japanese: "スキップ", .english: "Skip"],
+        .onboardingNext: [.korean: "다음", .japanese: "次へ", .english: "Next"],
+        .onboardingBack: [.korean: "이전", .japanese: "戻る", .english: "Back"],
+        .onboardingReplay: [
+            .korean: "첫 실행 안내 다시 보기",
+            .japanese: "初回ガイドをもう一度見る",
+            .english: "Replay First-Run Intro",
+        ],
+        .reduceMotionLabel: [.korean: "모션 줄이기", .japanese: "モーションを減らす", .english: "Reduce Motion"],
+        .reduceMotionCaption: [
+            .korean: "스플래시·화면 전환·타자기 리빌·AI 성운 등 장식 모션을 즉시 표시로 대체합니다. 시스템 손쉬운 사용의 ‘동작 줄이기’도 자동 반영됩니다.",
+            .japanese: "スプラッシュ・画面遷移・タイプライター・AI星雲などの装飾モーションを即時表示に置き換えます。システムの「視差効果を減らす」も自動で反映されます。",
+            .english: "Replaces decorative motion (splash, transitions, typewriter, AI nebula) with instant display. The system Reduce Motion setting is also honored automatically.",
+        ],
+        .closeTabsToRight: [.korean: "오른쪽 탭 닫기", .japanese: "右側のタブを閉じる", .english: "Close Tabs to the Right"],
+        .greetingFollowup: [.korean: "어제의 문장에서 이어갈까요?", .japanese: "昨日の文章から続けましょうか？", .english: "Shall we pick up yesterday's sentence?"],
+        .sceneBlock: [.korean: "장면", .japanese: "シーン", .english: "Scene"],
+        .composerPlaceholderScene: [.korean: "장면 제목 입력… ⏎ 장면 경계 삽입", .japanese: "シーンタイトルを入力… ⏎ でシーン境界を挿入", .english: "Scene title… ⏎ inserts a scene break"],
+        .plotLabel: [.korean: "플롯", .japanese: "プロット", .english: "PLOT"],
+        .plotDragHint: [.korean: "드래그 재배열 → 본문 순서 반영", .japanese: "ドラッグで並べ替え → 本文順に反映", .english: "Drag to reorder → applies to body"],
+        .promoteToMindmap: [.korean: "마인드맵으로 승격 →", .japanese: "マインドマップに昇格 →", .english: "Promote to mind map →"],
+        .embedBlock: [.korean: "문서 임베드", .japanese: "文書埋め込み", .english: "Embed Document"],
+        .embedOpenOriginal: [.korean: "원본 열기 →", .japanese: "元を開く →", .english: "Open original →"],
+        .embedMissing: [.korean: "연결된 문서를 찾을 수 없습니다", .japanese: "リンク先の文書が見つかりません", .english: "Linked document not found"],
+        .categorySection: [.korean: "카테고리", .japanese: "カテゴリー", .english: "Categories"],
+        .quickStart: [.korean: "빠른 시작", .japanese: "クイックスタート", .english: "Quick Start"],
+        .continueWriting: [.korean: "이어서 쓰기", .japanese: "続きを書く", .english: "Continue Writing"],
+        .todayWriting: [.korean: "오늘의 집필", .japanese: "今日の執筆", .english: "Today's Writing"],
+        .streakDaysFormat: [.korean: "연속 %d일", .japanese: "連続%d日", .english: "%d-day streak"],
+        .dailyGoalChars: [.korean: "자", .japanese: "字", .english: "chars"],
+        .archiveAll: [.korean: "아카이브 전체 →", .japanese: "アーカイブ全体 →", .english: "All archive →"],
+        .autoBackupDone: [.korean: "자동 백업 완료", .japanese: "自動バックアップ完了", .english: "Auto backup complete"],
+        .backupTimelineShort: [.korean: "타임라인", .japanese: "タイムライン", .english: "Timeline"],
+        .aiDraft: [.korean: "AI로 초안", .japanese: "AIで下書き", .english: "Draft with AI"],
+        .aiDraftSubtitle: [.korean: "브리프 → 문서 생성", .japanese: "ブリーフ → 文書生成", .english: "Brief → document"],
+        .glassMode: [.korean: "적용 모드", .japanese: "適用モード", .english: "Glass Mode"],
+        .glassModePoint: [.korean: "포인트 글래스", .japanese: "ポイントグラス", .english: "Point Glass"],
+        .glassModeFull: [.korean: "풀 글래스", .japanese: "フルグラス", .english: "Full Glass"],
+        .glassIntensityLabel: [.korean: "유리 강도", .japanese: "ガラス強度", .english: "Glass Intensity"],
+        .paperGrain: [.korean: "페이퍼 그레인", .japanese: "ペーパーグレイン", .english: "Paper Grain"],
+        .paperGrainCaption: [.korean: "캔버스에 미세 그레인 텍스처 오버레이", .japanese: "キャンバスに微細なグレインを重ねる", .english: "Subtle grain texture over the canvas"],
         // 브랜드명이라 언어별로 옮기지 않고 그대로 사용
         .sonnetAI: [.korean: "Sonnet AI", .japanese: "Sonnet AI", .english: "Sonnet AI"],
         .askAnything: [.korean: "무엇이든 물어보세요…", .japanese: "何でも聞いてください…", .english: "Ask anything…"],
@@ -406,7 +619,16 @@ public final class Localizer {
         .settingsAppearance: [.korean: "모양", .japanese: "外観", .english: "Appearance"],
         .settingsEditor: [.korean: "에디터", .japanese: "エディタ", .english: "Editor"],
         .deleteProject: [.korean: "프로젝트 삭제", .japanese: "プロジェクトを削除", .english: "Delete Project"],
-        .trashConfirmMessage: [.korean: "이 문서를 휴지통으로 이동할까요?", .japanese: "このドキュメントをゴミ箱に移動しますか？", .english: "Move this document to Trash?"],
+        .trashConfirmMessage: [
+            .korean: "이 문서를 휴지통으로 이동할까요? 휴지통에서 언제든 복원할 수 있습니다.",
+            .japanese: "このドキュメントをゴミ箱に移動しますか？ゴミ箱からいつでも復元できます。",
+            .english: "Move this document to Trash? You can restore it from Trash anytime.",
+        ],
+        .trashConfirmMessagePlural: [
+            .korean: "‘%@’ 외 %d개 항목을 휴지통으로 이동할까요? 휴지통에서 언제든 복원할 수 있습니다.",
+            .japanese: "「%@」ほか%d件をゴミ箱に移動しますか？ゴミ箱からいつでも復元できます。",
+            .english: "Move “%@” and %d more to Trash? You can restore them from Trash anytime.",
+        ],
         .projectDeleteMessage: [.korean: "프로젝트 폴더 전체(포함된 문서 포함)가 Finder 휴지통으로 이동합니다.", .japanese: "プロジェクトフォルダ全体（含まれるドキュメントを含む）がFinderのゴミ箱に移動します。", .english: "The entire project folder (including its documents) will move to the Finder Trash."],
         .profilePage: [.korean: "프로필", .japanese: "プロフィール", .english: "Profile"],
         .contributions: [.korean: "기여도", .japanese: "アクティビティ", .english: "Contributions"],
@@ -455,6 +677,22 @@ public final class Localizer {
         .nodeFile: [.korean: "파일", .japanese: "ファイル", .english: "File"],
         .edgeCaption: [.korean: "연결선 캡션", .japanese: "接続キャプション", .english: "Edge Caption"],
         .zoomReset: [.korean: "확대 초기화", .japanese: "ズームをリセット", .english: "Reset Zoom"],
+        .zoomFit: [.korean: "전체 맞춤", .japanese: "全体表示", .english: "Fit to Content"],
+        .calloutScenarioModes: [
+            .korean: "입력기 왼쪽에서 대사·지침·장면 모드를 전환할 수 있어요 — 장면 모드는 입력한 제목을 장면 경계로 삽입합니다.",
+            .japanese: "入力欄の左でセリフ・指示・シーンのモードを切り替えられます — シーンモードは入力したタイトルをシーン境界として挿入します。",
+            .english: "Switch between line, direction and scene modes on the composer's left — scene mode inserts your title as a scene boundary.",
+        ],
+        .calloutMindmapLink: [
+            .korean: "페이지 노드에 문서를 연결하면 캔버스에서 바로 열 수 있어요 — 노드를 선택하고 인스펙터의 ‘문서 연결…’을 사용하세요.",
+            .japanese: "ページノードにドキュメントをつなぐとキャンバスから直接開けます — ノードを選択してインスペクタの「ドキュメントをリンク…」を使ってください。",
+            .english: "Link a document to a page node to open it right from the canvas — select a node and use “Link Document…” in the inspector.",
+        ],
+        .calloutPageEmbed: [
+            .korean: "/ 커맨드로 다른 문서를 임베드하면 원본이 바뀔 때 미리보기도 함께 갱신됩니다.",
+            .japanese: "/ コマンドで他のドキュメントを埋め込むと、原本の変更に合わせてプレビューも更新されます。",
+            .english: "Embed another document with the / command — its preview stays in sync with the original.",
+        ],
         .blockParagraph: [.korean: "본문", .japanese: "本文", .english: "Text"],
         .blockHeading1: [.korean: "제목 1", .japanese: "見出し1", .english: "Heading 1"],
         .blockHeading2: [.korean: "제목 2", .japanese: "見出し2", .english: "Heading 2"],
@@ -548,20 +786,17 @@ public final class Localizer {
         .guideProjectCreated: [.korean: "가이드 프로젝트가 추가되었습니다", .japanese: "ガイドプロジェクトを追加しました", .english: "Guide project added"],
         .guideProjectFailed: [.korean: "가이드 프로젝트를 받지 못했습니다", .japanese: "ガイドプロジェクトの取得に失敗しました", .english: "Couldn't download guide project"],
         .guideProjectUnavailable: [.korean: "이 버전에는 가이드 프로젝트가 아직 없습니다", .japanese: "このバージョンのガイドプロジェクトはまだありません", .english: "No guide project is available for this version yet"],
-        .aiSphereStyle: [.korean: "AI 스피어 스타일", .japanese: "AIスフィアのスタイル", .english: "AI Sphere Style"],
-        .sphereStyleGlass: [.korean: "글래스", .japanese: "ガラス", .english: "Glass"],
-        .sphereStyleHolographic: [.korean: "홀로그램", .japanese: "ホログラム", .english: "Holographic"],
-        .sphereStyleInk: [.korean: "잉크", .japanese: "インク", .english: "Ink"],
-        .sphereStylePlasma: [.korean: "플라즈마", .japanese: "プラズマ", .english: "Plasma"],
-        .sphereStyleParticle: [.korean: "파티클", .japanese: "パーティクル", .english: "Particle"],
+        .aiSphereStyle: [.korean: "AI 성운 스피어", .japanese: "AI星雲スフィア", .english: "AI Nebula Sphere"],
         .greetingMorning: [.korean: "좋은 아침이에요. 무엇을 써볼까요?", .japanese: "おはようございます。何を書きましょう？", .english: "Good morning. What shall we write?"],
         .greetingAfternoon: [.korean: "무엇을 창작해볼까요?", .japanese: "今日は何を創りますか？", .english: "What shall we create?"],
         .greetingEvening: [.korean: "저녁이네요. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね。今日の物語を続けましょうか？", .english: "Good evening. Shall we continue the story?"],
         .greetingNight: [.korean: "깊은 밤, 영감이 찾아오는 시간이에요.", .japanese: "深い夜、インスピレーションが訪れる時間です。", .english: "Late night — when inspiration comes."],
-        .greetingMorningNamed: [.korean: "좋은 아침이에요, %@ 님. 무엇을 써볼까요?", .japanese: "おはようございます、%@さん。何を書きましょう？", .english: "Good morning, %@. What shall we write?"],
-        .greetingAfternoonNamed: [.korean: "%@ 님, 무엇을 창작해볼까요?", .japanese: "%@さん、今日は何を創りますか？", .english: "%@, what shall we create?"],
-        .greetingEveningNamed: [.korean: "저녁이네요, %@ 님. 오늘의 이야기를 이어가볼까요?", .japanese: "夜ですね、%@さん。今日の物語を続けましょうか？", .english: "Good evening, %@. Shall we continue the story?"],
-        .greetingNightNamed: [.korean: "깊은 밤이에요, %@ 님. 영감이 찾아오는 시간이죠.", .japanese: "深い夜ですね、%@さん。インスピレーションが訪れる時間です。", .english: "Late night, %@ — when inspiration comes."],
+        // 히어로 1행에 들어가도록 짧게 유지한다 — 뒤따르는 문장은 greetingFollowup이 담당.
+        // (길면 세리프 34pt에서 두 줄로 접혀 이름과 호칭이 갈라진다)
+        .greetingMorningNamed: [.korean: "좋은 아침이에요, %@ 님.", .japanese: "おはようございます、%@さん。", .english: "Good morning, %@."],
+        .greetingAfternoonNamed: [.korean: "%@ 님, 좋은 오후예요.", .japanese: "%@さん、こんにちは。", .english: "Good afternoon, %@."],
+        .greetingEveningNamed: [.korean: "저녁이네요, %@ 님.", .japanese: "夜ですね、%@さん。", .english: "Good evening, %@."],
+        .greetingNightNamed: [.korean: "깊은 밤이에요, %@ 님.", .japanese: "深い夜ですね、%@さん。", .english: "Late night, %@."],
         .sphereDensity: [.korean: "입자 밀도", .japanese: "パーティクル密度", .english: "Particle Density"],
         .sphereDensitySparse: [.korean: "성기게", .japanese: "疎", .english: "Sparse"],
         .sphereDensityNormal: [.korean: "보통", .japanese: "標準", .english: "Normal"],

@@ -233,15 +233,26 @@ struct CharacterProfileTab: View {
                 Label(l10n.t(.appearances), systemImage: "clock.arrow.circlepath")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
+                // 등장 시나리오 — 클릭하면 그 시나리오로 바로 이동 (실제 편집 흐름으로 연결)
                 ForEach(Array(stats.enumerated()), id: \.offset) { _, stat in
-                    HStack(spacing: 6) {
-                        Text(stat.title)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(String(format: l10n.t(.linesCountFormat), stat.lineCount))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                    Button {
+                        store.onOpenDocument?(stat.id)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "text.bubble")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.tertiary)
+                            Text(stat.title)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(String(format: l10n.t(.linesCountFormat), stat.lineCount))
+                                .font(.caption2)
+                                .foregroundStyle(.tertiary)
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.top, DesignTokens.Spacing.m)
@@ -292,8 +303,44 @@ struct CharacterRelationsTab: View {
         let catalog = store.characterCatalog?() ?? []
         ScrollView {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.l) {
-                // 방사형 관계도 (자동 생성)
+                // 빈 상태 — 인물 추가와 마인드맵 승격을 함께 안내 (4단계 캐릭터)
+                if relations.isEmpty {
+                    VStack(spacing: DesignTokens.Spacing.s) {
+                        Image(systemName: "person.line.dotted.person")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.tertiary)
+                        Text(l10n.t(.relationsEmptyHint))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 420)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 48)
+                }
+
+                // 방사형 관계도 (자동 생성) + 마인드맵 승격 (3c)
                 if !relations.isEmpty {
+                    if store.onPromoteRelations != nil {
+                        HStack {
+                            Spacer()
+                            Button {
+                                let pairs = relations.map { relation in
+                                    (
+                                        relation: relation,
+                                        name: catalog.first { $0.id == relation.targetPageID }?.name ?? "…"
+                                    )
+                                }
+                                store.onPromoteRelations?(pairs)
+                            } label: {
+                                Text(l10n.t(.promoteToMindmap))
+                                    .font(DSFonts.font(size: 12, family: .pretendard))
+                                    .foregroundStyle(accent)
+                            }
+                            .buttonStyle(.plain)
+                            .help(l10n.t(.promoteToMindmap))
+                        }
+                    }
                     RelationsRadialView(store: store, relations: relations, catalog: catalog)
                         .frame(height: 300)
                         .frame(maxWidth: .infinity)
@@ -474,6 +521,21 @@ struct CharacterGalleryTab: View {
         let items = store.content.profile?.gallery ?? []
         ScrollView {
             VStack(alignment: .leading, spacing: DesignTokens.Spacing.m) {
+                // 빈 상태 — 추가 방법과 지원 형식 안내 (4단계 캐릭터)
+                if items.isEmpty {
+                    VStack(spacing: DesignTokens.Spacing.s) {
+                        Image(systemName: "photo.on.rectangle.angled")
+                            .font(.system(size: 30))
+                            .foregroundStyle(.tertiary)
+                        Text(l10n.t(.galleryEmptyHint))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 420)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 48)
+                }
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: DesignTokens.Spacing.m)], spacing: DesignTokens.Spacing.m) {
                     ForEach(items) { item in
                         galleryCard(item, l10n: l10n)
@@ -616,9 +678,12 @@ struct CharacterVoiceTab: View {
                         Image(systemName: "waveform")
                             .font(.system(size: 30))
                             .foregroundStyle(.tertiary)
-                        Text(l10n.t(.aiCompose) + " ← " + l10n.t(.voiceTab))
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                        // AI 대사 품질에 미치는 영향을 설명한다 (4단계 캐릭터)
+                        Text(l10n.t(.voiceEmptyHint))
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: 420)
                         Button {
                             store.updateProfile { $0.voice = CharacterVoice() }
                         } label: {
@@ -651,6 +716,17 @@ struct CharacterVoiceTab: View {
             LabeledContent(l10n.t(.voiceTaboo)) {
                 TextField("", text: voiceBinding(\.taboo))
                     .textFieldStyle(.roundedBorder)
+            }
+
+            // 말투 카드 (3c) — 카드에 마우스를 올리면 예시 대사가 타자기로 재생된다.
+            // '보이스 카드 = AI 말투 주입 소스'라는 정체성을 눈으로 보여주는 프리뷰.
+            let playableSamples = samples.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            if !playableSamples.isEmpty {
+                VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+                    ForEach(Array(playableSamples.enumerated()), id: \.offset) { _, sample in
+                        VoiceSampleCard(text: sample)
+                    }
+                }
             }
 
             Text(l10n.t(.voiceSamples))
@@ -689,6 +765,57 @@ struct CharacterVoiceTab: View {
             Text("보이스 카드는 AI 자동작성 시 캐릭터 말투 유지에 사용됩니다.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
+        }
+    }
+
+    /// 보이스 샘플 카드 (3c) — 흰 카드 + 버밀리온 좌측 보더 + 세리프 이탤릭 인용.
+    /// 마우스를 올리면 대사가 타자기 리빌로 재생돼 '말투가 재생되는' 카드가 된다.
+    private struct VoiceSampleCard: View {
+        let text: String
+
+        @State private var hovering = false
+        /// 리빌 재시작 트리거 — 호버 진입마다 갱신돼 TypewriterText가 처음부터 다시 새긴다.
+        @State private var playID = 0
+
+        var body: some View {
+            Group {
+                if hovering {
+                    TypewriterText(
+                        "“\(text)”",
+                        font: DSFonts.font(size: 13.5, family: .serif).italic(),
+                        color: SonnetPalette.inkSoft
+                    )
+                    .id(playID)
+                } else {
+                    Text("“\(text)”")
+                        .font(DSFonts.font(size: 13.5, family: .serif).italic())
+                        .foregroundStyle(SonnetPalette.inkSoft)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .fill(SonnetPalette.surface)
+            )
+            .overlay(alignment: .leading) {
+                UnevenRoundedRectangle(
+                    topLeadingRadius: DesignTokens.Radius.medium,
+                    bottomLeadingRadius: DesignTokens.Radius.medium
+                )
+                .fill(SonnetPalette.accent)
+                .frame(width: 3)
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .strokeBorder(SonnetPalette.ink.opacity(0.09), lineWidth: 1)
+            )
+            .onHover { inside in
+                if inside, !hovering { playID += 1 }
+                hovering = inside
+            }
         }
     }
 
@@ -738,7 +865,7 @@ struct ProfileImagePanel: View {
         "person.fill", "theatermasks.fill", "crown.fill", "flame.fill", "leaf.fill",
         "moon.stars.fill", "bolt.fill", "heart.fill", "eye.fill", "pawprint.fill",
     ]
-    private let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6", "#9C4A2E"]
+    private let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C", "#191713"]
 
     var body: some View {
         let l10n = Localizer.shared

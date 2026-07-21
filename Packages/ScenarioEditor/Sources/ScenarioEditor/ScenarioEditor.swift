@@ -12,7 +12,7 @@ public struct ScenarioEditorView: View {
     let saveState: SaveState
     let onManualSave: () -> Void
     let onOpenCharacterPage: (UUID) -> Void
-    let onCreateCharacterPage: (CastMember) -> UUID?
+    let onCreateCharacterPage: (CastMember, Bool) -> UUID?
     /// 캐릭터 인스펙터 배치 (설정: 왼쪽/오른쪽)
     let inspectorOnRight: Bool
 
@@ -33,6 +33,8 @@ public struct ScenarioEditorView: View {
     /// 낭독(TTS) — 대사를 캐릭터별 목소리로 읽어준다.
     @State private var rehearsalVoiceEnabled = false
     @State private var narrator = RehearsalNarrator()
+    /// 낭독 중 TTS가 말한 글자 수 — 마지막 블록의 타자기 리빌이 이 값을 따라간다.
+    @State private var rehearsalSpokenChars: Int?
 
     private var isRehearsing: Bool { rehearsalCount != nil }
 
@@ -77,7 +79,7 @@ public struct ScenarioEditorView: View {
         saveState: SaveState,
         onManualSave: @escaping () -> Void,
         onOpenCharacterPage: @escaping (UUID) -> Void = { _ in },
-        onCreateCharacterPage: @escaping (CastMember) -> UUID? = { _ in nil },
+        onCreateCharacterPage: @escaping (CastMember, Bool) -> UUID? = { _, _ in nil },
         inspectorOnRight: Bool = false
     ) {
         self.store = store
@@ -94,6 +96,13 @@ public struct ScenarioEditorView: View {
         VStack(spacing: 0) {
             toolbar(l10n)
             Divider().opacity(0.4)
+            // 플롯 타임라인 (2a) — 장면 카드 + 분기 레인. 리허설 중에는 숨긴다.
+            if !isRehearsing, !store.content.blocks.isEmpty {
+                PlotTimelineView(store: store, isReadOnly: isReadOnly) { targetID in
+                    jumpToScene(targetID)
+                }
+                Divider().opacity(0.25)
+            }
             HStack(spacing: 0) {
                 if showInspector, !inspectorOnRight {
                     inspector
@@ -226,24 +235,33 @@ public struct ScenarioEditorView: View {
 
     // MARK: 씬 목차 (구분선 블록 = 장면 경계)
 
-    /// 활성 시퀀스를 구분선으로 잘라 장면 목록을 만든다. (id: 장면 첫 블록, title: 첫 텍스트 미리보기)
+    /// 활성 시퀀스를 구분선으로 잘라 장면 목록을 만든다.
+    /// 제목은 장면을 여는 구분선의 텍스트(장면 모드 입력)가 우선, 없으면 첫 텍스트 미리보기.
     private var scenes: [(id: UUID, title: String)] {
         var result: [(UUID, String)] = []
         var segment: [ScenarioBlock] = []
-        func flush() {
-            defer { segment = [] }
+        var pendingTitle = ""
+        func flush(nextTitle: String) {
+            defer {
+                segment = []
+                pendingTitle = nextTitle
+            }
             guard let first = segment.first else { return }
+            if !pendingTitle.isEmpty {
+                result.append((first.id, String(pendingTitle.prefix(24))))
+                return
+            }
             let preview = segment.first(where: { !$0.text.isEmpty })?.text.prefix(20)
             result.append((first.id, preview.map(String.init) ?? ""))
         }
         for block in store.activeBlocks {
             if block.kind == .divider {
-                flush()
+                flush(nextTitle: block.text)
             } else {
                 segment.append(block)
             }
         }
-        flush()
+        flush(nextTitle: "")
         return result
     }
 
@@ -415,25 +433,52 @@ public struct ScenarioEditorView: View {
                     }
 
                     if store.activeBlocks.isEmpty {
-                        Text(l10n.t(.emptyEditorHint))
-                            .font(.callout)
-                            .foregroundStyle(.tertiary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 80)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
+                        // 빈 본문 — 다음 행동으로 이어지는 시작 안내 (4단계 시나리오)
+                        VStack(spacing: DesignTokens.Spacing.m) {
+                            Text(l10n.t(.emptyEditorHint))
+                                .font(.callout)
+                                .foregroundStyle(.tertiary)
+                            if !isReadOnly {
+                                HStack(spacing: DesignTokens.Spacing.s) {
+                                    emptyStateAction(l10n.t(.emptyAddFirstScene), symbol: "film") {
+                                        store.composerMode = .scene
+                                    }
+                                    emptyStateAction(l10n.t(.emptyConnectCharacter), symbol: "person.badge.plus") {
+                                        withAnimation(DesignTokens.Motion.gentle) { showInspector = true }
+                                    }
+                                    emptyStateAction(l10n.t(.aiCompose), symbol: "sparkles") {
+                                        store.aiEnabled = true
+                                    }
+                                }
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 80)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
                     }
                     ForEach(displayedBlocks) { block in
-                        ScenarioBlockRow(store: store, block: block)
-                            .id(block.id)
-                            .allowsHitTesting(!isReadOnly)
-                            .moveDisabled(isReadOnly)
-                            .listRowSeparator(.hidden)
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(
-                                top: blockSpacing / 2, leading: DesignTokens.Spacing.m,
-                                bottom: blockSpacing / 2, trailing: DesignTokens.Spacing.m
-                            ))
+                        ScenarioBlockRow(
+                            store: store,
+                            block: block,
+                            // 리허설 중 방금 등장한 대사만 타자기 리빌 (9e)
+                            typewriterReveal: isRehearsing
+                                && block.kind == .line
+                                && block.id == displayedBlocks.last?.id,
+                            // 낭독 중이면 리빌이 TTS 진행을, 아니면 재생 배속을 따른다
+                            typewriterProgress: block.id == displayedBlocks.last?.id
+                                ? rehearsalSpokenChars : nil,
+                            typewriterSpeed: rehearsalSpeed
+                        )
+                        .id(block.id)
+                        .allowsHitTesting(!isReadOnly)
+                        .moveDisabled(isReadOnly)
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(
+                            top: blockSpacing / 2, leading: DesignTokens.Spacing.m,
+                            bottom: blockSpacing / 2, trailing: DesignTokens.Spacing.m
+                        ))
                     }
                     .onMove { store.moveBlocks(from: $0, to: $1) }
 
@@ -477,6 +522,8 @@ public struct ScenarioEditorView: View {
 
             if !isReadOnly {
                 VStack(spacing: DesignTokens.Spacing.s) {
+                    // 첫 사용 안내 — 입력 모드 3종을 한 번만 짧게 (5단계 상황별 안내)
+                    FirstUseCallout(id: "scenario-modes", text: l10n.t(.calloutScenarioModes))
                     if store.aiEnabled, !store.pendingSuggestions.isEmpty || store.isGenerating {
                         SuggestionStrip(store: store)
                     }
@@ -567,21 +614,28 @@ public struct ScenarioEditorView: View {
     private func startRehearsal() {
         rehearsalTask?.cancel()
         rehearsalPaused = false
+        // 정지 직후 도착하는 늦은 콜백이 상태를 되살리지 않게 리허설 중일 때만 반영
+        narrator.onProgress = { spoken in
+            if rehearsalCount != nil { rehearsalSpokenChars = spoken }
+        }
         withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = 0 }
         rehearsalTask = Task {
             var index = 0
             while index < store.visibleBlocks.count, !Task.isCancelled {
                 let block = store.visibleBlocks[index]
                 if rehearsalVoiceEnabled, block.kind == .line, !block.text.isEmpty {
-                    // 낭독 모드: 자막처럼 먼저 등장시키고, 말이 끝나야 다음으로
+                    // 낭독 모드: 자막처럼 먼저 등장시키고, 말이 끝나야 다음으로.
+                    // 리빌은 TTS 진행 콜백에 글자 단위로 동기화된다.
                     try? await Task.sleep(for: .milliseconds(300))
                     guard !Task.isCancelled else { return }
+                    rehearsalSpokenChars = 0
                     withAnimation(DesignTokens.Motion.arrival) { rehearsalCount = index + 1 }
                     await narrator.speak(
                         plainText(of: block),
                         voice: rehearsalVoice(for: block),
                         rate: speechRate
                     )
+                    rehearsalSpokenChars = nil
                 } else {
                     try? await Task.sleep(for: .seconds(rehearsalDelay(for: block)))
                     guard !Task.isCancelled else { return }
@@ -596,10 +650,28 @@ public struct ScenarioEditorView: View {
         }
     }
 
+    /// 빈 상태의 행동 칩 — 잉크 워시 배경의 조용한 보조 버튼 (Primary는 컴포저가 담당).
+    private func emptyStateAction(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .font(.callout)
+                .foregroundStyle(SonnetPalette.inkSoft)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule().fill(SonnetPalette.ink.opacity(0.05))
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
     private func stopRehearsal() {
         rehearsalTask?.cancel()
         rehearsalTask = nil
+        narrator.onProgress = nil
         narrator.stop()
+        rehearsalSpokenChars = nil
         rehearsalPaused = false
         withAnimation(DesignTokens.Motion.gentle) { rehearsalCount = nil }
     }
@@ -615,10 +687,17 @@ public struct ScenarioEditorView: View {
         return String(attributed.characters)
     }
 
-    /// 첫 화자의 캐스트 순번으로 목소리를 고정 배정 — 캐릭터마다 다른 목소리.
+    /// 낭독 목소리 — 캐스트에 수동 지정이 있으면 그 목소리, 없으면 순번 자동 배정.
     private func rehearsalVoice(for block: ScenarioBlock) -> AVSpeechSynthesisVoice? {
-        let castIndex = block.speakerIDs.first.flatMap { id in
-            store.content.cast.firstIndex { $0.id == id }
+        let member = block.speakerIDs.first.flatMap { id in
+            store.content.cast.first { $0.id == id }
+        }
+        if let identifier = member?.voiceIdentifier,
+           let chosen = AVSpeechSynthesisVoice(identifier: identifier) {
+            return chosen
+        }
+        let castIndex = member.flatMap { chosen in
+            store.content.cast.firstIndex { $0.id == chosen.id }
         }
         return RehearsalVoiceCasting.voice(
             languageCode: Localizer.shared.language.rawValue,

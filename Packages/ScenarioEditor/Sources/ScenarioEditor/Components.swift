@@ -1,4 +1,5 @@
 import AppCore
+import AVFoundation
 import DesignSystem
 import DocumentKit
 import SwiftUI
@@ -33,6 +34,12 @@ struct CastAvatar: View {
 struct ScenarioBlockRow: View {
     @Bindable var store: ScenarioStore
     let block: ScenarioBlock
+    /// 리허설 재생 중 방금 등장한 대사 — 타자기 리빌(9e)로 새겨진다.
+    var typewriterReveal: Bool = false
+    /// 낭독 중 TTS 진행(말한 글자 수) — 리빌 속도를 목소리에 동기화한다.
+    var typewriterProgress: Int?
+    /// 리허설 배속 — 내부 타이머 리빌이 재생 속도를 따라간다.
+    var typewriterSpeed: Double = 1
 
     @State private var hovering = false
     @Environment(\.renderQuality) private var quality
@@ -80,8 +87,9 @@ struct ScenarioBlockRow: View {
             Button(l10n.t(.delete), role: .destructive) { store.deleteBlock(block.id) }
         }
         .background(
+            // 검색 일치 링은 Search Match 골드 — 선택/행동의 버밀리온과 의미 분리 (2단계)
             RoundedRectangle(cornerRadius: DesignTokens.Radius.small, style: .continuous)
-                .strokeBorder(accent.opacity(0.55), lineWidth: 1.5)
+                .strokeBorder(SonnetPalette.searchMatch.opacity(0.7), lineWidth: 1.5)
                 .opacity(store.searchFocusID == block.id ? 1 : 0)
         )
         .opacity(store.editingBlockID == block.id ? 0.4 : 1)
@@ -105,39 +113,81 @@ struct ScenarioBlockRow: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(speakers.first.map { Color(hex: $0.accentHex) } ?? .secondary)
                 }
-                Text(markdownText)
-                    .font(DSFonts.font(size: 13 * fontScale, family: fontFamily))
-                    .contentLineSpacing(lineScale)
-                    .textSelection(.enabled)
-                    .fixedSize(horizontal: false, vertical: true)
+                if typewriterReveal {
+                    // 리허설 — 대사가 잉크로 새겨지듯 도착 (버밀리온 캐럿).
+                    // 낭독 중이면 TTS가 말하는 속도에 글자가 동기화된다.
+                    TypewriterText(
+                        block.text,
+                        font: DSFonts.font(size: 13 * fontScale, family: fontFamily),
+                        color: SonnetPalette.ink,
+                        progress: typewriterProgress,
+                        speed: typewriterSpeed
+                    )
+                } else {
+                    Text(markdownText)
+                        .font(DSFonts.font(size: 13 * fontScale, family: fontFamily))
+                        .contentLineSpacing(lineScale)
+                        .textSelection(.enabled)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.vertical, 2)
         }
     }
 
-    /// 구분선 — 장면 전환.
+    /// 구분선 — 장면 전환. 제목이 있으면 중앙 모노 칩(2a 장면 헤더), 없으면 얇은 선.
+    @ViewBuilder
     private var dividerBlock: some View {
-        Rectangle()
-            .fill(.separator)
-            .frame(height: 1)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
+        if block.text.isEmpty {
+            Rectangle()
+                .fill(.separator)
+                .frame(height: 1)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+        } else {
+            HStack {
+                Spacer()
+                Group {
+                    if store.revealingSceneChipID == block.id {
+                        // 방금 입력한 장면 제목 — 잉크가 자리에 앉는 1회 리빌 (9e)
+                        TypewriterText(
+                            block.text,
+                            font: .system(size: 10, weight: .semibold, design: .monospaced),
+                            color: SonnetPalette.inkMuted,
+                            showsCaret: false
+                        )
+                    } else {
+                        Text(block.text)
+                            .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                            .kerning(1.2)
+                            .foregroundStyle(SonnetPalette.inkMuted)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(SonnetPalette.ink.opacity(0.05)))
+                Spacer()
+            }
+            .padding(.vertical, 8)
+        }
     }
 
+    /// 지문 — 시스템 메시지 문법 (2a): 중앙 정렬 세리프 이탤릭, 최대 480pt.
+    /// 화면을 가로지르는 좌측 바 대신 무대 지시문처럼 흐름 한가운데에 얹힌다.
     private var instructionBlock: some View {
-        HStack(spacing: DesignTokens.Spacing.s) {
-            Rectangle()
-                .fill(.tertiary)
-                .frame(width: 2)
+        HStack {
+            Spacer(minLength: 0)
             Text(markdownText)
-                .font(DSFonts.font(size: 12 * fontScale, family: fontFamily).italic())
+                .font(DSFonts.display(size: 12.5 * fontScale, weight: .regular).italic())
                 .contentLineSpacing(lineScale)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(SonnetPalette.inkMuted)
+                .multilineTextAlignment(.center)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: 480)
+            Spacer(minLength: 0)
         }
         .padding(.vertical, 6)
-        .padding(.horizontal, 10)
     }
 
     private var markdownText: AttributedString {
@@ -145,6 +195,20 @@ struct ScenarioBlockRow: View {
             markdown: block.text,
             options: AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)
         )) ?? AttributedString(block.text)
+
+        // @멘션 인라인 칩 (2a) — 인장 틴트 워시 + 버밀리온. 문장부호/24자에서 끊는다.
+        if block.text.contains("@"),
+           let regex = try? NSRegularExpression(pattern: "@[^@\\n,.!?…]{1,24}") {
+            let source = block.text
+            let fullRange = NSRange(source.startIndex..., in: source)
+            for match in regex.matches(in: source, range: fullRange) {
+                guard let range = Range(match.range, in: source) else { continue }
+                let token = String(source[range]).trimmingCharacters(in: .whitespaces)
+                guard token.count > 1, let target = attributed.range(of: token) else { continue }
+                attributed[target].foregroundColor = SonnetPalette.accent
+                attributed[target].backgroundColor = SonnetPalette.accentTint
+            }
+        }
 
         // 검색 일치 구간 하이라이트 (대소문자·발음 구별 없이 전 구간)
         let query = store.searchQuery
@@ -246,10 +310,8 @@ struct SuggestionStrip: View {
                     if block.kind == .line {
                         SpeakerCluster(speakers: store.speakers(of: block))
                     }
-                    Text(block.text)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    // 제안 도착은 타자기 리빌 (9e) — 잉크가 자리에 앉는 감각
+                    TypewriterText(block.text, font: .callout)
                     Spacer()
                     Button(l10n.t(.accept)) { store.acceptSuggestion(block) }
                         .font(.caption)
@@ -282,7 +344,7 @@ struct CharacterInspectorView: View {
     @Bindable var store: ScenarioStore
     let onOpenCharacterPage: (UUID) -> Void
     /// 캐스트로부터 캐릭터 페이지(.scpa) 생성 — 생성된 문서 UUID 반환 (앱이 주입)
-    let onCreateCharacterPage: (CastMember) -> UUID?
+    let onCreateCharacterPage: (CastMember, Bool) -> UUID?
 
     @State private var newName = ""
     @Environment(\.resolvedAccent) private var accent
@@ -304,7 +366,8 @@ struct CharacterInspectorView: View {
             .padding(DesignTokens.Spacing.m)
 
             List {
-                ForEach(store.content.cast) { member in
+                // 문서가 연결된 캐스트는 문서 값으로 표시된다 (C안)
+                ForEach(store.resolvedCast) { member in
                     CastInspectorRow(
                         store: store,
                         member: member,
@@ -320,6 +383,9 @@ struct CharacterInspectorView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
+
+            // 프로젝트 캐릭터 — 아직 등장하지 않은 캐릭터를 한 번에 등장시킨다 (부가 개선 ①)
+            unlistedCharactersSection(l10n)
 
             Divider().opacity(0.4)
             HStack(spacing: 6) {
@@ -340,10 +406,65 @@ struct CharacterInspectorView: View {
         }
     }
 
+    /// 프로젝트에 있지만 이 시나리오에 아직 등장하지 않은 캐릭터 — 클릭 한 번으로 캐스트에 추가.
+    @ViewBuilder
+    private func unlistedCharactersSection(_ l10n: Localizer) -> some View {
+        let linked = Set(store.content.cast.compactMap(\.characterPageID))
+        let unlisted = (store.characterCatalog?() ?? []).filter { !linked.contains($0.id) }
+        if !unlisted.isEmpty, !isReadOnly {
+            Divider().opacity(0.4)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(l10n.t(.projectCharacters))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 10)
+                    .padding(.top, 6)
+                ScrollView {
+                    VStack(spacing: 1) {
+                        ForEach(unlisted) { character in
+                            Button {
+                                store.importCastMember(character)
+                                store.refreshCharacterIndex()
+                            } label: {
+                                HStack(spacing: 7) {
+                                    Image(systemName: character.symbolName)
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Color(hex: character.accentHex))
+                                        .frame(width: 18)
+                                    Text(character.name)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                    Spacer(minLength: 0)
+                                    Image(systemName: "plus")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+                .frame(maxHeight: min(CGFloat(unlisted.count) * 28 + 2, 120))
+            }
+        }
+    }
+
     private func addMember() {
         let name = newName.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
-        store.addCastMember(name: name)
+        // A안: 캐릭터를 추가하면 곧바로 캐릭터 페이지(.scpa)를 만들고 캐스트에 연결한다
+        // — 캐스트가 처음부터 1급 문서가 되도록 (형식적 화자로만 남지 않게).
+        let member = store.addCastMember(name: name)
+        // activate: false — 페이지 파일만 만들고 탭은 열지 않는다 (연속 추가 시 화면 안 튐)
+        if let pageID = onCreateCharacterPage(member, false) {
+            var linked = member
+            linked.characterPageID = pageID
+            store.updateCastMember(linked)
+        }
         newName = ""
     }
 
@@ -383,7 +504,7 @@ struct CastInspectorRow: View {
     @Bindable var store: ScenarioStore
     let member: CastMember
     let onOpen: (UUID) -> Void
-    let onCreatePage: (CastMember) -> UUID?
+    let onCreatePage: (CastMember, Bool) -> UUID?
 
     @State private var hovering = false
     @State private var editing = false
@@ -393,9 +514,22 @@ struct CastInspectorRow: View {
         HStack(spacing: DesignTokens.Spacing.s) {
             CastAvatar(member: member, size: 40)
             VStack(alignment: .leading, spacing: 1) {
-                Text(member.name)
-                    .font(.callout.weight(.medium))
-                    .lineLimit(1)
+                HStack(spacing: 4) {
+                    Text(member.name)
+                        .font(.callout.weight(.medium))
+                        .lineLimit(1)
+                    // 연결 상태 — 정상이면 문서 글리프, 문서가 사라졌으면 끊긴 링크 경고
+                    if store.hasBrokenLink(member) {
+                        Image(systemName: "link.badge.plus")
+                            .font(.system(size: 9))
+                            .foregroundStyle(SonnetPalette.warning)
+                            .help(Localizer.shared.t(.brokenCharacterLink))
+                    } else if member.characterPageID != nil {
+                        Image(systemName: "doc.text.fill")
+                            .font(.system(size: 8))
+                            .foregroundStyle(Color(hex: member.accentHex).opacity(0.8))
+                    }
+                }
                 if !member.roleLine.isEmpty {
                     Text(member.roleLine)
                         .font(.caption2)
@@ -404,10 +538,16 @@ struct CastInspectorRow: View {
                 }
             }
             Spacer()
+            // hover 편집 버튼 — 행 클릭은 페이지 열기로 갔으므로 편집은 여기로
             if hovering {
-                Image(systemName: "slider.horizontal.3")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Button { beginEditing() } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(l10n.t(.editContent))
             }
         }
         .padding(.vertical, 4)
@@ -418,14 +558,35 @@ struct CastInspectorRow: View {
         )
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
-        .onTapGesture { beginEditing() }
+        // 페이지가 있으면 행 클릭 = 바로 열기, 없거나 끊겼으면 편집 팝오버 (공통 요구)
+        .onTapGesture {
+            if let pageID = member.characterPageID, !store.hasBrokenLink(member) {
+                onOpen(pageID)
+            } else {
+                beginEditing()
+            }
+        }
         .popover(isPresented: $editing, arrowEdge: .trailing) {
             CastEditorView(store: store, memberID: member.id, onOpen: onOpen, onCreatePage: onCreatePage)
         }
         .contextMenu {
             Button(l10n.t(.editContent)) { beginEditing() }
-            if let pageID = member.characterPageID {
+            if let pageID = member.characterPageID, !store.hasBrokenLink(member) {
                 Button(l10n.t(.open)) { onOpen(pageID) }
+            }
+            // 끊긴 링크 — 문서가 사라졌으면 연결을 풀거나 새 페이지를 만들어 붙인다
+            if store.hasBrokenLink(member) {
+                Button(l10n.t(.unlinkCharacterPage)) { store.unlinkCharacterPage(member.id) }
+                Button(l10n.t(.newCharacter)) {
+                    var relinked = member
+                    relinked.characterPageID = nil
+                    store.updateCastMember(relinked)
+                    if let pageID = onCreatePage(relinked, false) {
+                        relinked.characterPageID = pageID
+                        store.updateCastMember(relinked)
+                        store.refreshCharacterIndex()
+                    }
+                }
             }
             Divider()
             Button(l10n.t(.delete), role: .destructive) { store.removeCastMember(member.id) }
@@ -445,7 +606,7 @@ struct CastEditorView: View {
     @Bindable var store: ScenarioStore
     let memberID: UUID
     let onOpen: (UUID) -> Void
-    let onCreatePage: (CastMember) -> UUID?
+    let onCreatePage: (CastMember, Bool) -> UUID?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -453,9 +614,10 @@ struct CastEditorView: View {
         "person.fill", "theatermasks.fill", "crown.fill", "flame.fill", "leaf.fill",
         "moon.stars.fill", "bolt.fill", "heart.fill", "eye.fill", "pawprint.fill",
     ]
-    private let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6"]
+    private let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C"]
 
-    private var member: CastMember? { store.castMember(id: memberID) }
+    /// 표시·편집 기준 — 연결된 캐릭터 문서가 있으면 문서 값이 원본 (C안)
+    private var member: CastMember? { store.castMember(id: memberID).map(store.resolved) }
 
     var body: some View {
         let l10n = Localizer.shared
@@ -511,6 +673,42 @@ struct CastEditorView: View {
                     }
                 }
 
+                // 리허설 낭독 목소리 — 자동(캐스트 순환) 또는 수동 지정
+                Menu {
+                    Button {
+                        update { $0.voiceIdentifier = nil }
+                    } label: {
+                        if member.voiceIdentifier == nil {
+                            Label(l10n.t(.voiceAuto), systemImage: "checkmark")
+                        } else {
+                            Text(l10n.t(.voiceAuto))
+                        }
+                    }
+                    Divider()
+                    ForEach(RehearsalVoiceCasting.availableVoices(
+                        languageCode: Localizer.shared.language.rawValue
+                    ), id: \.identifier) { voice in
+                        Button {
+                            update { $0.voiceIdentifier = voice.identifier }
+                        } label: {
+                            if member.voiceIdentifier == voice.identifier {
+                                Label(voice.name, systemImage: "checkmark")
+                            } else {
+                                Text(voice.name)
+                            }
+                        }
+                    }
+                } label: {
+                    Label(
+                        member.voiceIdentifier.flatMap { identifier in
+                            RehearsalVoiceCasting.voiceName(identifier: identifier)
+                        } ?? l10n.t(.voiceAuto),
+                        systemImage: "speaker.wave.2"
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+                .help(l10n.t(.rehearsalVoice))
+
                 Divider()
 
                 // 캐릭터 페이지 연결
@@ -524,7 +722,8 @@ struct CastEditorView: View {
                     }
                 } else {
                     Button {
-                        if let pageID = onCreatePage(member) {
+                        // 팝오버의 '새 캐릭터'는 만들고 바로 연다 (activate: true)
+                        if let pageID = onCreatePage(member, true) {
                             update { $0.characterPageID = pageID }
                             dismiss()
                             onOpen(pageID)
@@ -551,7 +750,8 @@ struct CastEditorView: View {
     private func update(_ transform: (inout CastMember) -> Void) {
         guard var current = member else { return }
         transform(&current)
-        store.updateCastMember(current)
+        // C안 — 연결된 캐릭터 문서가 있으면 문서(원본)에 반영된다
+        store.editCastMember(current)
     }
 
     private func field(_ keyPath: WritableKeyPath<CastMember, String>) -> Binding<String> {

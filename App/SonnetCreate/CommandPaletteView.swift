@@ -28,11 +28,13 @@ struct CommandPaletteView: View {
 
     /// 문서와 명령을 한 리스트로 합친 표시 단위.
     private enum PaletteItem: Identifiable {
+        case openTab(OpenTab, index: Int)
         case document(DocumentListItem)
         case action(PaletteAction)
 
         var id: String {
             switch self {
+            case .openTab(let tab, _): "tab-\(tab.id.uuidString)"
             case .document(let item): item.id.uuidString
             case .action(let action): action.id
             }
@@ -74,6 +76,10 @@ struct CommandPaletteView: View {
                         ScrollView {
                             LazyVStack(spacing: 1) {
                                 ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                                    // 섹션 경계마다 제목 행 — 열린 탭 / 문서 / 명령 (3단계 3)
+                                    if index == 0 || sectionKey(items[index - 1]) != sectionKey(item) {
+                                        sectionHeader(item, l10n: l10n)
+                                    }
                                     row(item, isSelected: index == selection, l10n: l10n)
                                         .id(index)
                                         .onTapGesture {
@@ -93,6 +99,15 @@ struct CommandPaletteView: View {
                         }
                     }
                 }
+
+                Divider().opacity(0.4)
+
+                // 하단 키 도움말 (3단계 3)
+                Text(l10n.t(.paletteHints))
+                    .font(DSType.mono(size: 10.5))
+                    .foregroundStyle(.tertiary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 7)
             }
             .frame(width: 560)
             .glassSurface(cornerRadius: DesignTokens.Radius.large, quality: quality)
@@ -125,22 +140,59 @@ struct CommandPaletteView: View {
 
     // MARK: 항목 구성
 
-    /// 빈 쿼리: 최근 문서 + 전체 명령. 쿼리 있음: 딥서치 결과 + 제목 일치 명령.
+    /// 빈 쿼리: 열린 탭 + 최근 문서 + 전체 명령. 쿼리 있음: 열린 탭(제목 일치) +
+    /// 딥서치 결과 + 제목 일치 명령. '열린 탭' 섹션이 최상단 — ⌘1~9 병기 (4b 신규).
     private var items: [PaletteItem] {
+        let openTabIDs = Set(app.tabs.compactMap { tab -> UUID? in
+            if case .document(let docID) = tab.content { return docID }
+            return nil
+        })
+        let openTabs: [PaletteItem] = app.tabs.enumerated().compactMap { index, tab in
+            guard case .document = tab.content else { return nil }
+            let title = app.tabTitle(for: tab)
+            guard query.isEmpty || title.localizedCaseInsensitiveContains(query) else { return nil }
+            return .openTab(tab, index: index)
+        }
+
         let documents: [DocumentListItem]
         if query.isEmpty {
             documents = Array(
                 app.workspace.visibleDocuments
+                    .filter { !openTabIDs.contains($0.id) }
                     .sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
                     .prefix(6)
             )
         } else {
-            documents = Array(documentResults.prefix(12))
+            documents = Array(documentResults.filter { !openTabIDs.contains($0.id) }.prefix(12))
         }
-        let matchingActions = query.isEmpty
+        var matchingActions = query.isEmpty
             ? actions
             : actions.filter { $0.title.localizedCaseInsensitiveContains(query) }
-        return documents.map(PaletteItem.document) + matchingActions.map(PaletteItem.action)
+        // 빈 쿼리에서는 최근 실행한 명령이 앞으로 온다 (자주 쓰는 흐름 학습)
+        if query.isEmpty {
+            let recents = Self.recentActionIDs()
+            matchingActions = matchingActions.enumerated().sorted { lhs, rhs in
+                let lhsRank = recents.firstIndex(of: lhs.element.id) ?? Int.max
+                let rhsRank = recents.firstIndex(of: rhs.element.id) ?? Int.max
+                return lhsRank == rhsRank ? lhs.offset < rhs.offset : lhsRank < rhsRank
+            }.map(\.element)
+        }
+        return openTabs + documents.map(PaletteItem.document) + matchingActions.map(PaletteItem.action)
+    }
+
+    // MARK: 최근 실행 학습
+
+    private static let recentActionsKey = "palette-recent-actions"
+
+    private static func recentActionIDs() -> [String] {
+        UserDefaults.standard.stringArray(forKey: recentActionsKey) ?? []
+    }
+
+    private static func recordRecentAction(_ id: String) {
+        var ids = recentActionIDs()
+        ids.removeAll { $0 == id }
+        ids.insert(id, at: 0)
+        UserDefaults.standard.set(Array(ids.prefix(8)), forKey: recentActionsKey)
     }
 
     private var actions: [PaletteAction] {
@@ -162,7 +214,10 @@ struct CommandPaletteView: View {
                 app.createAndOpen(kind: .page, pageRole: .character, in: target)
             },
             PaletteAction(id: "new-project", title: l10n.t(.newProject), symbol: "folder.badge.plus") {
-                _ = try? app.workspace.createProject(name: l10n.t(.newProject))
+                app.promptNewProject()
+            },
+            PaletteAction(id: "projects", title: l10n.t(.project), symbol: "folder") {
+                app.openProjectsTab()
             },
             PaletteAction(id: "archive", title: l10n.t(.archive), symbol: "archivebox") {
                 app.openArchiveTab()
@@ -178,13 +233,55 @@ struct CommandPaletteView: View {
 
     // MARK: 행 렌더링
 
+    /// 섹션 구분 키 — 같은 값끼리 한 섹션.
+    private func sectionKey(_ item: PaletteItem) -> Int {
+        switch item {
+        case .openTab: 0
+        case .document: 1
+        case .action: 2
+        }
+    }
+
+    /// 섹션 제목 행 — 열린 탭 / 문서 / 명령.
+    private func sectionHeader(_ item: PaletteItem, l10n: Localizer) -> some View {
+        let key: L10nKey = switch item {
+        case .openTab: .openTabs
+        case .document: .documents
+        case .action: .actionsSection
+        }
+        return Text(l10n.t(key))
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.tertiary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+    }
+
     @ViewBuilder
     private func row(_ item: PaletteItem, isSelected: Bool, l10n: Localizer) -> some View {
         HStack(spacing: DesignTokens.Spacing.s) {
             switch item {
+            case .openTab(let tab, let index):
+                if let type = app.fileType(for: tab) {
+                    FileTypeIcon(type, size: 15)
+                        .frame(width: 22)
+                } else {
+                    Image(systemName: app.tabSymbol(for: tab))
+                        .foregroundStyle(accent)
+                        .frame(width: 22)
+                }
+                Text(app.tabTitle(for: tab))
+                    .font(.callout.weight(.medium))
+                    .lineLimit(1)
+                Spacer()
+                if index < 9 {
+                    Text("⌘\(index + 1)")
+                        .font(DSType.mono(size: 10.5))
+                        .foregroundStyle(.tertiary)
+                }
             case .document(let doc):
-                Image(systemName: doc.envelope.isCharacterPage ? "person.crop.circle" : doc.envelope.kind.symbolName)
-                    .foregroundStyle(accent)
+                FileTypeIcon(fileType(of: doc), size: 15)
                     .frame(width: 22)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(doc.envelope.title.isEmpty ? l10n.t(.untitled) : doc.envelope.title)
@@ -207,9 +304,6 @@ struct CommandPaletteView: View {
                 Text(action.title)
                     .font(.callout)
                 Spacer()
-                Text(l10n.t(.actionsSection))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
         }
         .padding(.horizontal, 10)
@@ -221,6 +315,16 @@ struct CommandPaletteView: View {
         .contentShape(Rectangle())
     }
 
+    /// 문서 유형 → 아이콘 타입.
+    private func fileType(of doc: DocumentListItem) -> DSFileType {
+        if doc.envelope.isCharacterPage { return .character }
+        switch doc.envelope.kind {
+        case .scenario: return .scenario
+        case .mindmap: return .mindmap
+        case .page: return .page
+        }
+    }
+
     // MARK: 실행
 
     private func runSelected() {
@@ -228,9 +332,12 @@ struct CommandPaletteView: View {
         let item = items[selection]
         close()
         switch item {
+        case .openTab(let tab, _):
+            app.selectExistingTab(tab)
         case .document(let doc):
             app.openDocument(doc)
         case .action(let action):
+            Self.recordRecentAction(action.id)
             action.run()
         }
     }

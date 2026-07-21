@@ -25,8 +25,8 @@ public struct ImportableCharacter: Identifiable, Sendable {
 @MainActor
 @Observable
 public final class ScenarioStore {
-    public enum ComposerMode: Sendable {
-        case line, instruction
+    public enum ComposerMode: Sendable, CaseIterable {
+        case line, instruction, scene
     }
 
     // MARK: 문서 상태
@@ -52,6 +52,57 @@ public final class ScenarioStore {
 
     /// 프로젝트 캐릭터 페이지 목록 (앱이 주입)
     public var characterCatalog: (() -> [ImportableCharacter])?
+
+    // MARK: 캐릭터 문서 연동 (C안 — 문서가 원본, 캐스트는 폴백)
+
+    /// 캐릭터 문서 표시 캐시 (문서 UUID → 이름·역할·심볼·색).
+    /// characterCatalog는 호출마다 디스크를 읽으므로 렌더마다 부를 수 없다 —
+    /// 열 때/편집 후/워크스페이스 변경 시에만 갱신한다.
+    public private(set) var characterIndex: [UUID: ImportableCharacter] = [:]
+
+    /// 연결된 캐릭터 문서를 수정한다 (앱이 주입) — 이름은 문서 제목, 나머지는 프로필.
+    /// nil 인자는 '변경 없음'.
+    public var onUpdateCharacterPage: ((_ pageID: UUID, _ name: String?, _ role: String?, _ symbolName: String?, _ accentHex: String?) -> Void)?
+
+    /// 캐릭터 문서 캐시 갱신 — 시나리오를 열 때·편집 직후·워크스페이스가 바뀔 때 호출.
+    public func refreshCharacterIndex() {
+        guard let characterCatalog else { return }
+        characterIndex = Dictionary(
+            characterCatalog().map { ($0.id, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    /// 표시용 캐스트 — 캐릭터 문서가 연결돼 있으면 문서 값(이름·역할·심볼·색)이 이긴다.
+    /// 연결이 없거나 문서를 찾을 수 없으면 캐스트 자체 값을 그대로 쓴다(단독 시나리오 폴백).
+    public func resolved(_ member: CastMember) -> CastMember {
+        guard let pageID = member.characterPageID, let doc = characterIndex[pageID] else { return member }
+        var merged = member
+        merged.name = doc.name
+        merged.roleLine = doc.role
+        merged.symbolName = doc.symbolName
+        merged.accentHex = doc.accentHex
+        return merged
+    }
+
+    /// 문서 값이 반영된 전체 캐스트 (표시 전용).
+    public var resolvedCast: [CastMember] {
+        content.cast.map(resolved)
+    }
+
+    /// 연결된 캐릭터 문서가 사라진 캐스트인지 — 끊긴 링크 표시용.
+    public func hasBrokenLink(_ member: CastMember) -> Bool {
+        guard let pageID = member.characterPageID else { return false }
+        // 인덱스가 아직 비어 있으면(미갱신) 끊겼다고 단정하지 않는다
+        return !characterIndex.isEmpty && characterIndex[pageID] == nil
+    }
+
+    /// 캐스트의 캐릭터 문서 연결을 해제한다 (문서는 건드리지 않음).
+    public func unlinkCharacterPage(_ memberID: UUID) {
+        guard var member = castMember(id: memberID) else { return }
+        member.characterPageID = nil
+        updateCastMember(member)
+    }
 
     // MARK: 검색/undo
 
@@ -214,6 +265,17 @@ public final class ScenarioStore {
             return true
         }
 
+        // 장면 모드 (2a) — 입력한 제목을 단 장면 경계(구분선)를 삽입하고 대사 모드로 복귀.
+        // 방금 삽입한 장면 칩은 1회 타자기 리빌(9e)로 새겨진다 — 입력에 대한 잉크 피드백.
+        if editingBlockID == nil, composerMode == .scene {
+            let divider = ScenarioBlock(kind: .divider, text: text)
+            withActiveBlocks { $0.append(divider) }
+            markSceneChipReveal(divider.id)
+            composerText = ""
+            composerMode = .line
+            return true
+        }
+
         if let editingID = editingBlockID {
             withActiveBlocks { blocks in
                 guard let idx = blocks.firstIndex(where: { $0.id == editingID }) else { return }
@@ -238,6 +300,120 @@ public final class ScenarioStore {
     /// 구분선 블록 삽입 (장면 전환 등).
     public func insertDivider() {
         withActiveBlocks { $0.append(ScenarioBlock(kind: .divider, text: "")) }
+    }
+
+    /// 방금 삽입돼 1회 리빌 대상인 장면 칩 — 잠시 뒤 자동 해제돼 스크롤 재등장 때는 재생되지 않는다.
+    public var revealingSceneChipID: UUID?
+
+    private func markSceneChipReveal(_ id: UUID) {
+        revealingSceneChipID = id
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            if self?.revealingSceneChipID == id { self?.revealingSceneChipID = nil }
+        }
+    }
+
+    // MARK: 플롯 타임라인 (2a)
+
+    /// 타임라인의 장면 한 칸 — 본편을 구분선으로 자른 세그먼트.
+    public struct PlotScene: Identifiable, Equatable {
+        public let id: UUID
+        /// 구분선 제목 우선, 없으면 첫 텍스트 미리보기
+        public let title: String
+        /// 카드 클릭 시 스크롤 타깃 (세그먼트 첫 블록)
+        public let jumpTargetID: UUID
+        public let lineCount: Int
+        /// 이 장면 안에서 갈라진 분기들
+        public let branchIDs: [UUID]
+        /// content.blocks 내 세그먼트 범위 (여는 구분선 포함)
+        public let range: Range<Int>
+    }
+
+    /// 타임라인에서 마지막으로 선택한 장면 (강조 표시용).
+    public var currentSceneID: UUID?
+
+    /// 본편을 구분선 기준으로 자른 장면 목록 — 타임라인은 항상 본편 순서를 다룬다.
+    public var plotScenes: [PlotScene] {
+        let blocks = content.blocks
+        guard !blocks.isEmpty else { return [] }
+        var boundaries: [Int] = []
+        for (index, block) in blocks.enumerated() where block.kind == .divider {
+            boundaries.append(index)
+        }
+        var ranges: [Range<Int>] = []
+        var start = 0
+        for boundary in boundaries {
+            if boundary > start { ranges.append(start..<boundary) }
+            start = boundary
+        }
+        ranges.append(start..<blocks.count)
+        // 첫 블록이 구분선이면 위 로직상 0..<0이 생기지 않도록 이미 처리됨
+        return ranges.compactMap { range in
+            guard !range.isEmpty else { return nil }
+            let segment = Array(blocks[range])
+            let opener = segment.first!
+            let title: String
+            if opener.kind == .divider, !opener.text.isEmpty {
+                title = opener.text
+            } else {
+                title = segment.first(where: { $0.kind != .divider && !$0.text.isEmpty })
+                    .map { String($0.text.prefix(14)) } ?? ""
+            }
+            let segmentIDs = Set(segment.map(\.id))
+            return PlotScene(
+                id: opener.id,
+                title: title,
+                jumpTargetID: opener.id,
+                lineCount: segment.count { $0.kind == .line },
+                branchIDs: content.branches
+                    .filter { $0.parentBlockID.map(segmentIDs.contains) ?? false }
+                    .map(\.id),
+                range: range
+            )
+        }
+    }
+
+    /// 드래그 재배열 — 시작 시 스냅샷을 잡아 두고, 라이브 이동은 undo 스택을 오염시키지
+    /// 않으며, 끝날 때 실제로 순서가 바뀐 경우에만 단일 undo 항목으로 확정한다.
+    private var sceneDragBaseline: ScenarioContent?
+
+    public func beginSceneDrag() {
+        guard sceneDragBaseline == nil else { return }
+        sceneDragBaseline = content
+    }
+
+    /// 드래그한 장면이 대상 장면 위로 들어온 순간의 라이브 리오더 (undo 기록 없음).
+    public func moveSceneLive(draggedID: UUID, over targetID: UUID) {
+        let scenes = plotScenes
+        guard let from = scenes.firstIndex(where: { $0.id == draggedID }),
+              let to = scenes.firstIndex(where: { $0.id == targetID }),
+              from != to
+        else { return }
+        var segments = scenes.map { Array(content.blocks[$0.range]) }
+        let moved = segments.remove(at: from)
+        segments.insert(moved, at: to)
+        lastChangeWasHistory = true // 순서 이동은 집필량이 아니다
+        content.blocks = segments.flatMap { $0 }
+        onContentChanged?(content)
+    }
+
+    public func endSceneDrag() {
+        defer { sceneDragBaseline = nil }
+        guard let baseline = sceneDragBaseline,
+              baseline.blocks.map(\.id) != content.blocks.map(\.id)
+        else { return }
+        undoStack.append(baseline)
+        if undoStack.count > 100 { undoStack.removeFirst() }
+        redoStack.removeAll()
+    }
+
+    /// ＋ 장면 — 본편 끝에 제목 달린 장면 경계를 추가한다.
+    @discardableResult
+    public func addScene(title: String) -> UUID {
+        let divider = ScenarioBlock(kind: .divider, text: title)
+        mutate { $0.blocks.append(divider) }
+        currentSceneID = divider.id
+        return divider.id
     }
 
     /// 빠른 메뉴 '내용 수정' — 블록 내용을 입력란으로 이동.
@@ -268,14 +444,18 @@ public final class ScenarioStore {
         content.cast.first { $0.id == id }
     }
 
+    /// 블록의 화자 — 캐릭터 문서가 연결돼 있으면 문서 값으로 표시된다 (C안).
     public func speakers(of block: ScenarioBlock) -> [CastMember] {
-        block.speakerIDs.compactMap { castMember(id: $0) }
+        block.speakerIDs.compactMap { castMember(id: $0).map(resolved) }
     }
 
-    public func addCastMember(name: String) {
-        let palette = ["#5AC8FA", "#B18CFF", "#FF6482", "#FFB340", "#63E6B6"]
+    @discardableResult
+    public func addCastMember(name: String) -> CastMember {
+        let palette = ["#B23A21", "#3E5C50", "#8A6D2F", "#9E5A3C", "#5F6B7C"]
         let hex = palette[content.cast.count % palette.count]
-        mutate { $0.cast.append(CastMember(name: name, accentHex: hex)) }
+        let member = CastMember(name: name, accentHex: hex)
+        mutate { $0.cast.append(member) }
+        return member
     }
 
     public func updateCastMember(_ member: CastMember) {
@@ -283,6 +463,24 @@ public final class ScenarioStore {
             guard let idx = c.cast.firstIndex(where: { $0.id == member.id }) else { return }
             c.cast[idx] = member
         }
+    }
+
+    /// 인스펙터 편집 진입점 (C안) — 캐릭터 문서가 연결돼 있으면 **문서를 원본으로** 수정하고,
+    /// 캐스트에는 같은 값을 캐시해 둔다. 연결이 없으면 캐스트만 수정한다.
+    /// 이렇게 해야 시나리오에서 이름을 바꿔도 캐릭터 파일과 따로 놀지 않는다.
+    public func editCastMember(_ member: CastMember) {
+        let previous = castMember(id: member.id)
+        updateCastMember(member)
+
+        guard let pageID = member.characterPageID, characterIndex[pageID] != nil else { return }
+        let changedName = previous?.name != member.name ? member.name : nil
+        let changedRole = previous?.roleLine != member.roleLine ? member.roleLine : nil
+        let changedSymbol = previous?.symbolName != member.symbolName ? member.symbolName : nil
+        let changedAccent = previous?.accentHex != member.accentHex ? member.accentHex : nil
+        guard changedName != nil || changedRole != nil || changedSymbol != nil || changedAccent != nil else { return }
+
+        onUpdateCharacterPage?(pageID, changedName, changedRole, changedSymbol, changedAccent)
+        refreshCharacterIndex()
     }
 
     public func removeCastMember(_ id: UUID) {

@@ -437,3 +437,212 @@ struct TableBlockView: View {
         store.updateBlock(updated)
     }
 }
+
+// MARK: - 문서 임베드 블록 (3b)
+
+/// 임베드 미리보기 데이터 — 앱이 embedPreviewLoader로 공급한다.
+public struct EmbedPreview: Sendable {
+    /// ".scen" 등 유형 배지 문자열
+    public let typeBadge: String
+    public let title: String
+    /// "대사 148 · 분기 2" 같은 메타 줄
+    public let meta: String
+    /// 앞부분 발췌 (화자, 텍스트) — 시나리오는 대사, 페이지는 블록 텍스트
+    public let lines: [(speaker: String?, text: String)]
+
+    public init(typeBadge: String, title: String, meta: String, lines: [(speaker: String?, text: String)]) {
+        self.typeBadge = typeBadge
+        self.title = title
+        self.meta = meta
+        self.lines = lines
+    }
+}
+
+/// 다른 문서의 라이브 미리보기 카드 — 원본이 바뀌면 함께 갱신된다.
+struct EmbedBlockView: View {
+    @Bindable var store: PageStore
+    let block: PageBlock
+
+    @Environment(\.resolvedAccent) private var accent
+
+    var body: some View {
+        let l10n = Localizer.shared
+        if let documentID = block.embeddedDocumentID {
+            if let loader = store.embedPreviewLoader {
+                if let preview = loader(documentID) {
+                    previewCard(preview, documentID: documentID, l10n: l10n)
+                } else {
+                    missingCard(l10n)
+                }
+            } else {
+                // 호스트가 로더를 아직 연결하지 않음 — '없음'으로 오판하지 않게 로딩 표시 (4단계)
+                loadingCard
+            }
+        } else {
+            pickerCard(l10n)
+        }
+    }
+
+    /// 로딩 상태 — 시머 플레이스홀더 (원본 없음과 시각적으로 구분).
+    private var loadingCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            RoundedRectangle(cornerRadius: 4)
+                .fill(SonnetPalette.ink.opacity(0.08))
+                .frame(width: 180, height: 11)
+            RoundedRectangle(cornerRadius: 4)
+                .fill(SonnetPalette.ink.opacity(0.06))
+                .frame(width: 260, height: 10)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(SonnetPalette.sunken.opacity(0.5))
+        )
+    }
+
+    /// 대상 미지정 — 문서 선택 메뉴.
+    private func pickerCard(_ l10n: Localizer) -> some View {
+        let catalog = store.documentCatalog?() ?? []
+        return Menu {
+            ForEach(catalog, id: \.id) { entry in
+                Button {
+                    store.setEmbedTarget(block.id, documentID: entry.id)
+                } label: {
+                    Label(entry.title.isEmpty ? l10n.t(.untitled) : entry.title,
+                          systemImage: entry.kind == .scenario ? "text.bubble"
+                              : entry.kind == .mindmap ? "point.3.connected.trianglepath.dotted"
+                              : (entry.isCharacter ? "person.crop.circle" : "doc.richtext"))
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "rectangle.on.rectangle")
+                    .font(.callout)
+                Text(l10n.t(.embedBlock) + " — " + l10n.t(.choose))
+                    .font(DSFonts.font(size: 13, family: .pretendard))
+            }
+            .foregroundStyle(SonnetPalette.inkMuted)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(
+                        SonnetPalette.ink.opacity(0.18),
+                        style: StrokeStyle(lineWidth: 1.5, dash: [5, 4])
+                    )
+            )
+            .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+    }
+
+    /// 대상 문서를 찾을 수 없음 (삭제/이동) — 다른 문서를 다시 고르는 복구 경로를 함께 제공.
+    /// 임베드 제거는 블록 행 메뉴가 담당한다 (원본 열기/제거 혼동 방지).
+    private func missingCard(_ l10n: Localizer) -> some View {
+        let catalog = store.documentCatalog?() ?? []
+        return HStack(spacing: 8) {
+            Image(systemName: "questionmark.folder")
+                .foregroundStyle(.orange)
+            Text(l10n.t(.embedMissing))
+                .font(DSFonts.font(size: 12.5, family: .pretendard))
+                .foregroundStyle(SonnetPalette.inkMuted)
+            Spacer()
+            if !catalog.isEmpty {
+                Menu {
+                    ForEach(catalog, id: \.id) { entry in
+                        Button(entry.title.isEmpty ? l10n.t(.untitled) : entry.title) {
+                            store.setEmbedTarget(block.id, documentID: entry.id)
+                        }
+                    }
+                } label: {
+                    Text(l10n.t(.choose))
+                        .font(DSFonts.font(size: 11.5, family: .pretendard))
+                        .foregroundStyle(accent)
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.orange.opacity(0.06))
+        )
+    }
+
+    /// 라이브 미리보기 카드.
+    private func previewCard(_ preview: EmbedPreview, documentID: UUID, l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
+                Text(preview.typeBadge)
+                    .font(DSType.mono(size: 10.5, weight: .semibold))
+                    .foregroundStyle(accent)
+                Text(preview.title)
+                    .font(DSFonts.font(size: 13, weight: .semibold, family: .pretendard))
+                    .lineLimit(1)
+                if !preview.meta.isEmpty {
+                    Text(preview.meta)
+                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .lineLimit(1)
+                }
+                Spacer()
+                Button {
+                    store.onOpenDocument?(documentID)
+                } label: {
+                    Text(l10n.t(.embedOpenOriginal))
+                        .font(DSFonts.font(size: 11.5, family: .pretendard))
+                        .foregroundStyle(accent)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(SonnetPalette.sunken.opacity(0.6))
+
+            Divider().opacity(0.35)
+
+            VStack(alignment: .leading, spacing: 7) {
+                ForEach(Array(preview.lines.enumerated()), id: \.offset) { _, line in
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        if let speaker = line.speaker {
+                            Text(speaker)
+                                .font(DSFonts.font(size: 11.5, weight: .semibold, family: .pretendard))
+                                .foregroundStyle(SonnetPalette.pine)
+                        }
+                        Text(line.text)
+                            .font(DSFonts.font(size: 12.5, family: .pretendard))
+                            .foregroundStyle(SonnetPalette.inkSoft)
+                            .lineLimit(2)
+                    }
+                }
+                if preview.lines.isEmpty {
+                    Text("—")
+                        .font(DSFonts.font(size: 12.5, family: .pretendard))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(SonnetPalette.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(SonnetPalette.ink.opacity(0.1), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .contextMenu {
+            Button(l10n.t(.embedOpenOriginal)) { store.onOpenDocument?(documentID) }
+            Button(l10n.t(.delete), role: .destructive) { store.removeBlockFocusPrevious(block.id) }
+        }
+    }
+}

@@ -22,11 +22,27 @@ public enum DesignTokens {
         public static let capsule: CGFloat = 999
     }
 
-    /// 짧은 스프링 모션
+    /// 모션 스펙 — 곡선과 역할 (디자인 브리프 1a).
     public enum Motion {
-        public static let snappy = Animation.spring(response: 0.28, dampingFraction: 0.82)
-        public static let gentle = Animation.spring(response: 0.45, dampingFraction: 0.86)
-        public static let arrival = Animation.spring(response: 0.38, dampingFraction: 0.72)
+        /// Rise — 진입. 홈 계단식 등장, 카드·리스트. y+14→0 + fade, 스태거 45ms.
+        public static let rise = Animation.timingCurve(0.22, 0.9, 0.24, 1, duration: 0.36)
+        /// Rise 스태거 간격 (초)
+        public static let riseStagger: Double = 0.045
+        /// Glass pop — 패널 진입. ⌘K·AI 패널·팝오버. scale .94→1, 오버슈트 6%.
+        public static let glassPop = Animation.timingCurve(0.34, 1.26, 0.4, 1, duration: 0.28)
+        /// Glass pop 닫힘 — 180ms ease-in.
+        public static let glassPopOut = Animation.easeIn(duration: 0.18)
+        /// Press — 버튼 피드백. scale .96, 복귀는 스프링.
+        public static let press = Animation.easeOut(duration: 0.12)
+        /// Press 복귀 스프링 (response .3 · damping .7)
+        public static let pressRelease = Animation.spring(response: 0.3, dampingFraction: 0.7)
+        /// Ink flow — 진행 바. 초반 가속·말미 감속.
+        public static let inkFlow = Animation.timingCurve(0.4, 0.1, 0.3, 1, duration: 0.6)
+
+        // 레거시 별칭 — 기존 호출부를 새 곡선으로 흘려보낸다.
+        public static let snappy = glassPop
+        public static let gentle = rise
+        public static let arrival = rise
     }
 }
 
@@ -139,6 +155,10 @@ private struct MindmapAutoOpenInspectorKey: EnvironmentKey {
     static let defaultValue = true
 }
 
+private struct MotionReducedKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
 public extension EnvironmentValues {
     var renderQuality: RenderQuality {
         get { self[RenderQualityKey.self] }
@@ -193,6 +213,13 @@ public extension EnvironmentValues {
         get { self[MindmapAutoOpenInspectorKey.self] }
         set { self[MindmapAutoOpenInspectorKey.self] = newValue }
     }
+
+    /// 모션 줄이기 실효값 — 시스템 손쉬운 사용(동작 줄이기) 또는 앱 설정이 켜지면 참 (6단계).
+    /// 스플래시·디더·타자기·성운·rise 등 장식 모션이 즉시 표시/정적 페이드로 대체된다.
+    var motionReduced: Bool {
+        get { self[MotionReducedKey.self] }
+        set { self[MotionReducedKey.self] = newValue }
+    }
 }
 
 public extension View {
@@ -212,6 +239,8 @@ private func makeGlass(tint: Color?, interactive: Bool) -> Glass {
 }
 
 /// 품질/테마 인지형 표면. Low 품질 또는 'Liquid Glass 끄기(베타)'에서는 평면 표면으로 대체.
+/// 유리 강도(설정 4c)는 글래스 아래 깔리는 시트 워시의 불투명도로 반영된다 —
+/// 강도가 낮을수록 뒤 캔버스가 더 비친다.
 private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
     let shape: S
     let tint: Color?
@@ -220,9 +249,12 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
 
     @Environment(\.liquidGlassDisabled) private var glassDisabled
     @Environment(\.interfaceTheme) private var theme
+    @Environment(\.glassIntensity) private var glassIntensity
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
 
     func body(content: Content) -> some View {
-        if glassDisabled {
+        // 시스템 '투명도 줄이기'는 글래스 끄기와 동일하게 불투명 표면 + 테두리로 (6단계)
+        if glassDisabled || reduceTransparency {
             // 레트로 미니멀: 불투명 표면 + 얇은 잉크 테두리
             content
                 .background(shape.fill(flatFill))
@@ -230,7 +262,9 @@ private struct SurfaceModifier<S: InsettableShape>: ViewModifier {
         } else if quality == .low {
             content.background(shape.fill(.regularMaterial))
         } else {
-            content.glassEffect(makeGlass(tint: tint, interactive: interactive), in: shape)
+            content
+                .glassEffect(makeGlass(tint: tint, interactive: interactive), in: shape)
+                .background(shape.fill(SonnetPalette.surface.opacity(0.5 * glassIntensity)))
         }
     }
 
@@ -320,10 +354,11 @@ public enum SaveState: Sendable, Equatable {
 
     public var color: Color {
         switch self {
-        case .unsaved: Color(hex: "#FF5B5B")
-        case .saving, .savedAuto: Color(hex: "#5AC8FA")
-        case .savedManual: Color(hex: "#4CD97B")
-        case .error: Color(hex: "#FFC53D")
+        // 미저장은 Dirty/Warning 골드 — 버밀리온(Primary Action)과 의미를 분리 (2단계)
+        case .unsaved: SonnetPalette.warning
+        case .saving, .savedAuto: SonnetPalette.inkMuted
+        case .savedManual: SonnetPalette.success
+        case .error: Color(hex: "#D28E2E")
         }
     }
 
@@ -476,6 +511,56 @@ public extension View {
     }
 }
 
+// MARK: - 첫 사용 callout (5단계 상황별 안내)
+
+/// 처음 사용할 때 한 번만 보여주는 작은 callout — 작업을 막는 모달 대신 캔버스 내 힌트.
+/// 닫으면 UserDefaults에 기록돼 다시 나타나지 않는다.
+public struct FirstUseCallout: View {
+    let text: String
+    private let defaultsKey: String
+
+    @State private var visible: Bool
+    @Environment(\.resolvedAccent) private var accent
+
+    public init(id: String, text: String) {
+        self.text = text
+        defaultsKey = "first-use-callout-\(id)"
+        _visible = State(initialValue: !UserDefaults.standard.bool(forKey: "first-use-callout-\(id)"))
+    }
+
+    public var body: some View {
+        if visible {
+            HStack(spacing: 8) {
+                Image(systemName: "lightbulb")
+                    .font(.caption)
+                    .foregroundStyle(accent)
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(SonnetPalette.inkSoft)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button {
+                    UserDefaults.standard.set(true, forKey: defaultsKey)
+                    withAnimation(DesignTokens.Motion.snappy) { visible = false }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .frame(width: 16, height: 16)
+                        .contentShape(Circle())
+                }
+                .buttonStyle(.plain)
+                .help(Localizer.shared.t(.close))
+                .accessibilityLabel(Localizer.shared.t(.close))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(Capsule().fill(SonnetPalette.accentTint.opacity(0.7)))
+            .overlay(Capsule().strokeBorder(accent.opacity(0.25), lineWidth: 1))
+            .transition(.opacity.combined(with: .scale(scale: 0.95)))
+        }
+    }
+}
+
 // MARK: - 등장 애니메이션
 
 /// 아래에서 살짝 떠오르며 페이드인하는 등장 연출 — delay를 계단식으로 주면
@@ -483,22 +568,40 @@ public extension View {
 private struct FadeUpOnAppear: ViewModifier {
     let delay: Double
     let distance: CGFloat
+    /// 세션당 1회 키 — 같은 키로 이미 재생했으면 즉시 표시 (탭 재방문마다
+    /// 스태거가 반복돼 전환이 난잡해지는 문제의 공통 해법).
+    let onceKey: String?
+
     @State private var shown = false
+    @Environment(\.motionReduced) private var motionReduced
+
+    /// 이번 세션에 이미 재생한 키들.
+    @MainActor private static var playedKeys: Set<String> = []
 
     func body(content: Content) -> some View {
         content
             .opacity(shown ? 1 : 0)
-            .offset(y: shown ? 0 : distance)
+            // 모션 줄이기 — 이동 없이 120ms opacity만 (6단계)
+            .offset(y: shown || motionReduced ? 0 : distance)
             .onAppear {
-                withAnimation(DesignTokens.Motion.arrival.delay(delay)) { shown = true }
+                if let onceKey, Self.playedKeys.contains(onceKey) {
+                    shown = true
+                    return
+                }
+                withAnimation(
+                    motionReduced
+                        ? .easeOut(duration: 0.12)
+                        : DesignTokens.Motion.arrival.delay(delay)
+                ) { shown = true }
+                if let onceKey { Self.playedKeys.insert(onceKey) }
             }
     }
 }
 
 public extension View {
     /// 등장 시 아래→위 페이드 (delay로 스태거).
-    func fadeUpOnAppear(delay: Double = 0, distance: CGFloat = 14) -> some View {
-        modifier(FadeUpOnAppear(delay: delay, distance: distance))
+    func fadeUpOnAppear(delay: Double = 0, distance: CGFloat = 14, once: String? = nil) -> some View {
+        modifier(FadeUpOnAppear(delay: delay, distance: distance, onceKey: once))
     }
 }
 
@@ -709,6 +812,8 @@ public struct ToolbarIconButton: View {
         .onHover { hovering = $0 }
         .animation(DesignTokens.Motion.snappy, value: hovering)
         .help(help)
+        // 텍스트 없는 아이콘 버튼 — VoiceOver가 도움말 문구를 이름으로 읽는다 (2단계 4)
+        .accessibilityLabel(help)
     }
 }
 
@@ -746,8 +851,9 @@ public struct ReadOnlyBadge: View {
 
     public var body: some View {
         if readOnlyMode?.wrappedValue == true {
+            // 색상만이 아니라 잠금 아이콘 + 도움말로 상태를 전달한다 (지시서 1단계 2)
             HStack(spacing: 4) {
-                Image(systemName: "eye")
+                Image(systemName: "lock.fill")
                     .font(.caption2)
                 Text(Localizer.shared.t(.readOnlyMode))
                     .font(.caption.weight(.semibold))
@@ -757,6 +863,8 @@ public struct ReadOnlyBadge: View {
             .padding(.vertical, 4)
             .background(Capsule().fill(accent.opacity(0.12)))
             .transition(.opacity.combined(with: .scale(scale: 0.9)))
+            .help(Localizer.shared.t(.readOnlyCanvasHint))
+            .accessibilityLabel(Localizer.shared.t(.readOnlyMode))
         }
     }
 }

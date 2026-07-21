@@ -7,10 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		037F14B6FF278676A602E731 /* ProjectsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C14966C7D2C00A80A9CE0115 /* ProjectsView.swift */; };
 		0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A225ADDF85117C42771140CB /* ReferencePanelView.swift */; };
 		08E7CB4C3FC3194116332A82 /* MarkdownEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 9E2A054BB2B7B62B5886B52A /* MarkdownEditor */; };
 		0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D11BB4282BA195D4F440C97 /* HomeView.swift */; };
 		0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 732C34C9124878FB3421665B /* TouchBarController.swift */; };
+		0DD98C875149FAACF0F32715 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D2DD6F7D78DD554B7D78CBC /* OnboardingView.swift */; };
 		0E27B11F3544F7119C5D46D5 /* QuickLookPreview.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */; };
 		2BE731F8989DBAB49443A5E5 /* MindMapEditor in Frameworks */ = {isa = PBXBuildFile; productRef = 2156137A81292CD1ACB4C89C /* MindMapEditor */; };
@@ -30,8 +32,10 @@
 		940CCB411068FF0559A82462 /* ScenarioEditor in Frameworks */ = {isa = PBXBuildFile; productRef = C2FB5974A13E9BFA33F4DADE /* ScenarioEditor */; };
 		A96F92D2F89ED82A866DDCAE /* PreviewHTML.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */; };
 		AF49D942F7AC3E75387EBE40 /* DocumentSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7858C36D928A18AE009A7109 /* DocumentSession.swift */; };
+		B0E08BE2CC13E2A7FB413884 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0490EBB381A14573E023B9F0 /* SplashView.swift */; };
 		BA6BF5A23001C363B2C21DFA /* DesignSystem in Frameworks */ = {isa = PBXBuildFile; productRef = 3722969A975C520EC306C467 /* DesignSystem */; };
 		BBF47A2C561F1C3AE8B91E0A /* SettingsKit in Frameworks */ = {isa = PBXBuildFile; productRef = E03BBB394470E4A945388DA5 /* SettingsKit */; };
+		C37F37214D6BB885234F7E72 /* CoreFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F703BC5601B5D91B52285ACA /* CoreFlowsUITests.swift */; };
 		C494EDD5B6181E2B58C3A896 /* MainWindowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B272B5B24C1D05E090A56FDE /* MainWindowView.swift */; };
 		C583879B0B6F94558BFF19A2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 58A12D2048D706809356DC2A /* Assets.xcassets */; };
 		CE45AB899CBA391F2CACB07F /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = F97888449FE61B870DCDF0F5 /* AppState.swift */; };
@@ -47,6 +51,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		35A797695D238333CCEE848A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 1515F5E085B93D0F8522FF5A /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 89D980997194E42E7289F99D;
+			remoteInfo = SonnetCreate;
+		};
 		ECDBEF22FAB2425C20A3015E /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 1515F5E085B93D0F8522FF5A /* Project object */;
@@ -71,6 +82,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0490EBB381A14573E023B9F0 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplashView.swift; sourceTree = "<group>"; };
 		0573DE5D33E846CBAC56F881 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileView.swift; sourceTree = "<group>"; };
 		0B44C3D75121B9967F503526 /* FileManagerKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = FileManagerKit; path = ../Packages/FileManagerKit; sourceTree = SOURCE_ROOT; };
 		1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotPanelView.swift; sourceTree = "<group>"; };
@@ -93,6 +105,7 @@
 		8B5242E6D85B6063EED37A75 /* PersistenceKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = PersistenceKit; path = ../Packages/PersistenceKit; sourceTree = SOURCE_ROOT; };
 		8D11BB4282BA195D4F440C97 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		99DDCD817FBAB1586D2FD450 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		9D2DD6F7D78DD554B7D78CBC /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
 		A225ADDF85117C42771140CB /* ReferencePanelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReferencePanelView.swift; sourceTree = "<group>"; };
 		A4046E7879AFA051EBD1A564 /* PreviewProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewProvider.swift; sourceTree = "<group>"; };
 		A674A976F8B9DDDADE87118C /* MindMapEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = MindMapEditor; path = ../Packages/MindMapEditor; sourceTree = SOURCE_ROOT; };
@@ -102,14 +115,17 @@
 		AD78E348E12059A02780BCD4 /* BackupKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = BackupKit; path = ../Packages/BackupKit; sourceTree = SOURCE_ROOT; };
 		B272B5B24C1D05E090A56FDE /* MainWindowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindowView.swift; sourceTree = "<group>"; };
 		BEF97F3EBD79DB77E8B85FD0 /* AppCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = AppCore; path = ../Packages/AppCore; sourceTree = SOURCE_ROOT; };
+		C14966C7D2C00A80A9CE0115 /* ProjectsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectsView.swift; sourceTree = "<group>"; };
 		DA3306994A69721E5EB757A5 /* QuickLookPreview.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuickLookPreview.entitlements; sourceTree = "<group>"; };
 		E2DEF35436BFC2F4C4DC54C2 /* PreviewHTML.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewHTML.swift; sourceTree = "<group>"; };
 		E3ED3D33526C84530606161E /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProjectNavigatorView.swift; sourceTree = "<group>"; };
 		E97FEA9BD30A9EBCDFF468D0 /* AIChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIChatView.swift; sourceTree = "<group>"; };
+		EB737F4FE27C1F63CFEC0FC5 /* SonnetCreateUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SonnetCreateUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		EDB84974A63607FACEA8CC73 /* ScenarioEditor */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ScenarioEditor; path = ../Packages/ScenarioEditor; sourceTree = SOURCE_ROOT; };
 		EDBC0833EB295B65F94EE7D6 /* UpdateSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateSystem.swift; sourceTree = "<group>"; };
 		F5F9B00914469D62BA5273B3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F703BC5601B5D91B52285ACA /* CoreFlowsUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreFlowsUITests.swift; sourceTree = "<group>"; };
 		F97888449FE61B870DCDF0F5 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -159,12 +175,15 @@
 				8D11BB4282BA195D4F440C97 /* HomeView.swift */,
 				F5F9B00914469D62BA5273B3 /* Info.plist */,
 				B272B5B24C1D05E090A56FDE /* MainWindowView.swift */,
+				9D2DD6F7D78DD554B7D78CBC /* OnboardingView.swift */,
 				0573DE5D33E846CBAC56F881 /* ProfileView.swift */,
 				E800858DAE6A5964240C59E7 /* ProjectNavigatorView.swift */,
+				C14966C7D2C00A80A9CE0115 /* ProjectsView.swift */,
 				A225ADDF85117C42771140CB /* ReferencePanelView.swift */,
 				E3ED3D33526C84530606161E /* SidebarView.swift */,
 				1B136A9A1BCEB44F6DEEECA3 /* SnapshotPanelView.swift */,
 				4569EF77C5A0CA89521E12A9 /* SonnetCreateApp.swift */,
+				0490EBB381A14573E023B9F0 /* SplashView.swift */,
 				1D69E2937C576231B4DE757D /* StatsLedger.swift */,
 				732C34C9124878FB3421665B /* TouchBarController.swift */,
 				EDBC0833EB295B65F94EE7D6 /* UpdateSystem.swift */,
@@ -178,8 +197,17 @@
 			children = (
 				AB8211ABC3BC87B510ADD380 /* QuickLookPreview.appex */,
 				8573EF3D5CB4A904AC4508A6 /* SonnetCreate.app */,
+				EB737F4FE27C1F63CFEC0FC5 /* SonnetCreateUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		4C5D0DF8F6048AC6989A132A /* SonnetCreateUITests */ = {
+			isa = PBXGroup;
+			children = (
+				F703BC5601B5D91B52285ACA /* CoreFlowsUITests.swift */,
+			);
+			path = SonnetCreateUITests;
 			sourceTree = "<group>";
 		};
 		5BC52F3B5357A33E6EBAF2BE /* QuickLookPreview */ = {
@@ -219,6 +247,7 @@
 				9FC410B5ED69DBED70AB151D /* Packages */,
 				5BC52F3B5357A33E6EBAF2BE /* QuickLookPreview */,
 				00A91D9485262C6F44AE6DD9 /* SonnetCreate */,
+				4C5D0DF8F6048AC6989A132A /* SonnetCreateUITests */,
 				0282DD7997A0230628ECF015 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -226,6 +255,24 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		74D281AA60F748D27CA909EC /* SonnetCreateUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B17DA804769ED12D800DF242 /* Build configuration list for PBXNativeTarget "SonnetCreateUITests" */;
+			buildPhases = (
+				84B47D09394FDAB05DCF04C9 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C41BB1E9A2A6A932629DA982 /* PBXTargetDependency */,
+			);
+			name = SonnetCreateUITests;
+			packageProductDependencies = (
+			);
+			productName = SonnetCreateUITests;
+			productReference = EB737F4FE27C1F63CFEC0FC5 /* SonnetCreateUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 		89D980997194E42E7289F99D /* SonnetCreate */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = CCF6F510CE47A304E685463C /* Build configuration list for PBXNativeTarget "SonnetCreate" */;
@@ -288,6 +335,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					74D281AA60F748D27CA909EC = {
+						ProvisioningStyle = Automatic;
+						TestTargetID = 89D980997194E42E7289F99D;
+					};
 					89D980997194E42E7289F99D = {
 						ProvisioningStyle = Automatic;
 					};
@@ -327,6 +378,7 @@
 			targets = (
 				A5A0A407A34703C5D4AC1A50 /* QuickLookPreview */,
 				89D980997194E42E7289F99D /* SonnetCreate */,
+				74D281AA60F748D27CA909EC /* SonnetCreateUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -343,6 +395,14 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		84B47D09394FDAB05DCF04C9 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C37F37214D6BB885234F7E72 /* CoreFlowsUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		D81CC33213E6A4C2B1ACC9D2 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -356,12 +416,15 @@
 				519495F81274ADAC54E8A6BA /* GuideProjectSystem.swift in Sources */,
 				0C284ADB41A294CE0AAD7C89 /* HomeView.swift in Sources */,
 				C494EDD5B6181E2B58C3A896 /* MainWindowView.swift in Sources */,
+				0DD98C875149FAACF0F32715 /* OnboardingView.swift in Sources */,
 				51C286220DFB354DA4F2100C /* ProfileView.swift in Sources */,
 				5E9DA683C799988C7528B0D5 /* ProjectNavigatorView.swift in Sources */,
+				037F14B6FF278676A602E731 /* ProjectsView.swift in Sources */,
 				0653D6C5B62061E13B71F1EA /* ReferencePanelView.swift in Sources */,
 				67055F5F043BA0459DC2E0D9 /* SidebarView.swift in Sources */,
 				2B4FEF7DA64585999B5A0B72 /* SnapshotPanelView.swift in Sources */,
 				DEDBCA2FAA6C5AACAAD3ADE0 /* SonnetCreateApp.swift in Sources */,
+				B0E08BE2CC13E2A7FB413884 /* SplashView.swift in Sources */,
 				38DE31DACDA9CBF0F29371FD /* StatsLedger.swift in Sources */,
 				0C8F489439A4B5B19DA05CAE /* TouchBarController.swift in Sources */,
 				D07FC1590E903DE8C0F8D3DE /* UpdateSystem.swift in Sources */,
@@ -385,6 +448,11 @@
 			isa = PBXTargetDependency;
 			target = A5A0A407A34703C5D4AC1A50 /* QuickLookPreview */;
 			targetProxy = ECDBEF22FAB2425C20A3015E /* PBXContainerItemProxy */;
+		};
+		C41BB1E9A2A6A932629DA982 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 89D980997194E42E7289F99D /* SonnetCreate */;
+			targetProxy = 35A797695D238333CCEE848A /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -423,7 +491,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -442,7 +510,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.3.0;
+				MARKETING_VERSION = 2.0.2;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -526,6 +594,42 @@
 			};
 			name = Release;
 		};
+		7C30C1EA6837C23D9E1EFE21 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.seolhwarim.sonnetcreate.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = SonnetCreate;
+			};
+			name = Release;
+		};
+		A0E1EACE4339CADA4CD5F1C6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.seolhwarim.sonnetcreate.uitests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = SonnetCreate;
+			};
+			name = Debug;
+		};
 		D04C75325A1BA9A33D20A936 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -560,7 +664,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 9;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -573,7 +677,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.3.0;
+				MARKETING_VERSION = 2.0.2;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -592,6 +696,15 @@
 			buildConfigurations = (
 				0162E8178BD4049E79F46963 /* Debug */,
 				D04C75325A1BA9A33D20A936 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B17DA804769ED12D800DF242 /* Build configuration list for PBXNativeTarget "SonnetCreateUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A0E1EACE4339CADA4CD5F1C6 /* Debug */,
+				7C30C1EA6837C23D9E1EFE21 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

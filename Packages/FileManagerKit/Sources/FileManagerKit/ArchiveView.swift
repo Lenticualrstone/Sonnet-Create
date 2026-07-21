@@ -53,8 +53,8 @@ public struct ArchiveView: View {
     /// 외부(사이드바 바로가기, 프로젝트 우클릭 메뉴, 뒤로/앞으로 탐색 등)에서 카테고리+프로젝트를
     /// 한 번에 지정해 열 때 (소비 후 nil로 되돌림)
     @Binding var externalTarget: ArchiveNavigationTarget?
-    /// 휴지통 이동 요청 — nil이면 즉시 이동, 지정 시 앱이 확인 팝업을 거친다
-    let requestTrash: ((DocumentListItem) -> Void)?
+    /// 휴지통 이동 요청(단건/다건 공용) — nil이면 즉시 이동, 지정 시 앱이 확인 팝업을 거친다
+    let requestTrash: (([DocumentListItem]) -> Void)?
     /// 영구 삭제 요청(단건/다건 공용) — nil이면 즉시 삭제, 지정 시 앱이 확인 팝업을 거친다
     let requestPermanentDelete: (([DocumentListItem]) -> Void)?
     /// PrivacyGate가 이미 이번 세션에 잠금 해제된 상태인지 — 참이면 카테고리 전환 시 잠금 화면이 깜빡이지 않는다
@@ -65,6 +65,10 @@ public struct ArchiveView: View {
     let onNavigate: ((Category, UUID?) -> Void)?
     /// 빈 카테고리의 빠른 생성 버튼 — 앱이 컨텍스트 프로젝트를 반영해 생성한다
     let onCreate: ((DocumentKind, PageRole?) -> Void)?
+    /// 사이드바 프로젝트 섹션의 '+ 새 프로젝트' — 앱이 이름 입력 프롬프트를 띄운다 (A안)
+    let requestNewProject: (() -> Void)?
+    /// 사이드바 프로젝트 우클릭 삭제 요청 — 앱이 확인 팝업을 거친다
+    let requestDeleteProject: ((ProjectFolder) -> Void)?
 
     @State private var category: Category = .all
     @State private var sortOrder: SortOrder = .modified
@@ -74,6 +78,9 @@ public struct ArchiveView: View {
     @State private var projectFilter: UUID?
     @State private var selection: Set<String> = []
     @State private var lastSelectedID: String?
+    /// 사이드바에서 이름 변경 중인 프로젝트 (팝오버)
+    @State private var renamingProjectID: UUID?
+    @State private var projectDraftName = ""
     /// 키보드 탐색 포커스 (↑↓ 이동, ⏎ 열기) — 마우스 선택과 독립
     @State private var keyFocusID: String?
     /// 리스트가 키보드 포커스를 갖고 있는지 (.focusable + FocusState)
@@ -90,12 +97,14 @@ public struct ArchiveView: View {
         requestUnlock: @escaping (String) async -> Bool = { _ in true },
         openOnSingleClick: Bool = true,
         externalTarget: Binding<ArchiveNavigationTarget?> = .constant(nil),
-        requestTrash: ((DocumentListItem) -> Void)? = nil,
+        requestTrash: (([DocumentListItem]) -> Void)? = nil,
         requestPermanentDelete: (([DocumentListItem]) -> Void)? = nil,
         isSessionUnlocked: Bool = false,
         onRestoreFallback: (() -> Void)? = nil,
         onNavigate: ((Category, UUID?) -> Void)? = nil,
-        onCreate: ((DocumentKind, PageRole?) -> Void)? = nil
+        onCreate: ((DocumentKind, PageRole?) -> Void)? = nil,
+        requestNewProject: (() -> Void)? = nil,
+        requestDeleteProject: ((ProjectFolder) -> Void)? = nil
     ) {
         self.workspace = workspace
         self.onOpen = onOpen
@@ -108,35 +117,49 @@ public struct ArchiveView: View {
         self.onRestoreFallback = onRestoreFallback
         self.onNavigate = onNavigate
         self.onCreate = onCreate
+        self.requestNewProject = requestNewProject
+        self.requestDeleteProject = requestDeleteProject
     }
 
     public var body: some View {
         let l10n = Localizer.shared
-        VStack(spacing: 0) {
-            toolbar(l10n)
+        // 4a — 좌측 카테고리 열 + 우측 콘텐츠 (상단 칩 필터에서 재배치)
+        HStack(spacing: 0) {
+            categorySidebar(l10n)
+                .frame(width: 188)
             Divider().opacity(0.4)
-            if category == .hidden, unlockGranted {
-                Text(l10n.t(.hideFinderHint))
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .padding(.horizontal, DesignTokens.Spacing.m)
-                    .padding(.top, 4)
-            }
-            selectionBar(l10n)
-            if isProtected, !unlockGranted {
-                lockedPlaceholder(l10n)
-            } else if category == .all {
-                if overviewSections.isEmpty, otherItems.isEmpty {
-                    emptyPlaceholder(l10n)
-                } else {
-                    overviewView
+            VStack(spacing: 0) {
+                toolbar(l10n)
+                Divider().opacity(0.4)
+                if category == .hidden, unlockGranted {
+                    Text(l10n.t(.hideFinderHint))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .padding(.horizontal, DesignTokens.Spacing.m)
+                        .padding(.top, 4)
                 }
-            } else if entries.isEmpty {
-                emptyPlaceholder(l10n)
-            } else if isGrid {
-                gridView
-            } else {
-                listView
+                // 다중 선택 액션바는 목록 위에 떠 있는 오버레이 — 콘텐츠를 밀어내지 않는다 (4단계 아카이브)
+                ZStack(alignment: .top) {
+                    Group {
+                        if isProtected, !unlockGranted {
+                            lockedPlaceholder(l10n)
+                        } else if category == .all {
+                            if overviewSections.isEmpty, otherItems.isEmpty {
+                                emptyPlaceholder(l10n)
+                            } else {
+                                overviewView
+                            }
+                        } else if entries.isEmpty {
+                            emptyPlaceholder(l10n)
+                        } else if isGrid {
+                            gridView
+                        } else {
+                            listView
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    selectionBar(l10n)
+                }
             }
         }
         .onChange(of: category) { _, newValue in
@@ -260,26 +283,248 @@ public struct ArchiveView: View {
         }
     }
 
+    // MARK: 카테고리 사이드바 (4a)
+
+    /// 카테고리별 항목 수 — 사이드바 카운트 배지.
+    private func categoryCount(_ cat: Category) -> Int {
+        switch cat {
+        case .other: otherItems.count
+        default: documentsUnfiltered(for: cat).count
+        }
+    }
+
+    /// 프로젝트 필터/검색과 무관한 원 카운트 (사이드바 배지용).
+    private func documentsUnfiltered(for cat: Category) -> [DocumentListItem] {
+        switch cat {
+        case .all: workspace.visibleDocuments
+        case .scenario: workspace.visibleDocuments.filter { $0.envelope.kind == .scenario }
+        case .mindmap: workspace.visibleDocuments.filter { $0.envelope.kind == .mindmap }
+        case .page: workspace.visibleDocuments.filter { $0.envelope.kind == .page && !$0.envelope.isCharacterPage }
+        case .character: workspace.visibleDocuments.filter { $0.envelope.isCharacterPage }
+        case .other: []
+        case .hidden: workspace.hiddenDocuments
+        case .trash: workspace.trashedDocuments
+        }
+    }
+
+    private func categorySidebar(_ l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(l10n.t(.categorySection))
+                .font(DSFonts.font(size: 11, weight: .semibold, family: .pretendard))
+                .kerning(0.8)
+                .foregroundStyle(SonnetPalette.inkMuted)
+                .padding(.horizontal, 14)
+                .padding(.top, 14)
+                .padding(.bottom, 6)
+
+            ForEach([Category.all, .scenario, .mindmap, .page, .character, .other]) { candidate in
+                categoryRow(candidate, l10n)
+            }
+
+            // 프로젝트 섹션 — 목록을 상설 노출, 클릭=필터 토글, 우클릭=관리 (A안)
+            if !workspace.projects.isEmpty {
+                Divider().opacity(0.35)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+
+                Text(l10n.t(.project))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 2)
+
+                // 높이는 프로젝트 수에 비례 — 적으면 목록만큼만, 많으면 240pt까지 스크롤.
+                // (고정 220pt면 프로젝트가 적어도 '+새 프로젝트'가 멀리 떨어져 보였다)
+                ScrollView {
+                    VStack(spacing: 2) {
+                        ForEach(workspace.projects) { project in
+                            projectRow(project, l10n)
+                        }
+                    }
+                }
+                .frame(maxHeight: min(CGFloat(workspace.projects.count) * 33 + 2, 240))
+
+                if let requestNewProject {
+                    Button {
+                        requestNewProject()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(l10n.t(.newProject))
+                                .font(DSFonts.font(size: 12, family: .pretendard))
+                        }
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 8)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            Divider().opacity(0.35)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+
+            // 보호 구역 — 가려진 파일은 Touch ID 게이트
+            categoryRow(.hidden, l10n, trailingSymbol: "touchid")
+            categoryRow(.trash, l10n)
+                .padding(.bottom, 10)
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(SonnetPalette.sunken.opacity(0.45))
+    }
+
+    /// 프로젝트 행 — 클릭하면 해당 프로젝트로 필터 (다시 클릭하면 해제).
+    @ViewBuilder
+    private func projectRow(_ project: ProjectFolder, _ l10n: Localizer) -> some View {
+        let isSelected = projectFilter == project.id
+        let count = workspace.visibleDocuments.filter { $0.envelope.projectID == project.id }.count
+        Button {
+            withAnimation(DesignTokens.Motion.glassPop) {
+                projectFilter = isSelected ? nil : project.id
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: isSelected ? "folder.fill" : "folder")
+                    .font(.system(size: 12))
+                    .foregroundStyle(isSelected ? accent : SonnetPalette.inkMuted)
+                    .frame(width: 16)
+                Text(project.manifest.name)
+                    .font(DSFonts.font(size: 13, weight: isSelected ? .semibold : .regular, family: .pretendard))
+                    .foregroundStyle(isSelected ? SonnetPalette.ink : SonnetPalette.inkSoft)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if count > 0 {
+                    Text("\(count)")
+                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(SonnetPalette.accentTint)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        .contextMenu {
+            Button(l10n.t(.rename)) { beginRenameProject(project) }
+            if let requestDeleteProject {
+                Divider()
+                Button(l10n.t(.delete), role: .destructive) { requestDeleteProject(project) }
+            }
+        }
+        .popover(
+            isPresented: Binding(
+                get: { renamingProjectID == project.id },
+                set: { if !$0 { renamingProjectID = nil } }
+            ),
+            arrowEdge: .trailing
+        ) {
+            HStack(spacing: 6) {
+                TextField(l10n.t(.newProjectNamePrompt), text: $projectDraftName)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+                    .onSubmit { commitRenameProject(project) }
+                Button(l10n.t(.done)) { commitRenameProject(project) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+            }
+            .padding(10)
+        }
+    }
+
+    private func beginRenameProject(_ project: ProjectFolder) {
+        projectDraftName = project.manifest.name
+        DispatchQueue.main.async { renamingProjectID = project.id }
+    }
+
+    private func commitRenameProject(_ project: ProjectFolder) {
+        let trimmed = projectDraftName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            workspace.renameProject(project, to: trimmed)
+        }
+        renamingProjectID = nil
+    }
+
+    @ViewBuilder
+    private func categoryRow(_ candidate: Category, _ l10n: Localizer, trailingSymbol: String? = nil) -> some View {
+        let isSelected = category == candidate
+        let count = categoryCount(candidate)
+        Button {
+            withAnimation(DesignTokens.Motion.glassPop) { category = candidate }
+        } label: {
+            HStack(spacing: 8) {
+                categoryIcon(candidate)
+                    .frame(width: 16)
+                Text(categoryLabel(candidate, l10n))
+                    .font(DSFonts.font(size: 13, weight: isSelected ? .semibold : .regular, family: .pretendard))
+                    .foregroundStyle(isSelected ? SonnetPalette.ink : SonnetPalette.inkSoft)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                if let trailingSymbol {
+                    Image(systemName: trailingSymbol)
+                        .font(.system(size: 11))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                } else if count > 0 {
+                    Text("\(count)")
+                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                }
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 7)
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .fill(SonnetPalette.accentTint)
+                        .matchedGeometryEffect(id: "archiveCategoryHighlight", in: categoryHighlight)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+    }
+
+    @ViewBuilder
+    private func categoryIcon(_ candidate: Category) -> some View {
+        switch candidate {
+        case .all:
+            Image(systemName: "square.grid.2x2")
+                .font(.system(size: 12))
+                .foregroundStyle(SonnetPalette.inkMuted)
+        case .scenario: FileTypeIcon(.scenario, size: 14)
+        case .mindmap: FileTypeIcon(.mindmap, size: 14)
+        case .page: FileTypeIcon(.page, size: 14)
+        case .character: FileTypeIcon(.character, size: 14)
+        case .other: FileTypeIcon(.attachment, size: 14)
+        case .hidden:
+            Image(systemName: "eye.slash")
+                .font(.system(size: 12))
+                .foregroundStyle(SonnetPalette.inkMuted)
+        case .trash:
+            Image(systemName: "trash")
+                .font(.system(size: 12))
+                .foregroundStyle(SonnetPalette.inkMuted)
+        }
+    }
+
     // MARK: 도구막대
 
     private func toolbar(_ l10n: Localizer) -> some View {
         HStack(spacing: DesignTokens.Spacing.s) {
-            // 카테고리 칩 — 시스템 드롭다운 대신 강조색 하이라이트가 미끄러지는 칩 행
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 2) {
-                    ForEach(Category.allCases) { candidate in
-                        categoryChip(candidate, l10n)
-                    }
-                }
-                .padding(2)
-            }
-            .scrollClipDisabled()
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color.primary.opacity(0.055))
-            )
-            .fixedSize(horizontal: true, vertical: true)
-
             if !workspace.projects.isEmpty {
                 projectFilterMenu(l10n)
             }
@@ -354,7 +599,17 @@ public struct ArchiveView: View {
             }
             .padding(.horizontal, DesignTokens.Spacing.m)
             .padding(.vertical, DesignTokens.Spacing.s)
-            .background(Color.primary.opacity(0.05))
+            .background(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .fill(SonnetPalette.surface)
+                    .shadow(color: SonnetPalette.ink.opacity(0.14), radius: 8, y: 3)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                    .strokeBorder(SonnetPalette.ink.opacity(0.09), lineWidth: 1)
+            )
+            .padding(.horizontal, DesignTokens.Spacing.m)
+            .padding(.top, DesignTokens.Spacing.s)
             .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -364,9 +619,15 @@ public struct ArchiveView: View {
         selection = []
     }
 
+    /// 다중 휴지통 이동 — 개별 이동과 같은 확인 경로(requestTrash)를 쓴다. 즉시 실행하지 않는다.
     private func bulkMoveToTrash() {
-        for item in selectedDocuments { workspace.moveToTrash(item) }
+        let docs = selectedDocuments
         selection = []
+        if let requestTrash {
+            requestTrash(docs)
+        } else {
+            for item in docs { workspace.moveToTrash(item) }
+        }
     }
 
     private func bulkRestore() {
@@ -564,7 +825,11 @@ public struct ArchiveView: View {
 
     private var gridView: some View {
         ScrollView {
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 140), spacing: DesignTokens.Spacing.m)], spacing: DesignTokens.Spacing.m) {
+            // 카드 최소·최대 폭 지정 — 넓은 화면에서 카드가 늘어나 고립돼 보이지 않게 (4단계 아카이브)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 150, maximum: 230), spacing: DesignTokens.Spacing.m)],
+                spacing: DesignTokens.Spacing.m
+            ) {
                 ForEach(entries) { entry in
                     switch entry {
                     case .document(let item):
@@ -683,7 +948,7 @@ public struct ArchiveView: View {
             }
             Button(l10n.t(.moveToTrash), role: .destructive) {
                 if let requestTrash {
-                    requestTrash(item)
+                    requestTrash([item])
                 } else {
                     workspace.moveToTrash(item)
                 }
@@ -700,6 +965,18 @@ public struct ArchiveView: View {
 }
 
 // MARK: - 행/카드
+
+extension DocumentListItem {
+    /// 디자인 시스템 파일 유형 (5a 아이콘/컬러 문법).
+    var dsFileType: DSFileType {
+        if envelope.isCharacterPage { return .character }
+        switch envelope.kind {
+        case .scenario: return .scenario
+        case .mindmap: return .mindmap
+        case .page: return .page
+        }
+    }
+}
 
 struct ArchiveRow: View {
     let item: DocumentListItem
@@ -719,9 +996,7 @@ struct ArchiveRow: View {
 
     var body: some View {
         HStack(spacing: DesignTokens.Spacing.s) {
-            Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                .font(.title3)
-                .foregroundStyle(accent)
+            FileTypeIcon(item.dsFileType, size: 18)
                 .frame(width: 28)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.envelope.title)
@@ -739,7 +1014,8 @@ struct ArchiveRow: View {
                         Text(item.envelope.modifiedAt, style: .date)
                     }
                 }
-                .font(.caption2)
+                // 수정일은 핵심 메타 — 최소 12pt (2단계 3)
+                .font(DSFonts.font(size: 12, family: .pretendard))
                 .foregroundStyle(.secondary)
                 if showTrashMeta, let originLabel {
                     Text("\(Localizer.shared.t(.originalLocation)): \(originLabel)")
@@ -753,8 +1029,8 @@ struct ArchiveRow: View {
                     .foregroundStyle(accent)
             }
             Text("." + item.envelope.kind.fileExtension)
-                .font(.caption2.monospaced())
-                .foregroundStyle(.tertiary)
+                .font(DSType.mono(size: 10.5, weight: .semibold))
+                .foregroundStyle(item.dsFileType.color)
         }
         .padding(.vertical, 4)
         .padding(.horizontal, 8)
@@ -805,9 +1081,7 @@ struct ArchiveCard: View {
 
     var body: some View {
         VStack(spacing: DesignTokens.Spacing.s) {
-            Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                .font(.system(size: 34))
-                .foregroundStyle(accent)
+            FileTypeIcon(item.dsFileType, size: 34)
                 .frame(height: 54)
             Text(item.envelope.title)
                 .font(.callout.weight(.medium))
@@ -815,7 +1089,7 @@ struct ArchiveCard: View {
                 .multilineTextAlignment(.center)
             if showTrashMeta, let trashedAt = item.envelope.trashedAt {
                 Text(trashedAt, style: .relative)
-                    .font(.caption2)
+                    .font(DSFonts.font(size: 12, family: .pretendard))
                     .foregroundStyle(.secondary)
                 if let originLabel {
                     Text(originLabel)
@@ -824,16 +1098,22 @@ struct ArchiveCard: View {
                         .lineLimit(1)
                 }
             } else {
+                // 수정일은 핵심 메타 — 최소 12pt (2단계 3)
                 Text(item.envelope.modifiedAt, style: .date)
-                    .font(.caption2)
+                    .font(DSFonts.font(size: 12, family: .pretendard))
                     .foregroundStyle(.secondary)
             }
         }
         .padding(DesignTokens.Spacing.m)
         .frame(maxWidth: .infinity)
         .glassSurface(cornerRadius: DesignTokens.Radius.medium, quality: quality)
+        // 그림자는 둥근 shape에 직접 — glassSurface 위 .shadow는 사각 bounding box로 각지게 나온다
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(SonnetPalette.surface)
+                .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
+        )
         .scaleEffect(hovering ? 1.03 : 1)
-        .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
         .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
         .onHover { hovering = $0 }
         .onTapGesture(count: clickCount) { onOpen(item) }
@@ -924,8 +1204,13 @@ struct OtherFileCard: View {
         .padding(DesignTokens.Spacing.m)
         .frame(maxWidth: .infinity)
         .glassSurface(cornerRadius: DesignTokens.Radius.medium, quality: quality)
+        // 그림자는 둥근 shape에 직접 — glassSurface 위 .shadow는 사각 bounding box로 각지게 나온다
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
+                .fill(SonnetPalette.surface)
+                .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
+        )
         .scaleEffect(hovering ? 1.03 : 1)
-        .shadow(color: .black.opacity(hovering ? 0.12 : 0), radius: hovering ? 8 : 0, y: hovering ? 3 : 0)
         .contentShape(RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous))
         .onHover { hovering = $0 }
         .onTapGesture(count: 2) { NSWorkspace.shared.open(item.url) }
@@ -937,42 +1222,6 @@ struct OtherFileCard: View {
 // MARK: - 도구막대 필터 컨트롤 (칩/프로젝트 메뉴)
 
 private extension ArchiveView {
-    /// 카테고리 칩 하나 — 가림/휴지통/기타는 아이콘 동반.
-    private func categoryChip(_ candidate: Category, _ l10n: Localizer) -> some View {
-        let symbol: String? = switch candidate {
-        case .hidden: "eye.slash"
-        case .trash: "trash"
-        case .other: "paperclip"
-        default: nil
-        }
-        let isSelected = category == candidate
-        return Button {
-            withAnimation(DesignTokens.Motion.snappy) { category = candidate }
-        } label: {
-            HStack(spacing: 4) {
-                if let symbol {
-                    Image(systemName: symbol)
-                        .font(.caption)
-                }
-                Text(categoryLabel(candidate, l10n))
-                    .font(.callout)
-                    .lineLimit(1)
-            }
-            .foregroundStyle(isSelected ? accent : Color.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                        .fill(accent.opacity(0.14))
-                        .matchedGeometryEffect(id: "archiveCategoryHighlight", in: categoryHighlight)
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
     /// 프로젝트 필터 — 필터가 걸리면 강조색 캡슐로 표시되는 커스텀 메뉴.
     private func projectFilterMenu(_ l10n: Localizer) -> some View {
         let filteredName = projectFilter.flatMap { id in

@@ -10,6 +10,10 @@ public final class MindMapStore {
     public private(set) var content: MindMapContent
     public var onContentChanged: ((MindMapContent) -> Void)?
 
+    /// 읽기 전용 — 참이면 모든 콘텐츠 변경(추가/삭제/이동/연결/캡션/undo/redo)이 무시된다.
+    /// 뷰 계층의 히트테스팅 차단과 별개로 스토어가 최종 방어선을 맡는다 (지시서 1단계 2).
+    public var isReadOnly = false
+
     /// 선택된 노드
     public var selectedNodeID: UUID?
     /// 연결선 시작 노드 (연결 모드)
@@ -39,6 +43,7 @@ public final class MindMapStore {
     public private(set) var lastChangeWasHistory = false
 
     private func mutate(isHistory: Bool = false, _ transform: (inout MindMapContent) -> Void) {
+        guard !isReadOnly else { return }
         lastChangeWasHistory = isHistory
         undoStack.append(content)
         if undoStack.count > 100 { undoStack.removeFirst() }
@@ -53,7 +58,7 @@ public final class MindMapStore {
     }
 
     public func undo() {
-        guard let previous = undoStack.popLast() else { return }
+        guard !isReadOnly, let previous = undoStack.popLast() else { return }
         lastChangeWasHistory = true
         redoStack.append(content)
         content = previous
@@ -61,7 +66,7 @@ public final class MindMapStore {
     }
 
     public func redo() {
-        guard let next = redoStack.popLast() else { return }
+        guard !isReadOnly, let next = redoStack.popLast() else { return }
         lastChangeWasHistory = true
         undoStack.append(content)
         content = next
@@ -109,7 +114,7 @@ public final class MindMapStore {
 
     /// 드래그 중 위치 갱신 (undo 스택에 쌓지 않음 — 드래그 종료 시 commitMove 호출)
     public func liveMoveNode(id: UUID, to point: CGPoint) {
-        guard let idx = content.nodes.firstIndex(where: { $0.id == id }) else { return }
+        guard !isReadOnly, let idx = content.nodes.firstIndex(where: { $0.id == id }) else { return }
         content.nodes[idx].x = point.x
         content.nodes[idx].y = point.y
     }

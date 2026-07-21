@@ -41,12 +41,27 @@ struct SonnetCreateApp: App {
                 .environment(\.pageFocusMode, appState.settings.applied.pageFocusModeEnabled)
                 .environment(\.pageTypewriterMode, appState.settings.applied.pageTypewriterEnabled)
                 .environment(\.mindmapAutoOpenInspector, appState.settings.applied.mindmapAutoOpenInspector)
-                .environment(\.aiSphereStyle, AISphereStyle(rawValue: appState.settings.applied.aiSphereStyleRaw) ?? .particle)
                 .environment(\.aiSphereDensity, AISphereDensity(rawValue: appState.settings.applied.aiSphereDensityRaw) ?? .normal)
+                // UI 테스트는 상시 애니메이션(성운·도트)이 유휴 감지를 막지 않도록 모션을 강제 정지
+                .modifier(MotionPolicy(
+                    appReduce: appState.settings.applied.reduceMotionEnabled || AppState.isUITest
+                ))
                 .environment(\.interfaceTheme, appState.settings.applied.interfaceTheme)
                 .modifier(AdaptiveAccent(base: appState.resolvedAccent))
                 .environment(\.liquidGlassDisabled, appState.settings.applied.disableLiquidGlass)
+                .environment(\.glassIntensity, appState.settings.applied.glassIntensity)
+                // 앱 비활성 시 장식 애니메이션 정지 (배터리 절전) — UI 테스트도 항상 정지
+                .environment(\.decorAnimationsPaused, !appState.isAppActive || AppState.isUITest)
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+                    appState.isAppActive = true
+                }
+                .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+                    appState.isAppActive = false
+                }
                 .font(DSFonts.font(size: 13, family: appState.settings.applied.fontFamily))
+                // 날짜/시간 포맷이 앱 언어를 따르도록 (시스템 로케일이 영어면 홈 히어로
+                // 날짜가 영어로 나오던 문제)
+                .environment(\.locale, Locale(identifier: appState.settings.applied.language.rawValue))
                 .preferredColorScheme(appState.settings.applied.themeMode.colorScheme)
                 .frame(minWidth: 980, minHeight: 640)
                 .onAppear {
@@ -69,8 +84,8 @@ struct SonnetCreateApp: App {
                 Divider()
                 Button(Localizer.shared.t(.home)) { appState.selectOrOpenHome() }
                     .keyboardShortcut("t", modifiers: .command)
+                // 아카이브는 단축키 없이 레일·⌘K·메뉴로 접근 — ⇧⌘A는 Sonnet AI 전용 (지시서 1단계 3)
                 Button(Localizer.shared.t(.archive)) { appState.openArchiveTab() }
-                    .keyboardShortcut("a", modifiers: [.command, .shift])
                 Divider()
                 Button(Localizer.shared.t(.close)) { appState.closeSelectedTab() }
                     .keyboardShortcut("w", modifiers: .command)
@@ -80,17 +95,18 @@ struct SonnetCreateApp: App {
                     .keyboardShortcut("s", modifiers: .command)
             }
             CommandMenu(Localizer.shared.t(.documents)) {
+                let openTabs = appState.openTabsExcludingHome
                 ForEach(1...9, id: \.self) { number in
                     let index = number - 1
                     Button(
-                        appState.tabs.indices.contains(index)
-                            ? appState.tabTitle(for: appState.tabs[index])
+                        openTabs.indices.contains(index)
+                            ? appState.tabTitle(for: openTabs[index])
                             : "—"
                     ) {
                         appState.selectTab(at: index)
                     }
                     .keyboardShortcut(KeyEquivalent(Character("\(number)")), modifiers: .command)
-                    .disabled(!appState.tabs.indices.contains(index))
+                    .disabled(!openTabs.indices.contains(index))
                 }
             }
         }
@@ -117,7 +133,17 @@ struct SonnetCreateApp: App {
             .preferredColorScheme(appState.settings.applied.themeMode.colorScheme)
         }
     }
+}
 
+/// 모션 줄이기 실효값 주입 — 시스템 손쉬운 사용(동작 줄이기) 또는 앱 설정이 켜지면
+/// `\.motionReduced`가 참이 된다 (6단계). 소비처: 스플래시·디더·타자기·성운·rise.
+private struct MotionPolicy: ViewModifier {
+    let appReduce: Bool
+    @Environment(\.accessibilityReduceMotion) private var systemReduce
+
+    func body(content: Content) -> some View {
+        content.environment(\.motionReduced, systemReduce || appReduce)
+    }
 }
 
 /// 실효 강조색을 화면 모드에 맞춰 주입 — 다크 모드에서는 어두운 강조색(커스텀 네이비 등)이

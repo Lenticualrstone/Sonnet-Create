@@ -5,100 +5,522 @@ import DocumentKit
 import FileManagerKit
 import SwiftUI
 
-/// 메인 화면 — 중앙 검색 필드로 프로젝트/파일 탐색 + 새 문서 빠른 생성 + 최근 항목.
+/// 홈 (1b) — 명령 중심 시작 화면.
+/// 세리프 타이포 히어로 · ⌘K 검색 · 빠른 시작 · 이어서 쓰기 · 우측 집필/프로젝트/백업 열.
+/// 카드들은 rise 계단식(45ms 스태거)으로 등장한다.
 struct HomeView: View {
     @Environment(AppState.self) private var app
-    @Environment(\.renderQuality) private var quality
     @Environment(\.resolvedAccent) private var accent
 
-    @State private var query = ""
-    @State private var searchResults: [DocumentListItem] = []
-    @FocusState private var searchFocused: Bool
+    @State private var showBackupTimeline = false
+    /// 인사말 타자기 리빌 재시작 토큰 — 홈 진입마다 증가시켜 TypewriterText를 다시 새긴다.
+    @State private var revealToken = 0
+    /// 홈 실측 폭 — 좁은 창에서 우측 열을 본문 아래로 내린다 (4단계 홈).
+    @State private var homeWidth: CGFloat = 1280
+    /// 좁은 레이아웃 상태 — 경계 리사이즈 깜빡임 방지용 ±20pt 히스테리시스.
+    @State private var narrowLayout = false
 
     var body: some View {
         let l10n = Localizer.shared
         ScrollView {
-            VStack(spacing: DesignTokens.Spacing.l) {
-                Spacer().frame(height: 44)
-
-                // 인사말 위 ASCII 웨이브 — 터미널 감성의 문자 물결 (픽셀 디밍 필드 대체).
-                // 밤에는 느리고 잔잔하게, 아침엔 또렷하게 흐른다 (시간대 반응).
-                // 히어로 전체가 Sonnet AI 진입점 — 클릭하면 AI 채팅 탭이 열린다.
-                VStack(spacing: DesignTokens.Spacing.l) {
-                    ASCIIWaveField(
-                        columns: 48, rows: 6,
-                        fontSize: 11,
-                        color: accent,
-                        quality: quality,
-                        speed: timeOfDay.waveSpeed
-                    )
-                    .frame(maxWidth: 560)
-
-                    Text(greetingText)
-                        .font(.system(size: 28, weight: .bold, design: .rounded))
-                        .multilineTextAlignment(.center)
-                        .textStateSwap()
-                }
-                .contentShape(Rectangle())
-                .onTapGesture { app.openAIChatTab() }
-                .onHover { inside in
-                    if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
-                }
-                .help(l10n.t(.askAnything))
-                .fadeUpOnAppear()
-
-                searchField(l10n)
-                    .fadeUpOnAppear(delay: 0.06)
-
-                if query.isEmpty {
-                    if isWorkspaceEmpty {
-                        emptyWorkspaceHero(l10n)
-                            .fadeUpOnAppear(delay: 0.12)
-                    }
-                    projectActions(l10n)
-                        .fadeUpOnAppear(delay: 0.12)
-                    quickCreate(l10n)
-                        .fadeUpOnAppear(delay: 0.18)
-                    if !isWorkspaceEmpty {
-                        recents(l10n)
-                            .fadeUpOnAppear(delay: 0.24)
+            // 좁은 창(<1020pt)에서는 우측 집필/프로젝트/백업 열이 본문 아래로 흐른다
+            Group {
+                if !narrowLayout {
+                    HStack(alignment: .top, spacing: 40) {
+                        mainColumn(l10n)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        sideColumn(l10n)
+                            .frame(width: 300)
                     }
                 } else {
-                    searchResultList(l10n)
+                    VStack(alignment: .leading, spacing: 34) {
+                        mainColumn(l10n)
+                        sideColumn(l10n)
+                            .frame(maxWidth: 640, alignment: .leading)
+                    }
                 }
-
-                Spacer()
             }
-            .frame(maxWidth: 720)
+            .padding(.top, 56)
+            .padding(.leading, 64)
+            .padding(.trailing, 44)
+            .padding(.bottom, 96)
+            .frame(maxWidth: 1280, alignment: .topLeading)
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, DesignTokens.Spacing.xl)
         }
-        .task(id: query) {
-            // 제목 + 본문 딥서치 (SQLite 색인)
-            guard !query.isEmpty else {
-                searchResults = []
-                return
-            }
-            try? await Task.sleep(for: .milliseconds(150)) // 타이핑 디바운스
-            guard !Task.isCancelled else { return }
-            searchResults = await app.workspace.deepSearch(query)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { width in
+            homeWidth = width
+            if width < 1000 { narrowLayout = true } else if width > 1040 { narrowLayout = false }
+        }
+        // 우하단 AI 플로팅 버튼 — 도트 매트릭스 웨이브 (1b)
+        .overlay(alignment: .bottomTrailing) {
+            aiFloatingButton
+                .padding(.trailing, 28)
+                .padding(.bottom, 28)
+        }
+        .sheet(isPresented: $showBackupTimeline) {
+            BackupTimelineView()
+                .environment(app)
+                .frame(minWidth: 520, minHeight: 420)
         }
     }
 
-    // MARK: 시간대 반응 인사말
+    // MARK: 좌측 메인 열
 
-    /// 하루의 네 구간 — 인사말 문구와 웨이브 속도가 여기에 따라 갈린다.
-    private enum TimeOfDay {
-        case morning, afternoon, evening, night
+    private func mainColumn(_ l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: 34) {
+            hero(l10n)
+                .fadeUpOnAppear(once: "home")
 
-        var waveSpeed: Double {
-            switch self {
-            case .morning: 1.15 // 또렷하게
-            case .afternoon: 1.0
-            case .evening: 0.8
-            case .night: 0.6 // 잔잔하게
+            searchTrigger(l10n)
+                .fadeUpOnAppear(delay: 0.045, once: "home")
+
+            quickStart(l10n)
+                .fadeUpOnAppear(delay: 0.09, once: "home")
+
+            continueSection(l10n)
+                .fadeUpOnAppear(delay: 0.135, once: "home")
+        }
+    }
+
+    /// 히어로 크기 — 창 폭에 따라 단계 축소 (2단계 3: 좁은 창에서 위압적이지 않게).
+    private var heroSize: CGFloat {
+        if homeWidth >= 1180 {
+            34
+        } else if homeWidth >= 1000 {
+            30
+        } else {
+            26
+        }
+    }
+
+    /// 세리프 타이포 히어로 — 날짜 캡션 + 2행 인사말.
+    /// 앱 세션 첫 진입 1회만 인사말 첫 줄이 타자기 리빌(9e)로 새겨진다 (매번은 피로).
+    private func hero(_ l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(Date(), format: .dateTime.month().day().weekday(.wide))
+                .font(DSFonts.font(size: 12.5, family: .pretendard))
+                .foregroundStyle(SonnetPalette.inkMuted)
+                .kerning(0.7)
+            VStack(alignment: .leading, spacing: 4) {
+                // 전체 문장이 항상 배치되고 안 나온 글자만 투명하므로 placeholder가 필요 없다.
+                // 캐럿은 여러 줄 대형 타이포에서 줄바꿈을 흔들어 끈다.
+                TypewriterText(
+                    greetingText,
+                    font: DSFonts.display(size: heroSize, weight: .semibold),
+                    color: SonnetPalette.ink,
+                    showsCaret: false
+                )
+                .id(revealToken)
+                Text(l10n.t(.greetingFollowup))
+            }
+            .font(DSFonts.display(size: heroSize, weight: .semibold))
+            .foregroundStyle(SonnetPalette.ink)
+            .lineSpacing(6)
+            .lineLimit(nil)
+            // 가용 폭을 모두 쓰게 한다 — 그러지 않으면 VStack이 짧은 쪽 문장 폭에 맞춰져
+            // 인사말이 "이름 / 님." 으로 접힌다
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // ko 로케일의 줄바꿈 전략에서 세리프 커스텀 폰트가 말줄임되는 문제 —
+            // 세로 확장을 명시해 항상 줄바꿈되게 한다
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        // 홈에 들어올 때마다 인사말을 타자기로 다시 새긴다 (모션 줄이기면 정적).
+        // revealToken을 바꿔 TypewriterText(.task(id:))를 재시작시킨다.
+        .onAppear {
+            revealToken += 1
+        }
+    }
+
+    /// 검색 필드 모양의 ⌘K 트리거 — 딥서치·명령·문서 점프는 전부 팔레트가 담당.
+    private func searchTrigger(_ l10n: Localizer) -> some View {
+        Button {
+            withAnimation(DesignTokens.Motion.glassPop) { app.showCommandPalette = true }
+        } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+                Text(l10n.t(.searchPlaceholder))
+                    .font(DSFonts.font(size: 14.5, family: .pretendard))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+                Spacer()
+                Text("⌘K")
+                    .font(DSType.mono(size: 11))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .strokeBorder(SonnetPalette.ink.opacity(0.16), lineWidth: 1)
+                    )
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 15)
+            .frame(maxWidth: 640)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(SonnetPalette.surface.opacity(0.85))
+                    .shadow(color: SonnetPalette.ink.opacity(0.09), radius: 9, y: 4)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(SonnetPalette.glassRim, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LiftButtonStyle(hoverScale: 1.005, pressScale: 0.995))
+    }
+
+    // MARK: 빠른 시작 (5종)
+
+    private func quickStart(_ l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionLabel(l10n.t(.quickStart))
+            // adaptive grid — 좁은 창에서 5장의 카드가 잘리는 대신 3+2 / 2열로 흐른다 (4단계 홈)
+            LazyVGrid(
+                columns: [GridItem(.adaptive(minimum: 148, maximum: 240), spacing: 12)],
+                alignment: .leading,
+                spacing: 12
+            ) {
+                QuickStartCard(
+                    type: .scenario,
+                    title: l10n.t(.scenario),
+                    subtitle: "대사·지침 블록, 분기"
+                ) {
+                    app.createAndOpen(kind: .scenario)
+                }
+                QuickStartCard(
+                    type: .mindmap,
+                    title: l10n.t(.mindmap),
+                    subtitle: "무한 캔버스, 링크 노드"
+                ) {
+                    app.createAndOpen(kind: .mindmap)
+                }
+                QuickStartCard(
+                    type: .page,
+                    title: l10n.t(.page),
+                    subtitle: "블록 편집, / 커맨드"
+                ) {
+                    app.createAndOpen(kind: .page)
+                }
+                QuickStartCard(
+                    type: .character,
+                    title: l10n.t(.characterPage),
+                    subtitle: "프로필·관계·보이스"
+                ) {
+                    app.createAndOpen(kind: .page, pageRole: .character)
+                }
+                aiDraftCard(l10n)
             }
         }
+    }
+
+    /// AI로 초안 — 유일하게 인장(버밀리온 그라데이션)을 쓰는 행동 카드.
+    private func aiDraftCard(_ l10n: Localizer) -> some View {
+        Button {
+            app.toggleAgentSurface()
+        } label: {
+            VStack(alignment: .leading, spacing: 4) {
+                Image(systemName: "sparkle")
+                    .font(.system(size: 15, weight: .medium))
+                    .padding(.bottom, 6)
+                Text(l10n.t(.aiDraft))
+                    .font(DSFonts.font(size: 14, weight: .semibold, family: .pretendard))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Text(l10n.t(.aiDraftSubtitle))
+                    .font(DSFonts.font(size: 11.5, family: .pretendard))
+                    .opacity(0.8)
+                    .lineLimit(2)
+            }
+            .foregroundStyle(Color(hex: "#F6F4EF"))
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: 13, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "#B23A21"), Color(hex: "#8E2D18")],
+                            startPoint: .topLeading, endPoint: .bottomTrailing
+                        )
+                    )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LiftButtonStyle(hoverScale: 1.02, pressScale: 0.97))
+    }
+
+    // MARK: 이어서 쓰기
+
+    @ViewBuilder
+    private func continueSection(_ l10n: Localizer) -> some View {
+        let items = Array(app.workspace.recentDocuments.prefix(3))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                sectionLabel(l10n.t(.continueWriting))
+                Spacer()
+                Button {
+                    app.openArchiveTab()
+                } label: {
+                    Text(l10n.t(.archiveAll))
+                        .font(DSFonts.font(size: 12, family: .pretendard))
+                        .foregroundStyle(accent)
+                }
+                .buttonStyle(.plain)
+            }
+            if items.isEmpty {
+                emptyWorkspaceHero(l10n)
+            } else {
+                HStack(spacing: 12) {
+                    ForEach(items) { item in
+                        ContinueCard(item: item) { app.openDocument(item) }
+                    }
+                    // 3칸 미만이어도 카드 폭 유지
+                    ForEach(0..<max(0, 3 - items.count), id: \.self) { _ in
+                        Color.clear.frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+
+    private func emptyWorkspaceHero(_ l10n: Localizer) -> some View {
+        VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
+            Text(l10n.t(.emptyWorkspaceTitle))
+                .font(DSType.title())
+            Text(l10n.t(.emptyWorkspaceBody))
+                .font(DSType.body())
+                .foregroundStyle(SonnetPalette.inkMuted)
+            Button {
+                app.promptNewProject()
+            } label: {
+                Label(l10n.t(.createFirstProject), systemImage: "folder.badge.plus")
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(homeCardBackground())
+    }
+
+    // MARK: 우측 열
+
+    private func sideColumn(_ l10n: Localizer) -> some View {
+        VStack(spacing: 14) {
+            writingCard(l10n)
+                .fadeUpOnAppear(delay: 0.09, once: "home")
+            projectsCard(l10n)
+                .fadeUpOnAppear(delay: 0.135, once: "home")
+            backupCard(l10n)
+                .fadeUpOnAppear(delay: 0.18, once: "home")
+        }
+    }
+
+    /// 오늘의 집필 — 세리프 숫자 + 잉크 진행 바 + 주간 막대.
+    private func writingCard(_ l10n: Localizer) -> some View {
+        let today = app.stats.todayWriting
+        let goal = max(1, Int(app.settings.applied.dailyWritingGoal))
+        let progress = min(1, Double(today) / Double(goal))
+        let week = app.stats.recentWeekWriting
+        let peak = max(1, week.map(\.count).max() ?? 1)
+        let streak = app.stats.writingStreak
+
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(l10n.t(.todayWriting))
+                    .font(DSType.subtitle())
+                Spacer()
+                if streak > 0 {
+                    Text(String(format: l10n.t(.streakDaysFormat), streak))
+                        .font(DSFonts.font(size: 12, family: .pretendard))
+                        .foregroundStyle(accent)
+                }
+            }
+            .padding(.bottom, 14)
+
+            HStack(alignment: .lastTextBaseline, spacing: 8) {
+                Text("\(today.formatted())")
+                    .font(DSFonts.display(size: 30, weight: .bold))
+                Text("/ \(goal.formatted())\(l10n.t(.dailyGoalChars))")
+                    .font(DSFonts.font(size: 12, family: .pretendard))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+            }
+            .padding(.bottom, 12)
+
+            // 잉크 진행 바 — 차오르는 잉크 (100%에서 인장 스탬프)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(SonnetPalette.ink.opacity(0.08))
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(hex: "#C2482D"), Color(hex: "#B23A21")],
+                                startPoint: .leading, endPoint: .trailing
+                            )
+                        )
+                        .frame(width: geo.size.width * progress)
+                        .animation(DesignTokens.Motion.inkFlow, value: progress)
+                }
+            }
+            .frame(height: 6)
+            .padding(.bottom, 14)
+
+            HStack(alignment: .bottom, spacing: 5) {
+                ForEach(Array(week.enumerated()), id: \.offset) { index, day in
+                    let ratio = max(0.12, Double(day.count) / Double(peak))
+                    let isToday = index == week.count - 1
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(barColor(count: day.count, isToday: isToday))
+                        .frame(height: 34 * ratio)
+                        .frame(maxWidth: .infinity, alignment: .bottom)
+                }
+            }
+            .frame(height: 34, alignment: .bottom)
+            .padding(.bottom, 6)
+
+            HStack {
+                ForEach(Array(week.enumerated()), id: \.offset) { _, day in
+                    Text(day.date, format: .dateTime.weekday(.narrow))
+                        .font(.system(size: 10))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(20)
+        .background(homeCardBackground())
+    }
+
+    private func barColor(count: Int, isToday: Bool) -> Color {
+        if count == 0 { return SonnetPalette.ink.opacity(0.12) }
+        if isToday { return Color(hex: "#E3B7AA") }
+        return SonnetPalette.accent
+    }
+
+    /// 프로젝트 목록 — 유형색 사각 도트 + 문서 수.
+    private func projectsCard(_ l10n: Localizer) -> some View {
+        let dotColors: [Color] = [
+            SonnetPalette.accent, SonnetPalette.pine, SonnetPalette.gold, SonnetPalette.slate,
+        ]
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(l10n.t(.project))
+                .font(DSType.subtitle())
+                .padding(.bottom, 10)
+            ForEach(Array(app.workspace.projects.enumerated()), id: \.element.id) { index, project in
+                HomeProjectRow(
+                    project: project,
+                    dotColor: dotColors[index % dotColors.count],
+                    isActive: isActiveProject(project)
+                ) {
+                    app.openArchiveTab(category: .all, project: project.id)
+                }
+            }
+            Button {
+                app.promptNewProject()
+            } label: {
+                HStack(spacing: 8) {
+                    Text("＋")
+                        .font(.system(size: 15))
+                    Text(l10n.t(.newProject))
+                        .font(DSFonts.font(size: 12.5, family: .pretendard))
+                }
+                .foregroundStyle(SonnetPalette.inkMuted)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 9)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(SidebarLongButtonStyle())
+        }
+        .padding(20)
+        .background(homeCardBackground())
+    }
+
+    private func isActiveProject(_ project: ProjectFolder) -> Bool {
+        guard let tab = app.selectedTab, let session = app.session(for: tab) else { return false }
+        return session.document.envelope.projectID == project.id
+    }
+
+    /// 자동 백업 상태 — 최근 스냅샷 + 타임라인 링크.
+    private func backupCard(_ l10n: Localizer) -> some View {
+        let latest = app.backupManager.timeline().first
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(latest == nil ? SonnetPalette.inkMuted : SonnetPalette.sage)
+                .frame(width: 8, height: 8)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(l10n.t(.autoBackupDone))
+                    .font(DSFonts.font(size: 12.5, weight: .semibold, family: .pretendard))
+                if let latest {
+                    Text(latest.date, format: .dateTime.month().day().hour().minute())
+                        .font(DSFonts.font(size: 12, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                } else {
+                    Text(l10n.t(.noRecents))
+                        .font(DSFonts.font(size: 12, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                }
+            }
+            Spacer()
+            Button {
+                showBackupTimeline = true
+            } label: {
+                Text(l10n.t(.backupTimelineShort))
+                    .font(DSFonts.font(size: 11.5, family: .pretendard))
+                    .foregroundStyle(accent)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 16)
+        .background(homeCardBackground())
+    }
+
+    // MARK: AI 플로팅 버튼
+
+    /// 우하단 깃털 버튼 — 도트 매트릭스가 물결치는 글래스 원판. AI 패널을 연다.
+    private var aiFloatingButton: some View {
+        Button {
+            withAnimation(DesignTokens.Motion.glassPop) { app.showFloatingChat.toggle() }
+        } label: {
+            DotMatrixWave(color: accent)
+                .frame(width: 18, height: 18)
+                .frame(width: 54, height: 54)
+                .background(
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                        .shadow(color: SonnetPalette.ink.opacity(0.16), radius: 10, y: 6)
+                )
+                .overlay(Circle().strokeBorder(SonnetPalette.glassRim, lineWidth: 1))
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressBounceButtonStyle())
+        .help(Localizer.shared.t(.sonnetAI) + " (⇧⌘A)")
+    }
+
+    // MARK: 공통
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text)
+            .font(DSFonts.font(size: 12, weight: .semibold, family: .pretendard))
+            .foregroundStyle(SonnetPalette.inkMuted)
+            .kerning(1)
+    }
+
+    /// 작가 이름이 설정돼 있으면 이름을 넣은 인사말, 아니면 일반 문구.
+    private var greetingText: String {
+        let l10n = Localizer.shared
+        let name = app.settings.applied.authorName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return l10n.t(timeOfDay.plainKey) }
+        return String(format: l10n.t(timeOfDay.namedKey), name)
+    }
+
+    private enum TimeOfDay {
+        case morning, afternoon, evening, night
 
         var plainKey: L10nKey {
             switch self {
@@ -127,251 +549,186 @@ struct HomeView: View {
         default: .night
         }
     }
-
-    /// 작가 이름이 설정돼 있으면 이름을 넣은 인사말, 아니면 일반 문구.
-    private var greetingText: String {
-        let l10n = Localizer.shared
-        let name = app.settings.applied.authorName.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return l10n.t(timeOfDay.plainKey) }
-        return String(format: l10n.t(timeOfDay.namedKey), name)
-    }
-
-    // MARK: 중앙 검색
-
-    private func searchField(_ l10n: Localizer) -> some View {
-        HStack(spacing: DesignTokens.Spacing.s) {
-            Image(systemName: "magnifyingglass")
-                .foregroundStyle(.secondary)
-            TextField(l10n.t(.searchPlaceholder), text: $query)
-                .textFieldStyle(.plain)
-                .font(.title3)
-                .focused($searchFocused)
-            if !query.isEmpty {
-                Button {
-                    query = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, DesignTokens.Spacing.m)
-        .padding(.vertical, 14)
-        .glassSurface(cornerRadius: DesignTokens.Radius.large, interactive: true, quality: quality)
-        .frame(maxWidth: 560)
-    }
-
-    private var isWorkspaceEmpty: Bool {
-        app.workspace.projects.isEmpty && app.workspace.visibleDocuments.isEmpty
-    }
-
-    // MARK: 첫 실행 히어로
-
-    private func emptyWorkspaceHero(_ l10n: Localizer) -> some View {
-        VStack(spacing: DesignTokens.Spacing.m) {
-            ZStack {
-                Circle()
-                    .fill(accent.opacity(0.14))
-                    .frame(width: 76, height: 76)
-                Image(systemName: "sparkles.rectangle.stack")
-                    .font(.system(size: 32, weight: .medium))
-                    .foregroundStyle(accent)
-            }
-            Text(l10n.t(.emptyWorkspaceTitle))
-                .font(.title3.weight(.semibold))
-            Text(l10n.t(.emptyWorkspaceBody))
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 380)
-            Button {
-                _ = try? app.workspace.createProject(name: Localizer.shared.t(.newProject))
-            } label: {
-                Label(l10n.t(.createFirstProject), systemImage: "folder.badge.plus")
-                    .padding(.horizontal, 6)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-        }
-        .padding(DesignTokens.Spacing.l)
-        .frame(maxWidth: 520)
-        .glassSurface(cornerRadius: DesignTokens.Radius.large, quality: quality)
-        .transition(.opacity.combined(with: .scale(scale: 0.97)))
-    }
-
-    // MARK: 프로젝트 액션 (검색 바로 아래)
-
-    private func projectActions(_ l10n: Localizer) -> some View {
-        HStack(spacing: DesignTokens.Spacing.s) {
-            Button {
-                _ = try? app.workspace.createProject(name: l10n.t(.newProject))
-            } label: {
-                Label(l10n.t(.newProject), systemImage: "folder.badge.plus")
-            }
-            Button {
-                app.importFromDisk()
-            } label: {
-                Label(l10n.t(.importAny), systemImage: "square.and.arrow.down")
-            }
-            Button {
-                app.openAIChatTab()
-            } label: {
-                Label(l10n.t(.aiAgent), systemImage: "sparkles")
-            }
-        }
-        .buttonStyle(.bordered)
-        .controlSize(.regular)
-    }
-
-    // MARK: 빠른 생성
-
-    private func quickCreate(_ l10n: Localizer) -> some View {
-        GlassEffectContainer(spacing: DesignTokens.Spacing.m) {
-            HStack(spacing: DesignTokens.Spacing.m) {
-                QuickCreateButton(symbol: "text.bubble", title: l10n.t(.newScenario)) {
-                    app.createAndOpen(kind: .scenario)
-                }
-                QuickCreateButton(symbol: "point.3.connected.trianglepath.dotted", title: l10n.t(.newMindMap)) {
-                    app.createAndOpen(kind: .mindmap)
-                }
-                QuickCreateButton(symbol: "doc.richtext", title: l10n.t(.newPage)) {
-                    app.createAndOpen(kind: .page)
-                }
-                QuickCreateButton(symbol: "person.crop.circle.badge.plus", title: l10n.t(.newCharacter)) {
-                    app.createAndOpen(kind: .page, pageRole: .character)
-                }
-            }
-        }
-    }
-
-    // MARK: 최근 항목
-
-    @ViewBuilder
-    private func recents(_ l10n: Localizer) -> some View {
-        let items = app.workspace.recentDocuments
-        VStack(alignment: .leading, spacing: DesignTokens.Spacing.s) {
-            Text(l10n.t(.recentDocuments))
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            if items.isEmpty {
-                Text(l10n.t(.noRecents))
-                    .font(.callout)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, DesignTokens.Spacing.l)
-            } else {
-                LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 160), spacing: DesignTokens.Spacing.s)],
-                    spacing: DesignTokens.Spacing.s
-                ) {
-                    ForEach(items) { item in
-                        RecentCard(item: item) { app.openDocument(item) }
-                    }
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: 검색 결과
-
-    @ViewBuilder
-    private func searchResultList(_ l10n: Localizer) -> some View {
-        let results = searchResults
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(results) { item in
-                Button {
-                    app.openDocument(item)
-                } label: {
-                    HStack(spacing: DesignTokens.Spacing.s) {
-                        Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                            .foregroundStyle(accent)
-                            .frame(width: 24)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(item.envelope.title)
-                                .font(.callout.weight(.medium))
-                            if let project = item.projectName {
-                                Text(project)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        Text(item.envelope.modifiedAt, style: .relative)
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
-                    }
-                    .padding(10)
-                    .contentShape(Rectangle())
-                    .glassSurface(cornerRadius: DesignTokens.Radius.small, quality: quality)
-                }
-                .buttonStyle(LiftButtonStyle(hoverScale: 1.015, pressScale: 0.99))
-            }
-            if results.isEmpty {
-                Text(l10n.t(.noRecents))
-                    .font(.callout)
-                    .foregroundStyle(.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, DesignTokens.Spacing.l)
-            }
-        }
-        .frame(maxWidth: 560)
-    }
 }
 
-struct QuickCreateButton: View {
-    let symbol: String
-    let title: String
-    let action: () -> Void
+/// 홈 카드 공통 배경 — Sheet 백지 + 얇은 잉크 테두리.
+private func homeCardBackground(cornerRadius: CGFloat = 14) -> some View {
+    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+        .fill(SonnetPalette.surface)
+        .overlay(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .strokeBorder(SonnetPalette.ink.opacity(0.09), lineWidth: 1)
+        )
+}
 
-    @Environment(\.renderQuality) private var quality
-    @Environment(\.resolvedAccent) private var accent
+/// 빠른 시작 카드 — 유형 배지 + 이름 + 설명 (호버 리프트 y-2px).
+private struct QuickStartCard: View {
+    let type: DSFileType
+    let title: String
+    let subtitle: String
+    let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: DesignTokens.Spacing.s) {
-                Image(systemName: symbol)
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundStyle(accent)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(type.extensionLabel)
+                    .font(DSType.mono(size: 11, weight: .semibold))
+                    .foregroundStyle(type.color)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .padding(.bottom, 6)
                 Text(title)
-                    .font(.caption.weight(.medium))
+                    .font(DSFonts.font(size: 14, weight: .semibold, family: .pretendard))
+                    .foregroundStyle(SonnetPalette.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Text(subtitle)
+                    .font(DSFonts.font(size: 11.5, family: .pretendard))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+                    .lineLimit(2)
             }
-            .frame(width: 108, height: 76)
-            .glassSurface(cornerRadius: DesignTokens.Radius.medium, interactive: true, quality: quality)
+            .padding(16)
+            .frame(maxWidth: .infinity, minHeight: 108, alignment: .topLeading)
+            .background(homeCardBackground(cornerRadius: 13))
+            .contentShape(Rectangle())
         }
-        .buttonStyle(LiftButtonStyle())
+        .buttonStyle(LiftButtonStyle(hoverScale: 1.02, pressScale: 0.97))
     }
 }
 
-struct RecentCard: View {
+/// 이어서 쓰기 카드 — 유형 배지 + 상대 시각 + 세리프 제목 + 프로젝트.
+private struct ContinueCard: View {
     let item: DocumentListItem
     let action: () -> Void
 
-    @Environment(\.renderQuality) private var quality
-    @Environment(\.resolvedAccent) private var accent
+    private var fileType: DSFileType {
+        if item.envelope.isCharacterPage { return .character }
+        switch item.envelope.kind {
+        case .scenario: return .scenario
+        case .mindmap: return .mindmap
+        case .page: return .page
+        }
+    }
 
     var body: some View {
         Button(action: action) {
-            VStack(alignment: .leading, spacing: 6) {
-                Image(systemName: item.envelope.isCharacterPage ? "person.crop.circle" : item.envelope.kind.symbolName)
-                    .font(.title3)
-                    .foregroundStyle(accent)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text(fileType.extensionLabel)
+                        .font(DSType.mono(size: 11, weight: .semibold))
+                        .foregroundStyle(fileType.color)
+                    Spacer()
+                    Text(item.envelope.modifiedAt, style: .relative)
+                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.inkMuted)
+                }
+                .padding(.bottom, 10)
                 Text(item.envelope.title.isEmpty ? Localizer.shared.t(.untitled) : item.envelope.title)
-                    .font(.callout.weight(.medium))
+                    .font(DSFonts.display(size: 15, weight: .semibold))
+                    .foregroundStyle(SonnetPalette.ink)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
-                Spacer(minLength: 0)
-                Text(item.envelope.modifiedAt, style: .relative)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                Spacer(minLength: 10)
+                if let project = item.projectName {
+                    Text(project)
+                        .font(DSFonts.font(size: 11, family: .pretendard))
+                        .foregroundStyle(SonnetPalette.pine)
+                }
             }
-            .padding(DesignTokens.Spacing.s)
-            .frame(height: 104, alignment: .topLeading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassSurface(cornerRadius: DesignTokens.Radius.medium, interactive: true, quality: quality)
+            .padding(18)
+            .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
+            .background(homeCardBackground(cornerRadius: 13))
+            .contentShape(Rectangle())
         }
-        .buttonStyle(LiftButtonStyle())
+        .buttonStyle(LiftButtonStyle(hoverScale: 1.02, pressScale: 0.97))
+    }
+}
+
+/// 프로젝트 행.
+private struct HomeProjectRow: View {
+    let project: ProjectFolder
+    let dotColor: Color
+    let isActive: Bool
+    let action: () -> Void
+
+    @Environment(AppState.self) private var app
+    @State private var hovering = false
+
+    private var docCount: Int {
+        app.workspace.visibleDocuments.count { $0.envelope.projectID == project.id }
+    }
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(dotColor)
+                    .frame(width: 8, height: 8)
+                Text(project.manifest.name)
+                    .font(DSFonts.font(size: 13, weight: isActive ? .semibold : .regular, family: .pretendard))
+                    .lineLimit(1)
+                Spacer()
+                Text("\(docCount)")
+                    .font(DSFonts.font(size: 11, family: .pretendard))
+                    .foregroundStyle(SonnetPalette.inkMuted)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 9)
+            .background(
+                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    .fill(
+                        isActive
+                            ? SonnetPalette.accentTint
+                            : (hovering ? SonnetPalette.ink.opacity(0.05) : .clear)
+                    )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .animation(DesignTokens.Motion.glassPop, value: hovering)
+        .contextMenu {
+            let l10n = Localizer.shared
+            Button(l10n.t(.exportProject)) { app.exportProject(project) }
+            Button(l10n.t(.deleteProject), role: .destructive) { app.requestDeleteProject(project) }
+        }
+    }
+}
+
+/// 4×4 도트 매트릭스 웨이브 — AI 플로팅 버튼 아이콘 (1b).
+struct DotMatrixWave: View {
+    let color: Color
+
+    @Environment(\.decorAnimationsPaused) private var animationsPaused
+
+    var body: some View {
+        Group {
+            if animationsPaused {
+                grid(time: 0)
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 24.0)) { context in
+                    grid(time: context.date.timeIntervalSinceReferenceDate)
+                }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func grid(time t: TimeInterval) -> some View {
+        Grid(horizontalSpacing: 2, verticalSpacing: 2) {
+            ForEach(0..<4, id: \.self) { row in
+                GridRow {
+                    ForEach(0..<4, id: \.self) { col in
+                        let phase = Double(row + col) * 0.11
+                        let wave = 0.5 + 0.5 * sin((t / 1.8 - phase) * 2 * .pi)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(color)
+                            .frame(width: 3, height: 3)
+                            .opacity(0.2 + 0.8 * wave)
+                            .scaleEffect(0.72 + 0.28 * wave)
+                    }
+                }
+            }
+        }
     }
 }

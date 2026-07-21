@@ -1,8 +1,91 @@
+import DocumentKit
+import Foundation
 import Testing
 @testable import FileManagerKit
 
-@Test func example() async throws {
-    // Write your test here and use APIs like `#expect(...)` to check expected conditions.
-    // Swift Testing Documentation
-    // https://developer.apple.com/documentation/testing
+/// 임시·격리 워크스페이스를 만들고 문서 번들 몇 개를 실제로 기록한다.
+/// 실제 사용자 워크스페이스(~/Documents/SonnetCreate)는 절대 건드리지 않는다.
+@MainActor
+private func makeWorkspace(documentCount: Int) throws -> (store: WorkspaceStore, root: URL) {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("SonnetCreateTests-\(UUID().uuidString)", isDirectory: true)
+    let store = WorkspaceStore(rootURL: root)
+    for index in 1...documentCount {
+        let document = store.createDocument(title: "테스트 문서 \(index)", kind: .page)
+        _ = try DocumentPackageIO.write(document)
+    }
+    store.scan()
+    return (store, root)
+}
+
+/// 다중 휴지통 이동 회귀 — 확인 후 일괄 이동돼도 전 항목이 휴지통에 들어가고,
+/// 전부 원위치로 복원 가능해야 한다 (지시서 1단계 1).
+@MainActor
+@Test func bulkTrashMovesAllAndRestores() async throws {
+    let (store, root) = try makeWorkspace(documentCount: 3)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    #expect(store.visibleDocuments.count == 3)
+
+    // 앱의 confirmPendingTrash와 동일한 경로: 항목별 moveToTrash 순회
+    for item in store.visibleDocuments {
+        store.moveToTrash(item)
+    }
+    #expect(store.visibleDocuments.isEmpty)
+    #expect(store.trashedDocuments.count == 3)
+
+    // 전부 복원 — 원래 폴더(워크스페이스 루트)가 살아 있으므로 폴백 없이 돌아와야 한다
+    for item in store.trashedDocuments {
+        let fellBack = store.restoreFromTrash(item)
+        #expect(!fellBack)
+    }
+    #expect(store.visibleDocuments.count == 3)
+    #expect(store.trashedDocuments.isEmpty)
+}
+
+/// 격리 성능 fixture (지시서 7단계) — 문서 1,000개 워크스페이스에서
+/// 스캔·딥서치가 상호작용을 막을 만큼 느려지지 않는지 계측한다.
+/// 실제 사용자 워크스페이스는 절대 사용하지 않는다 (임시 디렉토리 생성·삭제).
+@MainActor
+@Test func thousandDocumentWorkspacePerformance() async throws {
+    let root = FileManager.default.temporaryDirectory
+        .appendingPathComponent("SonnetCreatePerf-\(UUID().uuidString)", isDirectory: true)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let store = WorkspaceStore(rootURL: root)
+    for index in 1...1000 {
+        let document = store.createDocument(title: "성능 문서 \(index)", kind: .page)
+        _ = try DocumentPackageIO.write(document)
+    }
+
+    let scanStart = ContinuousClock.now
+    store.scan()
+    let scanElapsed = ContinuousClock.now - scanStart
+    #expect(store.visibleDocuments.count == 1000)
+    // 메인 스레드 스캔이 10초를 넘으면 타이핑·탭 전환이 눈에 띄게 끊긴다
+    #expect(scanElapsed < .seconds(10), "scan: \(scanElapsed)")
+
+    let searchStart = ContinuousClock.now
+    let matches = await store.deepSearch("성능 문서 42")
+    let searchElapsed = ContinuousClock.now - searchStart
+    #expect(!matches.isEmpty)
+    #expect(searchElapsed < .seconds(5), "deepSearch: \(searchElapsed)")
+
+    print("[perf] 1,000 docs — scan: \(scanElapsed), deepSearch: \(searchElapsed)")
+}
+
+/// 다중 영구 삭제 회귀 — 휴지통의 여러 항목을 한 번에 지우면 전부 사라져야 한다 (지시서 1단계 1).
+@MainActor
+@Test func bulkPermanentDeleteRemovesAll() async throws {
+    let (store, root) = try makeWorkspace(documentCount: 2)
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    for item in store.visibleDocuments {
+        store.moveToTrash(item)
+    }
+    #expect(store.trashedDocuments.count == 2)
+
+    store.deletePermanently(store.trashedDocuments)
+    #expect(store.trashedDocuments.isEmpty)
+    #expect(store.visibleDocuments.isEmpty)
 }

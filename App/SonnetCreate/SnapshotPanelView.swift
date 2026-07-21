@@ -72,8 +72,17 @@ struct SnapshotPanelView: View {
                 session.restoreSnapshot(snapshot)
             }
             Button(l10n.t(.cancel), role: .cancel) {}
-        } message: { _ in
-            Text(l10n.t(.restoreSnapshotConfirm))
+        } message: { snapshot in
+            // 복원 전에 규모를 알려준다 — 현재 상태와의 차이 건수 (4단계 스냅샷)
+            let diffCount = SnapshotDiff.rows(
+                current: session.document.content,
+                snapshot: snapshot.content
+            ).count
+            Text(
+                diffCount == 0
+                    ? l10n.t(.restoreSnapshotConfirm)
+                    : String(format: l10n.t(.restoreSnapshotDiffFormat), diffCount)
+            )
         }
     }
 
@@ -233,11 +242,12 @@ private struct SnapshotDiffSheet: View {
         }
     }
 
+    // 의미 토큰 정렬 (2단계) — 추가=success, 삭제=accent, 변경=warning
     private func badgeColor(_ kind: SnapshotDiff.Row.Kind) -> Color {
         switch kind {
-        case .added: Color(hex: "#3E8E58")
-        case .removed: Color(hex: "#C24A44")
-        case .changed: Color(hex: "#B07A2E")
+        case .added: SonnetPalette.success
+        case .removed: SonnetPalette.accent
+        case .changed: SonnetPalette.warning
         }
     }
 }

@@ -29,6 +29,12 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var accent: AccentChoice = .system
     /// Liquid Glass를 끄고 평면 표면 사용 — v1.3부터 Liquid Glass가 기본
     public var disableLiquidGlass: Bool = false
+    /// Liquid Glass 적용 모드 — "point"(팔레트·패널·툴바만) | "full"(사이드바·인스펙터까지)
+    public var glassModeRaw: String = "point"
+    /// 유리 강도 (0~1) — 표면 불투명도/블러에 반영
+    public var glassIntensity: Double = 0.62
+    /// 페이퍼 그레인 — 캔버스에 미세 그레인 텍스처 오버레이
+    public var paperGrainEnabled: Bool = false
     /// Wavy Dot Field 배경 효과 (기본 꺼짐)
     public var backgroundEffectEnabled: Bool = false
     /// 전체 UI 크기 배율
@@ -39,10 +45,10 @@ public struct AppSettings: Codable, Sendable, Equatable {
     public var touchBarEnabled: Bool = false
     /// 시나리오 캐릭터 인스펙터를 오른쪽에 배치
     public var scenarioInspectorOnRight: Bool = false
-    /// AI 스피어 스타일 — "particle"(기본) | "glass" | "holographic" | "ink" | "plasma"
-    public var aiSphereStyleRaw: String = "particle"
-    /// 파티클 스피어 입자 밀도 — "sparse" | "normal"(기본) | "dense"
+    /// 성운 스피어 입자 밀도 — "sparse" | "normal"(기본) | "dense"
     public var aiSphereDensityRaw: String = "normal"
+    /// 접근성: 모션 줄이기 — 시스템 손쉬운 사용과 별개로 앱에서 강제 (6단계)
+    public var reduceMotionEnabled: Bool = false
     public var quality: RenderQuality = .standard
     public var backgroundSpeed: Double = 0.6
     public var backgroundDensity: Double = 34
@@ -119,13 +125,16 @@ public struct AppSettings: Codable, Sendable, Equatable {
         themeMode = try c.decodeIfPresent(ThemeMode.self, forKey: .themeMode) ?? d.themeMode
         accent = try c.decodeIfPresent(AccentChoice.self, forKey: .accent) ?? d.accent
         disableLiquidGlass = try c.decodeIfPresent(Bool.self, forKey: .disableLiquidGlass) ?? d.disableLiquidGlass
+        glassModeRaw = try c.decodeIfPresent(String.self, forKey: .glassModeRaw) ?? d.glassModeRaw
+        glassIntensity = try c.decodeIfPresent(Double.self, forKey: .glassIntensity) ?? d.glassIntensity
+        paperGrainEnabled = try c.decodeIfPresent(Bool.self, forKey: .paperGrainEnabled) ?? d.paperGrainEnabled
         backgroundEffectEnabled = try c.decodeIfPresent(Bool.self, forKey: .backgroundEffectEnabled) ?? d.backgroundEffectEnabled
         uiScale = try c.decodeIfPresent(Double.self, forKey: .uiScale) ?? d.uiScale
         tabStyleRaw = try c.decodeIfPresent(String.self, forKey: .tabStyleRaw) ?? d.tabStyleRaw
         touchBarEnabled = try c.decodeIfPresent(Bool.self, forKey: .touchBarEnabled) ?? d.touchBarEnabled
         scenarioInspectorOnRight = try c.decodeIfPresent(Bool.self, forKey: .scenarioInspectorOnRight) ?? d.scenarioInspectorOnRight
-        aiSphereStyleRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereStyleRaw) ?? d.aiSphereStyleRaw
         aiSphereDensityRaw = try c.decodeIfPresent(String.self, forKey: .aiSphereDensityRaw) ?? d.aiSphereDensityRaw
+        reduceMotionEnabled = try c.decodeIfPresent(Bool.self, forKey: .reduceMotionEnabled) ?? d.reduceMotionEnabled
         quality = try c.decodeIfPresent(RenderQuality.self, forKey: .quality) ?? d.quality
         backgroundSpeed = try c.decodeIfPresent(Double.self, forKey: .backgroundSpeed) ?? d.backgroundSpeed
         backgroundDensity = try c.decodeIfPresent(Double.self, forKey: .backgroundDensity) ?? d.backgroundDensity
@@ -215,6 +224,32 @@ public final class SettingsStore {
         }
     }
 
+    /// changeCount 캐시 — JSON 인코딩 2회가 draft 타이핑마다 반복되지 않게.
+    /// (@ObservationIgnored: 캐시 갱신이 뷰 무효화를 유발하지 않도록)
+    @ObservationIgnored private var changeCountCache: (draft: AppSettings, apiKeys: [String: String], count: Int)?
+
+    /// draft와 applied가 다른 최상위 필드 수 + 변경된 API 키 수 — 푸터 "변경 N건" 표시용 (4c).
+    public var changeCount: Int {
+        if let cache = changeCountCache, cache.draft == draft, cache.apiKeys == draftAPIKeys {
+            return cache.count
+        }
+        var count = 0
+        if let draftData = try? JSONEncoder().encode(draft),
+           let appliedData = try? JSONEncoder().encode(applied),
+           let draftDict = (try? JSONSerialization.jsonObject(with: draftData)) as? [String: Any],
+           let appliedDict = (try? JSONSerialization.jsonObject(with: appliedData)) as? [String: Any] {
+            for key in Set(draftDict.keys).union(appliedDict.keys)
+                where (draftDict[key] as? NSObject) != (appliedDict[key] as? NSObject) {
+                count += 1
+            }
+        } else if draft != applied {
+            count = 1
+        }
+        count += apiKeyAccounts.filter { (draftAPIKeys[$0] ?? "") != (loadAPIKey?($0) ?? "") }.count
+        changeCountCache = (draft, draftAPIKeys, count)
+        return count
+    }
+
     public func refreshAPIKeyDraft() {
         for account in apiKeyAccounts {
             draftAPIKeys[account] = loadAPIKey?(account) ?? ""
@@ -223,6 +258,9 @@ public final class SettingsStore {
 
     /// '저장' 버튼 — draft를 적용/영속화.
     public func save() {
+        // 이름에 섞여 들어간 개행/여백은 저장 시점에 정리한다 —
+        // 홈 인사말이 "이름 / 님." 으로 갈라지던 원인.
+        draft.authorName = draft.authorName.trimmingCharacters(in: .whitespacesAndNewlines)
         applied = draft
         Self.persist(applied)
         for account in apiKeyAccounts {

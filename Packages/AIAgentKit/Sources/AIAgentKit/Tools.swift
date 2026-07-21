@@ -292,9 +292,9 @@ public struct AIToolbox: Sendable {
                     )
                 }
             }
-            return AIToolResult(
+            return await AIToolResult(
                 callID: call.id, toolName: call.name,
-                content: try await handler.run(call.arguments)
+                content: try handler.run(call.arguments)
             )
         } catch {
             return AIToolResult(

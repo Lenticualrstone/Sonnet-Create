@@ -103,7 +103,7 @@ struct AIChatView: View {
 
     private var agentDisplayName: String {
         let name = app.settings.applied.agentName.trimmingCharacters(in: .whitespaces)
-        return name.isEmpty ? Localizer.shared.t(.aiAgent) : name
+        return name.isEmpty ? Localizer.shared.t(.sonnetAI) : name
     }
 
     /// 대화 중 프로바이더/모델 즉시 전환 — 설정 창을 오갈 필요가 없다.
@@ -129,7 +129,7 @@ struct AIChatView: View {
         } label: {
             HStack(spacing: 4) {
                 Circle()
-                    .fill(availabilityIssue == nil ? Color(hex: "#4CD97B") : Color.orange)
+                    .fill(availabilityIssue == nil ? SonnetPalette.sage : Color.orange)
                     .frame(width: 6, height: 6)
                 Text(currentModelLabel(current))
                     .font(.caption)
@@ -437,6 +437,27 @@ struct AIChatView: View {
             Text(l10n.t(.askAnything))
                 .font(.callout)
                 .foregroundStyle(.secondary)
+
+            // 실제 활용 예시 3개 — 클릭하면 입력창에 채워진다 (4단계 Sonnet AI)
+            VStack(spacing: 6) {
+                ForEach([L10nKey.aiExampleTighten, .aiExampleVoice, .aiExampleSummarize], id: \.self) { key in
+                    Button {
+                        app.aiChat.input = l10n.t(key)
+                        inputFocused = true
+                    } label: {
+                        Text(l10n.t(key))
+                            .font(.callout)
+                            .foregroundStyle(SonnetPalette.inkSoft)
+                            .lineLimit(1)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .frame(maxWidth: 360)
+                            .background(Capsule().fill(SonnetPalette.ink.opacity(0.05)))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
         .padding(.top, compact ? 24 : 70)
     }
@@ -455,7 +476,7 @@ struct ToolConfirmationSheet: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.title2)
                     .foregroundStyle(.orange)
-                Text("에이전트가 이 작업을 하려고 합니다")
+                Text(Localizer.shared.t(.aiConfirmTitle))
                     .font(.headline)
             }
 
@@ -540,11 +561,11 @@ struct ToolActivityChip: View {
                 HStack(spacing: 6) {
                     Image(systemName: symbol)
                         .font(.caption2)
-                        .foregroundStyle(activity.isError ? Color.orange : accent)
+                        .foregroundStyle(activity.isError ? Color.orange : SonnetPalette.pine)
                         .symbolEffect(.rotate, isActive: activity.isRunning)
                     Text(label)
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(activity.isError ? Color.orange : SonnetPalette.pine)
                     if activity.isRunning {
                         PulseDotsIndicator(dotSize: 3)
                     } else if !activity.detail.isEmpty {
@@ -557,7 +578,8 @@ struct ToolActivityChip: View {
                 .padding(.horizontal, 9)
                 .padding(.vertical, 5)
                 .background(
-                    Capsule().fill(activity.isError ? Color.orange.opacity(0.1) : accent.opacity(0.08))
+                    // 도구 칩은 먹록(Pine) — 인장은 행동 버튼에만 아낀다 (4d)
+                    Capsule().fill(activity.isError ? Color.orange.opacity(0.1) : SonnetPalette.pine.opacity(0.12))
                 )
                 .contentShape(Capsule())
             }
@@ -596,22 +618,39 @@ struct ChatBubble: View {
         message.role == .assistant && message.text.hasPrefix("⚠️")
     }
 
+    /// 말풍선 모양 — 사용자는 우하단, 보조는 좌하단 꼬리각 (4d).
+    private var bubbleShape: UnevenRoundedRectangle {
+        message.role == .user
+            ? UnevenRoundedRectangle(
+                topLeadingRadius: 14, bottomLeadingRadius: 14,
+                bottomTrailingRadius: 4, topTrailingRadius: 14, style: .continuous
+            )
+            : UnevenRoundedRectangle(
+                topLeadingRadius: 14, bottomLeadingRadius: 4,
+                bottomTrailingRadius: 14, topTrailingRadius: 14, style: .continuous
+            )
+    }
+
     var body: some View {
         HStack {
             if message.role == .user { Spacer(minLength: 60) }
             Text(markdownText)
                 .font(DSFonts.font(size: 13, family: fontFamily))
-                .textSelection(.enabled)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(
-                    RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
-                        .fill(bubbleFill)
+                .lineSpacing(4)
+                .foregroundStyle(
+                    message.role == .user && !isErrorNote
+                        ? SonnetPalette.canvas
+                        : SonnetPalette.ink
                 )
+                .textSelection(.enabled)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(bubbleShape.fill(bubbleFill))
                 .overlay {
                     if isErrorNote {
-                        RoundedRectangle(cornerRadius: DesignTokens.Radius.medium, style: .continuous)
-                            .strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+                        bubbleShape.strokeBorder(Color.orange.opacity(0.35), lineWidth: 1)
+                    } else if message.role == .assistant {
+                        bubbleShape.strokeBorder(SonnetPalette.ink.opacity(0.08), lineWidth: 1)
                     }
                 }
                 .frame(maxWidth: 520, alignment: message.role == .user ? .trailing : .leading)
@@ -623,7 +662,7 @@ struct ChatBubble: View {
     private var bubbleFill: AnyShapeStyle {
         if isErrorNote { return AnyShapeStyle(Color.orange.opacity(0.08)) }
         return message.role == .user
-            ? AnyShapeStyle(accent.opacity(0.16))
+            ? AnyShapeStyle(SonnetPalette.ink)
             : AnyShapeStyle(SonnetPalette.surface)
     }
 
@@ -647,7 +686,7 @@ struct SidebarAIChatSection: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 5) {
                 AISphere(size: 14, activity: chat.isBusy ? .thinking : (chat.input.isEmpty ? .idle : .typing))
-                Text(l10n.t(.aiAgent))
+                Text(l10n.t(.sonnetAI))
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer()

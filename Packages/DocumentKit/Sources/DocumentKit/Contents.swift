@@ -11,6 +11,9 @@ public struct CastMember: Identifiable, Codable, Sendable, Equatable, Hashable {
     public var accentHex: String
     /// 프로젝트 캐릭터 페이지(.scpa, character) 참조
     public var characterPageID: UUID?
+    /// 리허설 낭독 목소리 (AVSpeechSynthesisVoice identifier) — nil이면 자동 배정.
+    /// 선택적 필드라 구버전 파일과 양방향 호환된다.
+    public var voiceIdentifier: String?
 
     public init(
         id: UUID = UUID(),
@@ -18,7 +21,8 @@ public struct CastMember: Identifiable, Codable, Sendable, Equatable, Hashable {
         roleLine: String = "",
         symbolName: String = "person.fill",
         accentHex: String = "#5AC8FA",
-        characterPageID: UUID? = nil
+        characterPageID: UUID? = nil,
+        voiceIdentifier: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -26,6 +30,7 @@ public struct CastMember: Identifiable, Codable, Sendable, Equatable, Hashable {
         self.symbolName = symbolName
         self.accentHex = accentHex
         self.characterPageID = characterPageID
+        self.voiceIdentifier = voiceIdentifier
     }
 }
 
@@ -189,6 +194,8 @@ public enum PageBlockKind: String, Codable, CaseIterable, Sendable {
     case bulleted, numbered, task, toggle
     case quote, code, divider, callout
     case image, table
+    /// 다른 문서(.scen/.scpa/.scno)의 라이브 미리보기 삽입 (3b)
+    case embed
 }
 
 public struct PageBlock: Identifiable, Codable, Sendable, Equatable {
@@ -210,6 +217,8 @@ public struct PageBlock: Identifiable, Codable, Sendable, Equatable {
     public var sideBySide: Bool?
     /// table 블록: 행 × 열 문자열
     public var tableData: [[String]]?
+    /// embed 블록: 미리보기로 삽입한 문서 id
+    public var embeddedDocumentID: UUID?
 
     public init(
         id: UUID = UUID(),

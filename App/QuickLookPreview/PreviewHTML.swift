@@ -119,6 +119,7 @@ enum PreviewHTML {
             case .code: parts.append("<pre>\(text)</pre>")
             case .divider: parts.append("<hr class=\"divider\">")
             case .image: parts.append("<div class=\"placeholder\">🖼 이미지</div>")
+            case .embed: parts.append("<div class=\"placeholder\">📄 문서 임베드</div>")
             case .table:
                 guard let rows = block.tableData, !rows.isEmpty else { break }
                 var table = "<table>"

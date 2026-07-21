@@ -6,6 +6,7 @@ import DesignSystem
 import DocumentKit
 import FileManagerKit
 import Foundation
+import MarkdownEditor
 import Observation
 import RenderingKit
 import ScenarioEditor
@@ -16,6 +17,7 @@ import SwiftUI
 /// 탭 하나의 내용.
 enum TabContent: Hashable {
     case home
+    case projects
     case archive
     case aiChat
     case profile
@@ -262,11 +264,19 @@ final class AppState {
     private(set) var lastActiveDocumentID: UUID?
     /// 플로팅 에이전트 패널 (문서를 벗어나지 않고 대화) 표시 여부
     var showFloatingChat = false
+    /// ⌘K 커맨드 팔레트 표시 여부 — 레일 검색 버튼과 단축키가 공유한다
+    var showCommandPalette = false
+
+    /// 첫 실행 온보딩 표시 여부 — 새 워크스페이스 첫 실행 1회 + 설정에서 재실행.
+    var showOnboarding = false
+
     /// 윈도우가 전체화면 상태인지 — 헤더 레이아웃과 사이드바 픽셀 필드 배치가 이 값에 따라 갈린다
     var isFullscreen = false
+    /// 앱 활성 상태 — 비활성이면 장식 애니메이션(성운·도트 웨이브)을 정지해 절전한다
+    var isAppActive = true
 
-    /// 휴지통 이동 확인 대기 항목 (확인 팝업)
-    var pendingTrashItem: DocumentListItem?
+    /// 휴지통 이동 확인 대기 항목 (단건/다건 공용, 확인 팝업)
+    var pendingTrashItems: [DocumentListItem] = []
     /// 영구 삭제 확인 대기 항목 (단건/다건 공용, 확인 팝업)
     var pendingPermanentDeleteItems: [DocumentListItem] = []
     /// 프로젝트 삭제 확인 대기 (확인 팝업 → Finder 휴지통)
@@ -282,6 +292,7 @@ final class AppState {
     /// 하나의 탐색 지점 — 현재 선택된 탭이 무엇을 보여주고 있었는지를 나타낸다.
     enum NavigationStep: Equatable {
         case home
+        case projects
         case archive(category: ArchiveView.Category, projectID: UUID?)
         case aiChat
         case profile
@@ -327,6 +338,7 @@ final class AppState {
     private func apply(_ step: NavigationStep) {
         switch step {
         case .home: selectOrOpenHome()
+        case .projects: openProjectsTab()
         case .aiChat: openAIChatTab()
         case .profile: openProfileTab()
         case .archive(let category, let projectID): openArchiveTab(category: category, project: projectID)
@@ -378,8 +390,19 @@ final class AppState {
     var isDownloadingUpdate = false
     var isCreatingGuideProject = false
 
+    /// UI 테스트 모드 — `--uitest` 인자로 기동되면 참.
+    /// 스플래시 생략, 온보딩은 UITEST_ONBOARDING=1일 때만, 워크스페이스는
+    /// UITEST_WORKSPACE 경로(임시 격리)로 강제된다. 사용자 데이터는 건드리지 않는다.
+    static let isUITest = ProcessInfo.processInfo.arguments.contains("--uitest")
+
     init() {
-        let root = URL(fileURLWithPath: settings.applied.workspacePath, isDirectory: true)
+        // UI 테스트는 실제 사용자 워크스페이스 대신 격리 경로를 쓴다 (영속 설정은 오염 안 함)
+        let root: URL = if Self.isUITest,
+                           let path = ProcessInfo.processInfo.environment["UITEST_WORKSPACE"] {
+            URL(fileURLWithPath: path, isDirectory: true)
+        } else {
+            URL(fileURLWithPath: settings.applied.workspacePath, isDirectory: true)
+        }
         workspace = WorkspaceStore(rootURL: root)
         backupManager = BackupManager(workspaceRoot: root)
         selectedTabID = tabs.first?.id
@@ -458,6 +481,30 @@ final class AppState {
         pushNavigation(.aiChat)
     }
 
+    /// 프로젝트 화면 열기 — 프로젝트 카드 그리드 (레일·⌘K 공용).
+    func openProjectsTab() {
+        openSingletonTab(.projects)
+        pushNavigation(.projects)
+    }
+
+    // MARK: 새 프로젝트 (이름 입력 프롬프트)
+
+    /// 새 프로젝트 이름 입력 프롬프트 표시 — 모든 생성 진입점(홈·아카이브·프로젝트·⌘K·메뉴)이 공유.
+    var showNewProjectPrompt = false
+
+    func promptNewProject() {
+        showNewProjectPrompt = true
+    }
+
+    /// 이름으로 프로젝트를 만들고 아카이브의 해당 프로젝트로 이동한다.
+    @discardableResult
+    func createProjectAndReveal(name: String) -> ProjectFolder? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let project = try? workspace.createProject(name: trimmed) else { return nil }
+        openArchiveTab(category: .all, project: project.id)
+        return project
+    }
+
     /// 에이전트 호출의 단일 진입점 — 문서 작업 중이면 화면을 유지한 채 플로팅 패널을,
     /// 그 외(홈/아카이브 등)에는 채팅 탭을 연다. (✨ 버튼 · ⇧⌘A 공용)
     func toggleAgentSurface() {
@@ -517,19 +564,27 @@ final class AppState {
         }
     }
 
-    /// 휴지통 이동 요청 — 확인 팝업을 거친다.
+    /// 휴지통 이동 요청 — 확인 팝업을 거친다 (단건/다건 공용, 개별·다중이 같은 경로를 쓴다).
+    func requestTrash(_ items: [DocumentListItem]) {
+        guard !items.isEmpty else { return }
+        pendingTrashItems = items
+    }
+
     func requestTrash(_ item: DocumentListItem) {
-        pendingTrashItem = item
+        requestTrash([item])
     }
 
     func confirmPendingTrash() {
-        guard let item = pendingTrashItem else { return }
-        pendingTrashItem = nil
-        // 열려 있으면 탭부터 닫는다
-        if let tab = tabs.first(where: { $0.content == .document(item.id) }) {
-            closeTab(tab)
+        guard !pendingTrashItems.isEmpty else { return }
+        let items = pendingTrashItems
+        pendingTrashItems = []
+        for item in items {
+            // 열려 있으면 탭부터 닫는다
+            if let tab = tabs.first(where: { $0.content == .document(item.id) }) {
+                closeTab(tab)
+            }
+            workspace.moveToTrash(item)
         }
-        workspace.moveToTrash(item)
     }
 
     /// 영구 삭제 요청 — 확인 팝업을 거친다 (단건/다건 공용).
@@ -564,9 +619,15 @@ final class AppState {
     }
 
     /// ⌘1~9 — n번째 탭 선택.
+    /// ⌘1~9 — 홈은 로고 담당이라 제외한, 열린 탭 목록 기준 인덱스.
+    var openTabsExcludingHome: [OpenTab] {
+        tabs.filter { $0.content != .home }
+    }
+
     func selectTab(at index: Int) {
-        guard tabs.indices.contains(index) else { return }
-        selectExistingTab(tabs[index])
+        let list = openTabsExcludingHome
+        guard list.indices.contains(index) else { return }
+        selectExistingTab(list[index])
     }
 
     /// 탭 스트립에서 이미 열려 있는 탭을 직접 클릭해 전환할 때 — 뒤로/앞으로 히스토리에도 반영한다.
@@ -574,6 +635,7 @@ final class AppState {
     func selectExistingTab(_ tab: OpenTab) {
         switch tab.content {
         case .home: selectOrOpenHome()
+        case .projects: openProjectsTab()
         case .archive: openArchiveTab(category: lastKnownArchiveState.category, project: lastKnownArchiveState.projectID)
         case .aiChat: openAIChatTab()
         case .profile: openProfileTab()
@@ -597,18 +659,54 @@ final class AppState {
 
     /// 닫기 시도 중 저장에 실패한 탭 — 확인 다이얼로그(다시 시도/저장 없이 닫기/취소) 대기.
     var pendingSaveFailureTab: OpenTab?
+    /// '다른 탭 모두 닫기'처럼 여러 탭이 연달아 실패했을 때의 대기열 —
+    /// 다이얼로그 슬롯이 하나라 마지막 실패만 묻고 앞의 것들이 묻히던 문제 해소.
+    private var saveFailureQueue: [OpenTab] = []
 
     func closeTab(_ tab: OpenTab) {
         if case .document(let docID) = tab.content, let session = sessions[docID] {
             session.flush()
             // 저장이 실패한 채로 세션을 버리면 변경분이 조용히 사라진다 — 닫기를 보류하고 묻는다.
             if session.saveState == .error {
-                pendingSaveFailureTab = tab
+                if pendingSaveFailureTab == nil {
+                    pendingSaveFailureTab = tab
+                } else if pendingSaveFailureTab?.id != tab.id, !saveFailureQueue.contains(where: { $0.id == tab.id }) {
+                    saveFailureQueue.append(tab)
+                }
                 return
             }
             sessions.removeValue(forKey: docID)
         }
         removeTabFromStrip(tab)
+    }
+
+    /// 저장 실패 다이얼로그 하나를 처리한 뒤 다음 실패 탭을 이어서 묻는다.
+    /// (dismissal이 pendingSaveFailureTab을 nil로 만든 다음 프레임에 제시)
+    func advanceSaveFailureQueue() {
+        guard !saveFailureQueue.isEmpty else { return }
+        let next = saveFailureQueue.removeFirst()
+        DispatchQueue.main.async { [weak self] in
+            self?.pendingSaveFailureTab = next
+        }
+    }
+
+    /// 취소 — 남은 실패 탭들도 더 묻지 않는다 (전부 열린 채 안전하게 유지).
+    func cancelSaveFailureQueue() {
+        saveFailureQueue.removeAll()
+    }
+
+    /// 이 탭만 남기고 모두 닫기 — 탭별로 기존 닫기 흐름(저장 실패 확인 포함)을 그대로 탄다.
+    func closeOtherTabs(than tab: OpenTab) {
+        let others = tabs.filter { $0.id != tab.id }
+        for other in others { closeTab(other) }
+        if tabs.contains(where: { $0.id == tab.id }) { selectedTabID = tab.id }
+    }
+
+    /// 이 탭의 오른쪽 탭들을 닫기 — 탭별로 기존 닫기 흐름을 그대로 탄다.
+    func closeTabsToTheRight(of tab: OpenTab) {
+        guard let index = tabs.firstIndex(where: { $0.id == tab.id }) else { return }
+        let others = Array(tabs[(index + 1)...])
+        for other in others { closeTab(other) }
     }
 
     /// 저장 실패 확인 후 '저장하지 않고 닫기' — 플러시 없이 세션을 버린다.
@@ -1014,11 +1112,34 @@ final class AppState {
                         )
                     }
             }
+            // C안 — 인스펙터 편집을 캐릭터 문서(원본)로 넘긴다
+            store.onUpdateCharacterPage = { [weak self] pageID, name, role, symbolName, accentHex in
+                self?.updateCharacterPage(
+                    id: pageID, name: name, role: role, symbolName: symbolName, accentHex: accentHex
+                )
+            }
+            store.refreshCharacterIndex()
         case .page(let store):
-            guard session.document.envelope.isCharacterPage else { break }
             let selfID = session.id
             let projectID = session.document.envelope.projectID
             store.onOpenDocument = { [weak self] id in self?.openDocument(id: id) }
+            // 임베드 블록 (3b) — 자기 자신을 제외한 워크스페이스 문서 카탈로그 + 미리보기 로더
+            store.documentCatalog = { [weak self] in
+                guard let self else { return [] }
+                return workspace.visibleDocuments
+                    .filter { $0.id != selfID }
+                    .sorted { $0.envelope.modifiedAt > $1.envelope.modifiedAt }
+                    .map { (
+                        id: $0.id,
+                        title: $0.envelope.title,
+                        kind: $0.envelope.kind,
+                        isCharacter: $0.envelope.isCharacterPage
+                    ) }
+            }
+            store.embedPreviewLoader = { [weak self] id in
+                self?.loadEmbedPreview(id)
+            }
+            guard session.document.envelope.isCharacterPage else { break }
             store.characterCatalog = { [weak self] in
                 guard let self else { return [] }
                 return workspace.visibleDocuments
@@ -1028,12 +1149,134 @@ final class AppState {
             store.appearanceStats = { [weak self] in
                 self?.appearanceStats(forCharacterPage: selfID) ?? []
             }
+            // 관계 → 마인드맵 승격 (3c)
+            store.onPromoteRelations = { [weak self] pairs in
+                self?.promoteRelationsToMindmap(fromCharacterPage: selfID, pairs: pairs)
+            }
+        }
+    }
+
+    /// 3c — 캐릭터 관계망을 새 마인드맵(.scno) 문서로 승격해 연다.
+    /// 중심 = 캐릭터(잉크색), 관계 = 방사형 링크 노드(대상 캐릭터 페이지로 양방향 연결).
+    private func promoteRelationsToMindmap(
+        fromCharacterPage pageID: UUID,
+        pairs: [(relation: CharacterRelation, name: String)]
+    ) {
+        guard let session = sessions[pageID], !pairs.isEmpty else { return }
+        let characterName = session.title.isEmpty ? Localizer.shared.t(.untitled) : session.title
+        let accentHex: String? = {
+            if case .page(let store) = session.editor { return store.content.profile?.accentHex }
+            return nil
+        }()
+
+        var nodes: [MindMapNode] = [
+            MindMapNode(
+                kind: .page,
+                title: characterName,
+                x: 0, y: 0,
+                colorHex: accentHex,
+                linkedDocumentID: pageID
+            ),
+        ]
+        var edges: [MindMapEdge] = []
+        let total = pairs.count + 1
+        for (index, pair) in pairs.enumerated() {
+            let position = MindMapLayout.radial(index: index + 1, total: total)
+            let node = MindMapNode(
+                kind: .page,
+                title: pair.name,
+                detail: pair.relation.label,
+                x: position.x, y: position.y,
+                linkedDocumentID: pair.relation.targetPageID
+            )
+            nodes.append(node)
+            edges.append(MindMapEdge(fromID: nodes[0].id, toID: node.id, caption: pair.relation.label))
+        }
+
+        let project = workspace.project(id: session.document.envelope.projectID)
+        createAndOpenDocument(
+            title: "\(characterName) — \(Localizer.shared.t(.relationsTab))",
+            content: .mindmap(MindMapContent(nodes: nodes, edges: edges)),
+            in: project
+        )
+        notify(symbol: "point.3.connected.trianglepath.dotted",
+               message: "\(Localizer.shared.t(.promoteToMindmap)) \(characterName)")
+    }
+
+    /// 임베드 미리보기 캐시 — 렌더링마다 디스크를 읽지 않도록 수정 시각을 유효성 토큰으로 쓴다.
+    /// (열린 세션은 인메모리라 캐시 없이 항상 라이브)
+    private var embedPreviewCache: [UUID: (modifiedAt: Date, preview: EmbedPreview)] = [:]
+
+    /// 3b — 임베드 블록 미리보기: 대상 문서를 읽어 유형 배지·메타·앞부분 발췌를 만든다.
+    private func loadEmbedPreview(_ id: UUID) -> EmbedPreview? {
+        // 열려 있는 세션이 있으면 (디스크보다 최신인) 세션 내용을 우선한다 — '라이브' 미리보기
+        let content: DocumentContent?
+        let title: String
+        if let session = sessions[id] {
+            // 세션의 document.content는 스토어 변경이 즉시 반영된다 — '라이브' 미리보기
+            content = session.document.content
+            title = session.title
+        } else if let item = workspace.item(id: id) {
+            // 디스크 문서 — 수정 시각이 같으면 캐시 재사용, 바뀌었으면 재구축
+            if let cached = embedPreviewCache[id], cached.modifiedAt == item.envelope.modifiedAt {
+                return cached.preview
+            }
+            guard let loaded = try? DocumentPackageIO.read(from: item.url) else { return nil }
+            content = loaded.content
+            title = loaded.envelope.title
+            if let content, let preview = buildEmbedPreview(content: content, title: title) {
+                embedPreviewCache[id] = (item.envelope.modifiedAt, preview)
+                return preview
+            }
+            return nil
+        } else {
+            return nil
+        }
+        guard let content else { return nil }
+        return buildEmbedPreview(content: content, title: title)
+    }
+
+    private func buildEmbedPreview(content: DocumentContent, title: String) -> EmbedPreview? {
+        switch content {
+        case .scenario(let scenario):
+            let lines: [(String?, String)] = scenario.blocks
+                .filter { $0.kind == .line && !$0.text.isEmpty }
+                .prefix(3)
+                .map { block in
+                    let speaker = block.speakerIDs.first.flatMap { id in
+                        scenario.cast.first { $0.id == id }?.name
+                    }
+                    return (speaker, block.text)
+                }
+            var metaParts = ["대사 \(scenario.blocks.count { $0.kind == .line })"]
+            if !scenario.branches.isEmpty { metaParts.append("분기 \(scenario.branches.count)") }
+            return EmbedPreview(
+                typeBadge: ".scen", title: title,
+                meta: metaParts.joined(separator: " · "), lines: lines
+            )
+        case .page(let page):
+            let lines: [(String?, String)] = page.blocks
+                .filter { !$0.text.isEmpty }
+                .prefix(3)
+                .map { (nil, $0.text) }
+            return EmbedPreview(
+                typeBadge: page.profile != nil ? ".scpa ·인물" : ".scpa", title: title,
+                meta: "블록 \(page.blocks.count)", lines: lines
+            )
+        case .mindmap(let mindmap):
+            let lines: [(String?, String)] = mindmap.nodes
+                .prefix(3)
+                .map { (nil, $0.title) }
+            return EmbedPreview(
+                typeBadge: ".scno", title: title,
+                meta: "노드 \(mindmap.nodes.count) · 연결 \(mindmap.edges.count)", lines: lines
+            )
         }
     }
 
     /// 캐릭터의 등장 기록 — 워크스페이스 시나리오를 스캔해 대사 수 집계 (보조 정보).
-    private func appearanceStats(forCharacterPage pageID: UUID) -> [(title: String, lineCount: Int)] {
-        var results: [(title: String, lineCount: Int)] = []
+    private func appearanceStats(forCharacterPage pageID: UUID) -> [(id: UUID, title: String, lineCount: Int)] {
+        var results: [(id: UUID, title: String, lineCount: Int)] = []
         let scenarios = workspace.visibleDocuments.filter { $0.envelope.kind == .scenario }
         for item in scenarios {
             guard let loaded = try? DocumentPackageIO.read(from: item.url),
@@ -1044,7 +1287,7 @@ final class AppState {
             let count = allBlocks.filter { block in
                 block.kind == .line && !castIDs.isDisjoint(with: block.speakerIDs)
             }.count
-            results.append((title: item.envelope.title, lineCount: count))
+            results.append((id: item.envelope.id, title: item.envelope.title, lineCount: count))
         }
         return results.sorted { $0.lineCount > $1.lineCount }
     }
@@ -1070,7 +1313,10 @@ final class AppState {
 
     /// 시나리오 캐스트로부터 캐릭터 페이지(.scpa) 생성 — 같은 프로젝트의 world/에 만든다.
     /// 호출 직후 열어서 편집을 유도하며, 역시 실제 편집 전에는 디스크에 쓰지 않는다.
-    func createCharacterPage(for member: CastMember, linkedTo session: DocumentSession) -> UUID? {
+    /// 캐스트에 연결할 캐릭터 페이지(.scpa)를 만든다.
+    /// `activate: true`면 탭으로 열고(팝오버 '새 캐릭터'), `false`면 파일만 만들어
+    /// 탭을 열지 않는다(인스펙터 '캐릭터 추가' — 연속 추가 시 화면이 튀지 않게).
+    func createCharacterPage(for member: CastMember, linkedTo session: DocumentSession, activate: Bool = true) -> UUID? {
         let project = workspace.project(id: session.document.envelope.projectID)
         let document = workspace.createDocument(
             title: member.name.isEmpty ? Localizer.shared.t(.newCharacter) : member.name,
@@ -1078,11 +1324,62 @@ final class AppState {
             pageRole: .character,
             in: project
         )
-        let id = openUnsavedDocument(document)
-        // 캐스트가 이 UUID를 characterPageID로 즉시 참조하므로, 편집 전에 닫혀도
-        // 참조가 허공을 가리키지 않도록 지금 바로 디스크에 1회 저장해 둔다.
-        sessions[id]?.persistInitial()
-        return id
+        if activate {
+            let id = openUnsavedDocument(document)
+            // 캐스트가 이 UUID를 characterPageID로 즉시 참조하므로, 편집 전에 닫혀도
+            // 참조가 허공을 가리키지 않도록 지금 바로 디스크에 1회 저장해 둔다.
+            sessions[id]?.persistInitial()
+            return id
+        } else {
+            // 탭 없이 디스크에만 — 캐스트 클릭 시 openDocument로 로드된다.
+            guard (try? DocumentPackageIO.write(document)) != nil else { return nil }
+            workspace.scan()
+            return document.envelope.id
+        }
+    }
+
+    /// 캐릭터 문서를 시나리오 인스펙터 편집으로 갱신한다 (C안 — 문서가 원본).
+    /// 이름은 문서 제목, 역할·심볼·색은 프로필. 열려 있으면 세션 경유, 아니면 디스크 직접.
+    func updateCharacterPage(
+        id: UUID,
+        name: String?,
+        role: String?,
+        symbolName: String?,
+        accentHex: String?
+    ) {
+        // 열려 있는 세션 — 편집이 즉시 화면에 반영되고 자동저장을 탄다
+        if let session = sessions[id] {
+            if let name, !name.trimmingCharacters(in: .whitespaces).isEmpty {
+                session.title = name
+            }
+            if case .page(let store) = session.editor {
+                store.updateProfile { profile in
+                    if let role { profile.role = role }
+                    if let symbolName { profile.symbolName = symbolName }
+                    if let accentHex { profile.accentHex = accentHex }
+                }
+            }
+            return
+        }
+
+        // 닫힌 문서 — 디스크에서 읽어 고치고 다시 쓴다
+        guard let item = workspace.item(id: id),
+              var loaded = try? DocumentPackageIO.read(from: item.url)
+        else { return }
+        if let name, !name.trimmingCharacters(in: .whitespaces).isEmpty {
+            loaded.envelope.title = name
+        }
+        if case .page(var content) = loaded.content {
+            var profile = content.profile ?? CharacterProfile()
+            if let role { profile.role = role }
+            if let symbolName { profile.symbolName = symbolName }
+            if let accentHex { profile.accentHex = accentHex }
+            content.profile = profile
+            loaded.content = .page(content)
+        }
+        loaded.envelope.modifiedAt = Date()
+        guard (try? DocumentPackageIO.write(loaded)) != nil else { return }
+        workspace.scan()
     }
 
     /// 문서 이름 변경 — 열려 있으면 세션 경유(자동저장), 아니면 디스크에서 직접.
@@ -1120,8 +1417,9 @@ final class AppState {
         let l10n = Localizer.shared
         switch tab.content {
         case .home: return l10n.t(.home)
+        case .projects: return l10n.t(.project)
         case .archive: return l10n.t(.archive)
-        case .aiChat: return l10n.t(.aiAgent)
+        case .aiChat: return l10n.t(.sonnetAI)
         case .profile: return l10n.t(.profilePage)
         case .document(let docID):
             let title = sessions[docID]?.title ?? workspace.item(id: docID)?.envelope.title ?? ""
@@ -1132,6 +1430,7 @@ final class AppState {
     func tabSymbol(for tab: OpenTab) -> String {
         switch tab.content {
         case .home: "house"
+        case .projects: "folder"
         case .archive: "archivebox"
         case .aiChat: "sparkles"
         case .profile: "person.crop.circle"

@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
-"""Sonnet Create 앱 아이콘 + 브랜드 마크 생성기 (v1.3 통합 테마).
+"""Sonnet Create 앱 아이콘 + 브랜드 마크 생성기 (v2.0 인장 & 원고).
 
-딥네이비(#031C35) 그라데이션 스쿼클 위에 백색 깃털 — 앱의 "백색 캔버스 + 네이비
-액센트" 정체성을 아이콘에서는 반전시켜 Dock에서의 존재감을 준다. 깃털 실루엣은
-v1.2 아트워크에서 추출한 마스크(Scripts/assets/feather-mask.png)를 재사용한다 —
-팔레트가 또 바뀌면 이 스크립트만 다시 돌리면 된다.
+6g '잉크 스트로크' 확정안 — 버밀리온 145° 그라데이션(#C2482D→#8E2D18) 스쿼클 위에
+깃털을 45° 세 획으로 극단 추상화한 마크. 획은 뒤로 갈수록 흐려지며(불투명도
+100/75/45%) 잉크가 마르는 잔상을 남긴다. 곡선 없이, 형태가 아니라 '쓰는 동작'을
+새긴다. 획 색은 Paper(#F6F4EF).
 
 출력:
   App/SonnetCreate/Assets.xcassets/AppIcon.appiconset/icon_*.png  (10개 사이즈)
   App/SonnetCreate/Assets.xcassets/BrandMark.imageset/brandmark(.png|@2x.png)
-
-v1.3 테마 일원화로 AppIcon-Pilgrimage/System, BrandMark-Pilgrimage/System
-변형 세트는 삭제됐다 — 이 스크립트는 단일 세트만 만든다.
 """
 import math
 from pathlib import Path
@@ -26,10 +23,10 @@ BRANDMARK = REPO / "App/SonnetCreate/Assets.xcassets/BrandMark.imageset"
 S = 4
 CANVAS = 1024 * S
 
-# 통합 팔레트 (SonnetPalette와 동일 계열)
-NAVY_DEEP = (3, 28, 53)       # #031C35 — 브랜드 액센트
-NAVY_LIGHT = (13, 48, 80)     # 그라데이션 상단
-WHITE = (255, 255, 255)
+# 인장 & 원고 팔레트 (SonnetPalette v4와 동일 계열)
+SEAL_LIGHT = (194, 72, 45)    # #C2482D — 그라데이션 시작 (좌상)
+SEAL_DEEP = (142, 45, 24)     # #8E2D18 — 그라데이션 끝 (우하)
+PAPER = (246, 244, 239)       # #F6F4EF — 획 색
 
 # Apple 아이콘 그리드: 1024 캔버스에 콘텐츠 824px 중앙 배치
 ICON_SIZE = 824 * S
@@ -53,29 +50,32 @@ def superellipse_mask(size: int, n: float = 4.6) -> Image.Image:
     return mask
 
 
-def vertical_gradient(size: int, top: tuple, bottom: tuple) -> Image.Image:
-    """세로 그라데이션 타일."""
-    grad = Image.new("RGB", (1, size))
+def diagonal_gradient(size: int, start: tuple, end: tuple) -> Image.Image:
+    """145° 대각 그라데이션 (좌상 → 우하)."""
+    grad = Image.new("RGB", (size, size))
     px = grad.load()
-    for y in range(size):
-        t = y / (size - 1)
-        px[0, y] = tuple(round(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
-    return grad.resize((size, size))
+    # 145° ≈ 정규화된 (x+y) 축을 따라 보간
+    for y in range(0, size, S):
+        for x in range(0, size, S):
+            t = (x + y) / (2 * (size - 1))
+            color = tuple(round(start[i] + (end[i] - start[i]) * t) for i in range(3))
+            for dy in range(S):
+                for dx in range(S):
+                    if x + dx < size and y + dy < size:
+                        px[x + dx, y + dy] = color
+    return grad
 
 
-# ---------------------------------------------------------------------------
-# 깃털 실루엣 — v1.2 아이콘 아트워크에서 추출한 마스크(Scripts/assets/feather-mask.png).
-# 실루엣은 검증된 기존 디자인을 유지하고 팔레트만 통합 테마로 갈아입힌다.
-# 마스크는 1024 캔버스 기준이며 스쿼클이 (101,101)-(923,923)에 있었다 —
-# 새 그리드(824 중앙)와 동일하므로 그 영역을 잘라 그대로 쓴다.
-# ---------------------------------------------------------------------------
-
-FEATHER_SRC = REPO / "Scripts/assets/feather-mask.png"
-
-
-def load_feather_mask(size: int) -> Image.Image:
-    mask = Image.open(FEATHER_SRC).convert("L")
-    return mask.crop((101, 101, 923, 923)).resize((size, size), Image.LANCZOS)
+def stroke_layer(size: int, p1: tuple, p2: tuple, width: int, alpha: int) -> Image.Image:
+    """둥근 캡 선 한 획 — 겹침 시 알파가 서로를 지우지 않도록 획마다 독립 레이어."""
+    layer = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(layer)
+    color = PAPER + (alpha,)
+    draw.line([p1, p2], fill=color, width=width)
+    r = width / 2
+    for p in (p1, p2):
+        draw.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=color)
+    return layer
 
 
 def render_master() -> Image.Image:
@@ -84,30 +84,41 @@ def render_master() -> Image.Image:
 
     squircle = superellipse_mask(ICON_SIZE)
 
-    # 드롭섀도 — 기존 아이콘과 같은 결 (아래로 살짝, 부드럽게)
+    # 드롭섀도 — 버밀리온 기운이 살짝 도는 부드러운 그림자
     shadow = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
-    shadow_layer = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (0, 0, 0, 110))
+    shadow_layer = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), (120, 40, 20, 110))
     shadow.paste(shadow_layer, (ICON_ORIGIN, ICON_ORIGIN + 10 * S), squircle)
     shadow = shadow.filter(ImageFilter.GaussianBlur(14 * S))
     canvas = Image.alpha_composite(canvas, shadow)
 
-    # 스쿼클 본체 — 네이비 그라데이션
-    body = vertical_gradient(ICON_SIZE, NAVY_LIGHT, NAVY_DEEP).convert("RGBA")
+    # 스쿼클 본체 — 버밀리온 145° 그라데이션
+    body = diagonal_gradient(ICON_SIZE, SEAL_LIGHT, SEAL_DEEP).convert("RGBA")
 
     # 상단 미세 하이라이트 (유리 느낌 한 스푼)
     highlight = Image.new("L", (ICON_SIZE, ICON_SIZE), 0)
     hl_draw = ImageDraw.Draw(highlight)
     hl_draw.ellipse(
         [-ICON_SIZE * 0.25, -ICON_SIZE * 0.55, ICON_SIZE * 1.25, ICON_SIZE * 0.42],
-        fill=26,
+        fill=18,
     )
     highlight = highlight.filter(ImageFilter.GaussianBlur(30 * S))
     body = Image.composite(Image.new("RGBA", body.size, (255, 255, 255, 255)), body, highlight)
 
-    # 깃털 (백색) — 슬릿/노치는 마스크에서 빠져 배경이 비친다
-    feather = load_feather_mask(ICON_SIZE)
-    white_layer = Image.new("RGBA", (ICON_SIZE, ICON_SIZE), WHITE + (255,))
-    body.paste(white_layer, (0, 0), feather)
+    # 잉크 스트로크 3획 — 24 그리드를 아이콘 콘텐츠 영역(중앙 66%)에 사상.
+    # 획마다 독립 레이어로 순차 합성 (겹치는 반투명 획이 앞 획을 지우지 않게).
+    grid = ICON_SIZE * 0.66 / 24
+    origin = ICON_SIZE * 0.17
+
+    def pt(x: float, y: float) -> tuple:
+        return (origin + x * grid, origin + y * grid)
+
+    width = round(2.2 * grid)
+    for p1, p2, alpha in (
+        (pt(4.5, 20.5), pt(19.5, 4.5), 255),
+        (pt(9.5, 15.5), pt(15.0, 10.0), 191),
+        (pt(12.5, 18.5), pt(18.0, 13.0), 115),
+    ):
+        body = Image.alpha_composite(body, stroke_layer(ICON_SIZE, p1, p2, width, alpha))
 
     piece = Image.new("RGBA", (CANVAS, CANVAS), (0, 0, 0, 0))
     piece.paste(body, (ICON_ORIGIN, ICON_ORIGIN), squircle)
@@ -119,13 +130,13 @@ def main():
     master = render_master()
 
     APPICON.mkdir(parents=True, exist_ok=True)
-    for pt in (16, 32, 128, 256, 512):
+    for pt_size in (16, 32, 128, 256, 512):
         for scale, suffix in ((1, ""), (2, "@2x")):
-            px = pt * scale
-            master.resize((px, px), Image.LANCZOS).save(APPICON / f"icon_{pt}x{pt}{suffix}.png")
-            print(f"appicon {pt}x{pt}{suffix} -> {px}px")
+            px = pt_size * scale
+            master.resize((px, px), Image.LANCZOS).save(APPICON / f"icon_{pt_size}x{pt_size}{suffix}.png")
+            print(f"appicon {pt_size}x{pt_size}{suffix} -> {px}px")
 
-    # 브랜드 마크 — 헤더 18pt 마크용, 같은 아트워크 (60pt/1x·2x)
+    # 브랜드 마크 — 같은 아트워크 (60pt/1x·2x)
     BRANDMARK.mkdir(parents=True, exist_ok=True)
     master.resize((512, 512), Image.LANCZOS).save(BRANDMARK / "brandmark@2x.png")
     master.resize((256, 256), Image.LANCZOS).save(BRANDMARK / "brandmark.png")
